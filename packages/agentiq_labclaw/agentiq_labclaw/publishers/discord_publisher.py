@@ -19,7 +19,7 @@ class DiscordPublisher:
     def enabled(self) -> bool:
         return bool(self.webhook_url)
 
-    def send_message(self, content: str, username: str = "XPC Labs") -> bool:
+    def send_message(self, content: str, username: str = "OpenCure Labs") -> bool:
         """Send a text message to Discord."""
         if not self.enabled:
             logger.warning("Discord webhook not configured, skipping publish")
@@ -35,7 +35,7 @@ class DiscordPublisher:
             return False
 
     def send_embed(self, title: str, description: str, fields: list[dict] | None = None,
-                   color: int = 0x5865F2, username: str = "XPC Labs") -> bool:
+                   color: int = 0x5865F2, username: str = "OpenCure Labs") -> bool:
         """Send a rich embed to Discord."""
         if not self.enabled:
             logger.warning("Discord webhook not configured, skipping publish")

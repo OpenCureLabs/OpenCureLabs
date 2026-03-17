@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ──────────────────────────────────────────────────────────────────────────────
-#  XPC Labs — Clean Shutdown
+#  OpenCure Labs — Clean Shutdown
 #  Auto-saves uncommitted work, pushes to GitHub, then tears down the session.
 #
 #  Usage:  ./scripts/stop.sh
@@ -8,12 +8,12 @@
 set -uo pipefail
 
 PROJECT="/root/xpc-labs"
-SESSION="xpclabs"
+SESSION="opencurelabs"
 
 cd "$PROJECT"
 
 echo "╔══════════════════════════════════════╗"
-echo "║     XPC Labs — Shutting Down         ║"
+echo "║     OpenCure Labs — Shutting Down         ║"
 echo "╚══════════════════════════════════════╝"
 
 # ── 1. Auto-commit any uncommitted changes ───────────────────────────────────

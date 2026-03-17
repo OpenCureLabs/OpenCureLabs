@@ -1,5 +1,5 @@
 """
-agentiq_labclaw — Scientific skill layer for XPC Labs.
+agentiq_labclaw — Scientific skill layer for OpenCure Labs.
 
 Built on NVIDIA NeMo Agent Toolkit (AgentIQ), LabClaw provides domain-specific
 scientific skills, guardrails, and connectors for computational biology workflows.

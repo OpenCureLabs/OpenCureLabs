@@ -2,7 +2,7 @@
 
 ## What is LabClaw?
 
-LabClaw is the **scientific skill layer** that sits on top of the NVIDIA NeMo Agent Toolkit (AgentIQ). It is not a separate framework — it is XPC Labs' domain-specific extension of NeMo that makes general-purpose agent orchestration useful for computational biology.
+LabClaw is the **scientific skill layer** that sits on top of the NVIDIA NeMo Agent Toolkit (AgentIQ). It is not a separate framework — it is OpenCure Labs' domain-specific extension of NeMo that makes general-purpose agent orchestration useful for computational biology.
 
 Think of the relationship like this:
 
@@ -16,7 +16,7 @@ Think of the relationship like this:
 │  ┌───────────────────────────────────────────┐  │
 │  │               LabClaw                      │  │
 │  │  The scientific skill registry and         │  │
-│  │  domain logic layer — the XPC Labs         │  │
+│  │  domain logic layer — the OpenCure Labs         │  │
 │  │  plugin that lives inside NeMo AgentIQ     │  │
 │  │                                            │  │
 │  │  ┌─────────────────────────────────────┐  │  │
@@ -183,7 +183,7 @@ guardrails:
 publishers:
   github:
     enabled: true
-    repo: git@github.com:ShoneAnstey/XPCLabs.git
+    repo: git@github.com:ShoneAnstey/OpenCureLabs.git
   discord:
     enabled: true
     webhook_url: ${DISCORD_WEBHOOK_URL}
@@ -269,7 +269,7 @@ Grok communicates back to LabClaw via a dedicated `register_discovered_source` s
 
 ## PostgreSQL Integration
 
-LabClaw reads and writes to the `xpclabs` PostgreSQL database for all persistent state. Connection string is read from the environment: `POSTGRES_URL=postgresql://localhost/xpclabs`.
+LabClaw reads and writes to the `opencurelabs` PostgreSQL database for all persistent state. Connection string is read from the environment: `POSTGRES_URL=postgresql://localhost/opencurelabs`.
 
 All database interactions go through the `agentiq_labclaw.db` module — skills never write to PostgreSQL directly.
 

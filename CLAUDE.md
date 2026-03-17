@@ -1,4 +1,4 @@
-# CLAUDE.md — XPC Labs Agent Context
+# CLAUDE.md — OpenCure Labs Agent Context
 
 > Read this file at the start of every session. It is the operational context for
 > all Claude Code agents working in this repository.
@@ -7,7 +7,7 @@
 
 ## Project Overview
 
-XPC Labs is an autonomous AI-for-Science platform built on multi-agent
+OpenCure Labs is an autonomous AI-for-Science platform built on multi-agent
 orchestration. It runs computational biology pipelines — genomics analysis,
 protein structure prediction, molecular docking, QSAR modeling — through
 specialist agents coordinated by NVIDIA NeMo Agent Toolkit (AgentIQ).
@@ -91,8 +91,8 @@ nat run --config_file coordinator/labclaw_workflow.yaml --input "your task here"
 
 ## PostgreSQL
 
-- **Database:** `xpclabs`
-- **Connection:** `postgresql://localhost/xpclabs` (local, no auth in dev)
+- **Database:** `opencurelabs`
+- **Connection:** `postgresql://localhost/opencurelabs` (local, no auth in dev)
 - **Start service:** `service postgresql start`
 - **Tables:** agent_runs, discovered_sources, pipeline_runs, critique_log, experiment_results
 
@@ -107,6 +107,6 @@ nat run --config_file coordinator/labclaw_workflow.yaml --input "your task here"
 
 ## GitHub
 
-- **Repo:** git@github.com:ShoneAnstey/XPCLabs.git
+- **Repo:** git@github.com:ShoneAnstey/OpenCureLabs.git
 - **Remote:** SSH-based (no password commits)
-- **Identity:** `agent@xpclabs` / `XPC Labs Agent`
+- **Identity:** `agent@opencurelabs` / `OpenCure Labs Agent`

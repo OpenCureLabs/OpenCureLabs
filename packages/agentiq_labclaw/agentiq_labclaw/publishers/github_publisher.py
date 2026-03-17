@@ -8,7 +8,7 @@ logger = logging.getLogger("labclaw.publishers.github")
 
 
 class GitHubPublisher:
-    """Commits and pushes results to the XPC Labs GitHub repository."""
+    """Commits and pushes results to the OpenCure Labs GitHub repository."""
 
     def __init__(self, repo_path: str = "/root/xpc-labs"):
         self.repo_path = Path(repo_path)

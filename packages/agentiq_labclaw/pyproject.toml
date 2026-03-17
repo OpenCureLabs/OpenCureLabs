@@ -5,7 +5,7 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "agentiq_labclaw"
 version = "0.1.0"
-description = "LabClaw — Scientific skill layer for XPC Labs, built on NVIDIA NeMo AgentIQ"
+description = "LabClaw — Scientific skill layer for OpenCure Labs, built on NVIDIA NeMo AgentIQ"
 requires-python = ">=3.11"
 dependencies = [
     "pydantic>=2.0",

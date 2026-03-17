@@ -1,7 +1,7 @@
-# XPC Labs — Agent Bootstrap Instructions
+# OpenCure Labs — Agent Bootstrap Instructions
 
 You have root access and full control of a private WSL2 VM running Ubuntu 24.04
-on a dedicated NVMe (D:\WSL\XPC-Labs). The project is XPC Labs — an autonomous
+on a dedicated NVMe (D:\WSL\OpenCure-Labs). The project is OpenCure Labs — an autonomous
 AI-for-Science platform. Read /root/xpc-labs/README.md for full context before
 doing anything.
 
@@ -37,7 +37,7 @@ NVIDIA_API_KEY=
 XAI_API_KEY=
 ANTHROPIC_API_KEY=
 DISCORD_WEBHOOK_URL=
-POSTGRES_URL=postgresql://localhost/xpclabs
+POSTGRES_URL=postgresql://localhost/opencurelabs
 VAST_AI_KEY=
 ```
 
@@ -111,39 +111,39 @@ agents at the start of every session. It should contain:
   - Never overwrite README.md — it is the source of truth
 - Agent roles and responsibilities
 - How to run the coordinator: `nat run --config_file coordinator/workflow.yaml`
-- PostgreSQL connection: `postgresql://localhost/xpclabs` (local, no auth in dev)
+- PostgreSQL connection: `postgresql://localhost/opencurelabs` (local, no auth in dev)
 - Discord logging webhook: read from .env as DISCORD_WEBHOOK_URL
-- GitHub repo: https://github.com/ShoneAnstey/XPCLabs
+- GitHub repo: https://github.com/ShoneAnstey/OpenCureLabs
 
 ### 4. GitHub setup (no password commits)
 
 ```bash
 # Generate SSH key (no passphrase)
-ssh-keygen -t ed25519 -C "xpclabs-agent" -f ~/.ssh/xpclabs -N ""
+ssh-keygen -t ed25519 -C "opencurelabs-agent" -f ~/.ssh/opencurelabs -N ""
 
 # Display public key — add this to GitHub Settings → SSH Keys
-cat ~/.ssh/xpclabs.pub
+cat ~/.ssh/opencurelabs.pub
 
 # Configure SSH to use this key for GitHub
 cat >> ~/.ssh/config << EOF
 Host github.com
   HostName github.com
   User git
-  IdentityFile ~/.ssh/xpclabs
+  IdentityFile ~/.ssh/opencurelabs
   IdentitiesOnly yes
 EOF
 
 chmod 600 ~/.ssh/config
 
 # Git identity
-git config --global user.email "agent@xpclabs"
-git config --global user.name "XPC Labs Agent"
+git config --global user.email "agent@opencurelabs"
+git config --global user.name "OpenCure Labs Agent"
 ```
 
 After the public key has been added to GitHub, set the remote:
 
 ```bash
-git remote set-url origin git@github.com:ShoneAnstey/XPCLabs.git
+git remote set-url origin git@github.com:ShoneAnstey/OpenCureLabs.git
 
 # Test connection
 ssh -T git@github.com
@@ -175,7 +175,7 @@ EOF
 git status   # .env must NOT appear here
 
 git add .
-git commit -m "feat: initial XPC Labs bootstrap"
+git commit -m "feat: initial OpenCure Labs bootstrap"
 git branch -M main
 git push -u origin main
 ```
@@ -186,10 +186,10 @@ Using the gh CLI (must be authenticated: `gh auth login`):
 
 ```bash
 # Create Project board
-gh project create --owner ShoneAnstey --title "XPC Labs" --format json
+gh project create --owner ShoneAnstey --title "OpenCure Labs" --format json
 
 # Enable Wiki (via API)
-gh api repos/ShoneAnstey/XPCLabs -X PATCH -f has_wiki=true
+gh api repos/ShoneAnstey/OpenCureLabs -X PATCH -f has_wiki=true
 ```
 
 Create wiki pages for: Home, Architecture, Agents, Data Sources,
@@ -201,8 +201,8 @@ Compute Infrastructure, Roadmap — pulling content from README.md sections.
 service postgresql start
 
 sudo -u postgres psql << EOF
-CREATE DATABASE xpclabs;
-\c xpclabs
+CREATE DATABASE opencurelabs;
+\c opencurelabs
 
 CREATE TABLE agent_runs (
   id SERIAL PRIMARY KEY,
@@ -261,4 +261,4 @@ EOF
 - Always activate venv before running Python: `source /root/xpc-labs/.venv/bin/activate`
 - All agent activity logs to `logs/` directory and Discord webhook
 - README.md is the source of truth — never overwrite it
-- GitHub repo: https://github.com/ShoneAnstey/XPCLabs
+- GitHub repo: https://github.com/ShoneAnstey/OpenCureLabs

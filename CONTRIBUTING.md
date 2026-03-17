@@ -1,12 +1,12 @@
-# Contributing to XPC Labs
+# Contributing to OpenCure Labs
 
 ## Welcome
 
-XPC Labs is an autonomous AI-for-Science platform that runs computational biology pipelines — genomics analysis, neoantigen prediction, molecular docking, QSAR modeling — through multi-agent orchestration. It is open science infrastructure, not a typical software project.
+OpenCure Labs is an autonomous AI-for-Science platform that runs computational biology pipelines — genomics analysis, neoantigen prediction, molecular docking, QSAR modeling — through multi-agent orchestration. It is open science infrastructure, not a typical software project.
 
 Contributions here have scientific impact. Every pipeline improvement, every new data connector, every bug fix makes personalized medicine tools more accessible to researchers who need them.
 
-This project was inspired by Paul Conyngham's work building a personalized cancer vaccine for his dog Rosie — a remarkable story of one engineer using AI and open data to do something oncology labs hadn't done for his case. XPC Labs is building the open, repeatable, automated version of that pipeline so **any researcher, anywhere** can run it. See [README.md](README.md) for the full project context.
+This project was inspired by Paul Conyngham's work building a personalized cancer vaccine for his dog Rosie — a remarkable story of one engineer using AI and open data to do something oncology labs hadn't done for his case. OpenCure Labs is building the open, repeatable, automated version of that pipeline so **any researcher, anywhere** can run it. See [README.md](README.md) for the full project context.
 
 ---
 
@@ -29,8 +29,8 @@ There are many entry points, whether you're a biologist, engineer, or someone wh
 The fastest way to contribute is to clone the repo, run the neoantigen pipeline on the synthetic test data, and report what worked and what didn't. Real feedback from real environments is invaluable.
 
 ```bash
-git clone https://github.com/ShoneAnstey/XPCLabs.git
-cd XPCLabs
+git clone https://github.com/ShoneAnstey/OpenCureLabs.git
+cd OpenCureLabs
 python3 -m venv .venv && source .venv/bin/activate
 pip install -e packages/agentiq_labclaw
 python tests/test_neoantigen.py
@@ -56,7 +56,7 @@ Add test cases with synthetic data for existing skills. Every skill should have 
 
 ### Documentation
 
-Improve setup guides, add worked examples, write tutorials showing how to use XPC Labs for specific research questions. Good docs lower the barrier for every contributor after you.
+Improve setup guides, add worked examples, write tutorials showing how to use OpenCure Labs for specific research questions. Good docs lower the barrier for every contributor after you.
 
 ### Report bugs
 
@@ -74,8 +74,8 @@ Assumes Ubuntu 22.04+ or WSL2.
 
 ```bash
 # Clone
-git clone https://github.com/ShoneAnstey/XPCLabs.git
-cd XPCLabs
+git clone https://github.com/ShoneAnstey/OpenCureLabs.git
+cd OpenCureLabs
 
 # Python environment
 python3 -m venv .venv
@@ -90,8 +90,8 @@ mhcflurry-downloads fetch models_class1 models_class1_pan models_class1_presenta
 # PostgreSQL (optional — needed for full pipeline runs with DB logging)
 sudo apt install postgresql -y
 sudo service postgresql start
-sudo -u postgres psql -c "CREATE DATABASE xpclabs;"
-psql -d xpclabs -f db/schema.sql
+sudo -u postgres psql -c "CREATE DATABASE opencurelabs;"
+psql -d opencurelabs -f db/schema.sql
 
 # Environment variables
 cp .env.example .env
@@ -107,7 +107,7 @@ Expected output: 6 strong binders from KRAS G12V, 2 weak binders from TP53 R175H
 
 ## How to Implement a New Skill
 
-Skills are the core scientific modules in XPC Labs. Each one wraps a computational biology pipeline behind a standard interface so the coordinator can invoke it, guardrails can validate it, and reviewers can critique it.
+Skills are the core scientific modules in OpenCure Labs. Each one wraps a computational biology pipeline behind a standard interface so the coordinator can invoke it, guardrails can validate it, and reviewers can critique it.
 
 ### Where it goes
 
@@ -255,7 +255,7 @@ class YourConnector:
         ...
 
     def normalize(self, raw: dict) -> dict:
-        """Normalize raw API response to XPC Labs internal format."""
+        """Normalize raw API response to OpenCure Labs internal format."""
         ...
 ```
 
@@ -274,7 +274,7 @@ See [`packages/agentiq_labclaw/agentiq_labclaw/connectors/chembl.py`](packages/a
 
 ## Scientific Accuracy Standards
 
-XPC Labs produces results that could inform real research decisions. We take this seriously.
+OpenCure Labs produces results that could inform real research decisions. We take this seriously.
 
 - **Cite your methods.** All pipeline logic must reference the underlying algorithm, paper, or tool. If you implement a binding prediction step, cite which predictor and which version.
 - **Calibrate confidence scores.** Document what the score means, what range it operates in, and how it was calibrated. A number without context is meaningless.

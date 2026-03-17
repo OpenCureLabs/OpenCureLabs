@@ -1,4 +1,4 @@
-# 🧬 XPC Labs — Autonomous AI-for-Science Platform
+# 🧬 OpenCure Labs — Autonomous AI-for-Science Platform
 
 > An open, transparent, multi-agent computational research lab — running real scientific pipelines, iterating autonomously, and sharing every step live with the world.
 
@@ -25,9 +25,9 @@ See also: **[CONTRIBUTING.md](CONTRIBUTING.md)** — full guide for researchers 
 
 ## Overview
 
-XPC Labs is an autonomous AI-for-Science environment built to explore **computational biology**, **personalized medicine**, and **large-scale scientific workflows** through multi-agent orchestration.
+OpenCure Labs is an autonomous AI-for-Science environment built to explore **computational biology**, **personalized medicine**, and **large-scale scientific workflows** through multi-agent orchestration.
 
-Rather than a traditional research pipeline with manual handoffs, XPC Labs runs **agents that coordinate, critique, and iterate** — analyzing genomics data, predicting protein structures, running docking simulations, and publishing findings, all with minimal human bottlenecking.
+Rather than a traditional research pipeline with manual handoffs, OpenCure Labs runs **agents that coordinate, critique, and iterate** — analyzing genomics data, predicting protein structures, running docking simulations, and publishing findings, all with minimal human bottlenecking.
 
 Everything is logged publicly to **Discord** in real time so anyone can follow the reasoning, question the methods, and engage with the science as it happens.
 
@@ -102,7 +102,7 @@ Everything is logged publicly to **Discord** in real time so anyone can follow t
 
 ## Data Sources
 
-XPC Labs ingests data from three primary scientific repositories — plus a continuously expanding pool of sources discovered autonomously by the Grok researcher agent:
+OpenCure Labs ingests data from three primary scientific repositories — plus a continuously expanding pool of sources discovered autonomously by the Grok researcher agent:
 
 ### Pre-configured Sources
 
@@ -160,7 +160,7 @@ Builds quantitative structure–activity relationship models, runs molecular doc
 
 ## Compute Infrastructure
 
-XPC Labs is designed for hybrid local/cloud execution:
+OpenCure Labs is designed for hybrid local/cloud execution:
 
 ### Local Compute
 
@@ -224,7 +224,7 @@ The Discord stream is designed to be human-readable: anyone, regardless of techn
 
 ## Scientific Capabilities
 
-XPC Labs is currently capable of or actively building toward:
+OpenCure Labs is currently capable of or actively building toward:
 
 - [x] Sequencing data ingestion and QC (TCGA/GEO)
 - [x] Somatic mutation calling and annotation
@@ -264,7 +264,7 @@ XPC Labs is currently capable of or actively building toward:
 
 ## Philosophy
 
-XPC Labs is built on three principles:
+OpenCure Labs is built on three principles:
 
 **Open Science by Default.** All code, data sources, methodology, and agent reasoning are public. Science advances faster when it's visible.
 
@@ -291,7 +291,7 @@ XPC Labs is built on three principles:
 
 ```bash
 # Clone the repository
-git clone https://github.com/xpclabs/xpc-labs.git
+git clone https://github.com/ShoneAnstey/OpenCureLabs.git
 cd xpc-labs
 
 # Create and activate virtual environment
@@ -339,7 +339,7 @@ grok --max-tool-rounds 200 --prompt "monitor EBI and GEO for new BRCA sequencing
 
 ## Contributing
 
-XPC Labs is an open-science project. Contributions are welcome from computational biologists, AI/ML engineers, and open science enthusiasts.
+OpenCure Labs is an open-science project. Contributions are welcome from computational biologists, AI/ML engineers, and open science enthusiasts.
 
 **Read the full guide: [CONTRIBUTING.md](CONTRIBUTING.md)**
 
@@ -356,4 +356,4 @@ Please open an issue before starting significant work so we can coordinate.
 
 ---
 
-*XPC Labs — built in public, run by agents, reviewed by science.*
+*OpenCure Labs — built in public, run by agents, reviewed by science.*

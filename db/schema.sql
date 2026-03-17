@@ -1,9 +1,9 @@
--- XPC Labs PostgreSQL Schema
--- Database: xpclabs
+-- OpenCure Labs PostgreSQL Schema
+-- Database: opencurelabs
 -- Run: sudo -u postgres psql -p 5433 -f db/schema.sql
 
-CREATE DATABASE xpclabs;
-\c xpclabs
+CREATE DATABASE opencurelabs;
+\c opencurelabs
 
 CREATE TABLE IF NOT EXISTS agent_runs (
   id SERIAL PRIMARY KEY,

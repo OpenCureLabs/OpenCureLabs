@@ -1,5 +1,5 @@
 # coordinator/labclaw_workflow.yaml
-# XPC Labs — NeMo AgentIQ coordinator workflow configuration
+# OpenCure Labs — NeMo AgentIQ coordinator workflow configuration
 #
 # Run with: nat run --config_file coordinator/labclaw_workflow.yaml --input "your task"
 
@@ -66,7 +66,7 @@ guardrails:
 publishers:
   github:
     enabled: true
-    repo: https://github.com/ShoneAnstey/XPCLabs.git
+    repo: https://github.com/ShoneAnstey/OpenCureLabs.git
   discord:
     enabled: true
     webhook_url: ${DISCORD_WEBHOOK_URL}
