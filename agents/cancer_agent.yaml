@@ -1,0 +1,41 @@
+# Cancer Agent — Tumor Immunology specialist configuration
+#
+# Processes cancer genomics data to identify somatic mutations,
+# predict neoantigens, and model tumor-immune microenvironments.
+
+agent:
+  name: cancer_agent
+  role: Tumor Immunology
+  compute: local  # RTX 5070
+
+  skills:
+    - neoantigen_prediction
+    - sequencing_qc
+    - structure_prediction
+
+  data_sources:
+    - TCGA
+    - GEO
+
+  pipelines:
+    somatic_mutation_calling:
+      description: "Identify somatic mutations from tumor/normal paired sequencing"
+      steps:
+        - sequencing_qc
+        - alignment  # BWA-MEM2
+        - variant_calling  # Mutect2
+        - annotation  # VEP/Funcotator
+
+    neoantigen_pipeline:
+      description: "Predict neoantigens from somatic variants and HLA typing"
+      steps:
+        - somatic_mutation_calling
+        - hla_typing  # OptiType
+        - neoantigen_prediction
+
+    tumor_microenvironment:
+      description: "Model tumor-immune microenvironment from expression data"
+      steps:
+        - sequencing_qc
+        - expression_deconvolution  # CIBERSORTx
+        - immune_cell_quantification

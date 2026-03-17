@@ -1,0 +1,75 @@
+# coordinator/labclaw_workflow.yaml
+# XPC Labs — NeMo AgentIQ coordinator workflow configuration
+#
+# Run with: nat run --config_file coordinator/labclaw_workflow.yaml --input "your task"
+
+llms:
+  coordinator_llm:
+    _type: openai_client
+    base_url: http://localhost:11434/v1   # Ollama local endpoint
+    model_name: llama3.1
+    temperature: 0.0
+
+functions:
+  neoantigen_prediction:
+    _type: labclaw_skill
+    skill_name: neoantigen_prediction
+
+  structure_prediction:
+    _type: labclaw_skill
+    skill_name: structure_prediction
+
+  molecular_docking:
+    _type: labclaw_skill
+    skill_name: molecular_docking
+
+  qsar:
+    _type: labclaw_skill
+    skill_name: qsar
+
+  variant_pathogenicity:
+    _type: labclaw_skill
+    skill_name: variant_pathogenicity
+
+  sequencing_qc:
+    _type: labclaw_skill
+    skill_name: sequencing_qc
+
+  register_discovered_source:
+    _type: labclaw_skill
+    skill_name: register_source
+
+  report_generator:
+    _type: labclaw_skill
+    skill_name: report_generator
+
+workflow:
+  _type: react_agent
+  llm_name: coordinator_llm
+  tool_names:
+    - neoantigen_prediction
+    - structure_prediction
+    - molecular_docking
+    - qsar
+    - variant_pathogenicity
+    - sequencing_qc
+    - register_discovered_source
+    - report_generator
+  verbose: true
+  parse_agent_response_max_retries: 3
+
+guardrails:
+  output_validation: true
+  novelty_filter: true
+  safety_check: true
+
+publishers:
+  github:
+    enabled: true
+    repo: https://github.com/ShoneAnstey/XPCLabs.git
+  discord:
+    enabled: true
+    webhook_url: ${DISCORD_WEBHOOK_URL}
+  pdf:
+    enabled: true
+    output_dir: /root/xpc-labs/reports/

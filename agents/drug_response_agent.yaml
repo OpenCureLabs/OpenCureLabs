@@ -1,0 +1,42 @@
+# Drug Response Agent — QSAR + Docking specialist configuration
+#
+# Builds QSAR models, runs molecular docking simulations,
+# and predicts compound efficacy profiles using ChEMBL data.
+
+agent:
+  name: drug_response_agent
+  role: QSAR + Molecular Docking
+  compute: local  # RTX 5070, burst to Vast.ai for heavy training
+
+  skills:
+    - qsar
+    - molecular_docking
+    - structure_prediction
+
+  data_sources:
+    - ChEMBL
+
+  pipelines:
+    qsar_training:
+      description: "Train QSAR model on ChEMBL bioactivity data"
+      compute: vast_ai  # Heavy ML training bursts to cloud
+      steps:
+        - data_ingestion  # ChEMBL query
+        - descriptor_computation  # RDKit molecular fingerprints
+        - model_training  # Random Forest / XGBoost / Neural Net
+        - model_evaluation
+
+    docking_screen:
+      description: "Virtual screening via molecular docking"
+      steps:
+        - structure_prediction  # Get receptor structure
+        - ligand_preparation  # 3D conformer generation
+        - molecular_docking  # Vina / Gnina
+        - hit_ranking
+
+    compound_optimization:
+      description: "Optimize lead compound via iterative docking + QSAR"
+      steps:
+        - qsar  # Predict activity
+        - molecular_docking  # Validate binding
+        - structure_prediction  # Check target conformation

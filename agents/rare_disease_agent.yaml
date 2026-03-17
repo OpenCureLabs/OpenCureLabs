@@ -1,0 +1,34 @@
+# Rare Disease Agent — Variant Analysis specialist configuration
+#
+# Analyzes rare and de novo variants against ClinVar/OMIM databases
+# to assess pathogenicity, identify candidate genes, and support diagnosis.
+
+agent:
+  name: rare_disease_agent
+  role: Variant Analysis
+  compute: local  # RTX 5070
+
+  skills:
+    - variant_pathogenicity
+    - sequencing_qc
+
+  data_sources:
+    - ClinVar
+    - OMIM
+
+  pipelines:
+    variant_analysis:
+      description: "Analyze variants for pathogenicity and gene-disease associations"
+      steps:
+        - sequencing_qc
+        - variant_calling
+        - variant_pathogenicity
+        - candidate_gene_ranking
+
+    de_novo_analysis:
+      description: "Identify and score de novo variants in trios"
+      steps:
+        - sequencing_qc
+        - trio_variant_calling
+        - inheritance_filtering
+        - variant_pathogenicity

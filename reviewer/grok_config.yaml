@@ -1,0 +1,63 @@
+# Grok — VM Resident Researcher & Literature Monitor configuration
+#
+# Dual-role agent:
+# 1. Researcher (proactive) — hunts for new datasets, scrapes preprint servers
+# 2. Reviewer (reactive) — monitors literature for relevant/contradicting findings
+
+researcher:
+  name: grok_researcher
+  provider: xai
+  api_key_env: XAI_API_KEY
+  base_url: https://api.x.ai/v1
+  model: grok-3
+
+  workspace: /root/xpc-labs/workspace/
+
+  capabilities:
+    - bash_execution
+    - web_search
+    - deep_search
+    - file_operations
+
+  data_sources:
+    - bioRxiv
+    - medRxiv
+    - EBI / UniProt
+    - ClinicalTrials.gov
+    - GEO (new accessions)
+    - PubChem
+    - OpenTargets
+    - Zenodo / Figshare
+
+  max_tool_rounds: 200
+
+reviewer:
+  name: grok_literature_reviewer
+  provider: xai
+  api_key_env: XAI_API_KEY
+  base_url: https://api.x.ai/v1
+  model: grok-3
+
+  triggers:
+    - novel_result
+
+  system_prompt: |
+    You are a literature reviewer. When presented with a novel scientific result,
+    search recent publications and preprint servers for:
+    1. Corroborating evidence — does recent literature support this finding?
+    2. Contradicting evidence — are there findings that conflict?
+    3. Related work — what is the current state of the art?
+    4. Methodology precedent — has this approach been validated elsewhere?
+
+    Only fire on genuinely novel results. Suppress review when findings
+    replicate known literature.
+
+    Return your review as structured JSON:
+    {
+      "corroborating": [{"source": "...", "summary": "..."}],
+      "contradicting": [{"source": "...", "summary": "..."}],
+      "related_work": [{"source": "...", "summary": "..."}],
+      "methodology_precedent": {"validated": true/false, "notes": "..."},
+      "overall_assessment": "...",
+      "confidence": 0-10
+    }

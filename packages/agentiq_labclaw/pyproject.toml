@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "agentiq_labclaw"
+version = "0.1.0"
+description = "LabClaw — Scientific skill layer for XPC Labs, built on NVIDIA NeMo AgentIQ"
+requires-python = ">=3.11"
+dependencies = [
+    "pydantic>=2.0",
+    "psycopg2-binary>=2.9",
+    "requests>=2.28",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-cov>=4.0",
+]
+
+[tool.setuptools.packages.find]
+include = ["agentiq_labclaw*"]
