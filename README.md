@@ -19,6 +19,8 @@
 - [Getting Started](#getting-started)
 - [Contributing](#contributing)
 
+See also: **[CONTRIBUTING.md](CONTRIBUTING.md)** — full guide for researchers and developers.
+
 ---
 
 ## Overview
@@ -337,12 +339,18 @@ grok --max-tool-rounds 200 --prompt "monitor EBI and GEO for new BRCA sequencing
 
 ## Contributing
 
-XPC Labs is an open-science project. Contributions are welcome in several forms:
+XPC Labs is an open-science project. Contributions are welcome from computational biologists, AI/ML engineers, and open science enthusiasts.
 
-- **Pipeline development** — new scientific workflows and skill modules
-- **Data connectors** — integrations with additional scientific databases
-- **Reviewer agents** — alternative critique models and methodologies
-- **Documentation** — improving reproducibility and onboarding
+**Read the full guide: [CONTRIBUTING.md](CONTRIBUTING.md)**
+
+Quick entry points:
+
+- **Run a pipeline** — clone, run the neoantigen test, report what happened
+- **Implement a skill** — pick an unimplemented skill from [LABCLAW.md](LABCLAW.md) and build it
+- **Add a data connector** — integrate a new scientific database (OpenTargets, PubChem, etc.)
+- **Improve scientific accuracy** — domain experts: review pipeline logic and open issues
+- **Write tests** — add synthetic data test cases for existing skills
+- **Documentation** — tutorials, worked examples, setup guides
 
 Please open an issue before starting significant work so we can coordinate.
 
