@@ -337,7 +337,7 @@ grok --max-tool-rounds 200 --prompt "search bioRxiv for new neoantigen datasets 
 | NeMo Agent Toolkit install | ✅ Installed (v1.1.0) |
 | `agentiq_labclaw` package | ✅ Implemented (v0.1.0) |
 | Coordinator YAML config | ✅ Implemented |
-| Skill: neoantigen_prediction | ✅ Scaffold (pipeline logic TODO) |
+| Skill: neoantigen_prediction | ✅ Implemented (VCF→pyensembl→MHCflurry pipeline, batch predictions, tested with KRAS G12V + TP53 R175H) |
 | Skill: structure_prediction | ✅ Scaffold (pipeline logic TODO) |
 | Skill: molecular_docking | ✅ Scaffold (pipeline logic TODO) |
 | Skill: qsar | ✅ Scaffold (pipeline logic TODO) |
