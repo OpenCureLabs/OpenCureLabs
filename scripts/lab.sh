@@ -51,6 +51,10 @@ fi
 
 tmux new-session -d -s "$SESSION" -x 200 -y 50
 
+# ── Prevent shells/programs from overriding pane titles ──────────────────────
+tmux set-option -g -t "$SESSION" allow-rename off
+tmux set-option -g -t "$SESSION" set-titles off
+
 # ── Status bar theme ─────────────────────────────────────────────────────────
 tmux set-option -t "$SESSION" status on
 tmux set-option -t "$SESSION" status-position bottom
@@ -63,10 +67,10 @@ tmux set-option -t "$SESSION" window-status-current-format "#[fg=#c0caf5,bg=#3b4
 tmux set-option -t "$SESSION" window-status-format "#[fg=#565f89] #W "
 
 # ── Pane borders ─────────────────────────────────────────────────────────────
-tmux set-option -t "$SESSION" pane-border-style "fg=#3b4261"
-tmux set-option -t "$SESSION" pane-active-border-style "fg=#7aa2f7"
-tmux set-option -t "$SESSION" pane-border-status top
-tmux set-option -t "$SESSION" pane-border-format "#[fg=#1a1b26,bg=#7aa2f7,bold] #{pane_index}: #{pane_title} #[default]"
+tmux set-option -g pane-border-style "fg=#3b4261"
+tmux set-option -g pane-active-border-style "fg=#7aa2f7"
+tmux set-option -g pane-border-status top
+tmux set-option -g pane-border-format "#[fg=#1a1b26,bg=#7aa2f7,bold] #{pane_index}: #{pane_title} #[default]"
 
 # ── Reload keybinding: Ctrl+b R ──────────────────────────────────────────────
 tmux bind-key -T prefix R source-file ~/.tmux.conf \; display-message "Config reloaded" 2>/dev/null || true
@@ -75,37 +79,39 @@ tmux bind-key -T prefix R run-shell "bash $PROJECT/scripts/lab.sh" \; display-me
 # ── Window name ──────────────────────────────────────────────────────────────
 tmux rename-window -t "$SESSION" "lab"
 
-# ── Pane 0: COORDINATOR (top-left) ───────────────────────────────────────────
-tmux select-pane -t "$SESSION:0.0" -T "COORDINATOR"
-tmux send-keys -t "$SESSION:0.0" "cd $PROJECT && $VENV && clear" C-m
-tmux send-keys -t "$SESSION:0.0" "echo '── COORDINATOR ── ready for nat commands'" C-m
+# ── Create panes and send commands ───────────────────────────────────────────
 
-# ── Pane 1: GROK (top-right) ─────────────────────────────────────────────────
+# Pane 0: COORDINATOR (top-left) — already exists from new-session
+tmux send-keys -t "$SESSION:0.0" "cd $PROJECT && $VENV && clear && echo '── COORDINATOR ── ready for nat commands'" C-m
+
+# Pane 1: GROK (top-right)
 tmux split-window -h -t "$SESSION:0.0"
-tmux select-pane -t "$SESSION:0.1" -T "GROK"
-tmux send-keys -t "$SESSION:0.1" "cd $PROJECT/workspace && clear" C-m
-tmux send-keys -t "$SESSION:0.1" "echo '── GROK ── workspace ready'" C-m
+tmux send-keys -t "$SESSION:0.1" "cd $PROJECT/workspace && clear && echo '── GROK ── workspace ready'" C-m
 
-# ── Pane 2: LOGS (middle-left) ───────────────────────────────────────────────
+# Pane 2: LOGS (middle-left)
 tmux split-window -v -t "$SESSION:0.0"
-tmux select-pane -t "$SESSION:0.2" -T "LOGS"
 tmux send-keys -t "$SESSION:0.2" "tail -f $LOGFILE" C-m
 
-# ── Pane 3: POSTGRES (middle-right) ──────────────────────────────────────────
+# Pane 3: POSTGRES (middle-right)
 tmux split-window -v -t "$SESSION:0.1"
-tmux select-pane -t "$SESSION:0.3" -T "POSTGRES"
 tmux send-keys -t "$SESSION:0.3" "watch -n 5 'psql -p $PG_PORT -d xpclabs -c \"SELECT id, agent_name, status, started_at FROM agent_runs ORDER BY started_at DESC LIMIT 10;\" 2>/dev/null || echo \"PostgreSQL not available on port $PG_PORT\"'" C-m
 
-# ── Pane 4: SYSTEM (bottom-left) ─────────────────────────────────────────────
+# Pane 4: SYSTEM (bottom-left)
 tmux split-window -v -t "$SESSION:0.2"
-tmux select-pane -t "$SESSION:0.4" -T "SYSTEM"
 tmux send-keys -t "$SESSION:0.4" "htop" C-m
 
-# ── Pane 5: SHELL (bottom-right) ─────────────────────────────────────────────
+# Pane 5: SHELL (bottom-right)
 tmux split-window -v -t "$SESSION:0.3"
+tmux send-keys -t "$SESSION:0.5" "cd $PROJECT && $VENV && clear && echo '── SHELL ── general purpose'" C-m
+
+# ── Set pane titles AFTER commands to prevent shell overrides ────────────────
+sleep 0.3
+tmux select-pane -t "$SESSION:0.0" -T "COORDINATOR"
+tmux select-pane -t "$SESSION:0.1" -T "GROK"
+tmux select-pane -t "$SESSION:0.2" -T "LOGS"
+tmux select-pane -t "$SESSION:0.3" -T "POSTGRES"
+tmux select-pane -t "$SESSION:0.4" -T "SYSTEM"
 tmux select-pane -t "$SESSION:0.5" -T "SHELL"
-tmux send-keys -t "$SESSION:0.5" "cd $PROJECT && $VENV && clear" C-m
-tmux send-keys -t "$SESSION:0.5" "echo '── SHELL ── general purpose'" C-m
 
 # ── Focus on COORDINATOR pane ────────────────────────────────────────────────
 tmux select-pane -t "$SESSION:0.0"
