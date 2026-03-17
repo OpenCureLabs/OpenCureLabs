@@ -334,20 +334,28 @@ grok --max-tool-rounds 200 --prompt "search bioRxiv for new neoantigen datasets 
 
 | Component | Status |
 |---|---|
-| NeMo Agent Toolkit install | ✅ Installed |
-| `agentiq_labclaw` package | 🔲 To be implemented |
-| Coordinator YAML config | 🔲 To be implemented |
-| Skill: neoantigen_prediction | 🔲 To be implemented |
-| Skill: structure_prediction | 🔲 To be implemented |
-| Skill: molecular_docking | 🔲 To be implemented |
-| Skill: qsar | 🔲 To be implemented |
-| Skill: variant_pathogenicity | 🔲 To be implemented |
-| Guardrails layer | 🔲 To be implemented |
-| PostgreSQL integration | 🔲 To be implemented |
-| Grok source registration | 🔲 To be implemented |
-| Discord publisher | 🔲 To be implemented |
-| GitHub publisher | 🔲 To be implemented |
-| Ollama local LLM | 🔲 To be installed |
+| NeMo Agent Toolkit install | ✅ Installed (v1.1.0) |
+| `agentiq_labclaw` package | ✅ Implemented (v0.1.0) |
+| Coordinator YAML config | ✅ Implemented |
+| Skill: neoantigen_prediction | ✅ Scaffold (pipeline logic TODO) |
+| Skill: structure_prediction | ✅ Scaffold (pipeline logic TODO) |
+| Skill: molecular_docking | ✅ Scaffold (pipeline logic TODO) |
+| Skill: qsar | ✅ Scaffold (pipeline logic TODO) |
+| Skill: variant_pathogenicity | ✅ Scaffold (pipeline logic TODO) |
+| Skill: sequencing_qc | ✅ Scaffold (pipeline logic TODO) |
+| Skill: report_generator | ✅ Scaffold (PDF rendering TODO) |
+| Skill: register_source | ✅ Implemented |
+| Guardrails layer | ✅ Implemented (output validator, novelty filter, safety check) |
+| PostgreSQL integration | ✅ Implemented (5 DB modules) |
+| Grok source registration | ✅ Implemented |
+| Discord publisher | ✅ Implemented |
+| GitHub publisher | ✅ Implemented |
+| PDF publisher | ✅ Scaffold (Markdown placeholder) |
+| Vast.ai dispatcher | ✅ Scaffold (API integration TODO) |
+| Ollama local LLM | ✅ Installed (llama3.1:8b) |
+| Data connectors (TCGA, ClinVar, ChEMBL) | ✅ Scaffold (API calls TODO) |
+| Agent configs (cancer, rare-disease, drug-response) | ✅ Implemented |
+| Reviewer configs (Claude Opus, Grok) | ✅ Implemented |
 
 ---
 
