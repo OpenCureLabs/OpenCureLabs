@@ -23,7 +23,7 @@ Architecture spec: see LABCLAW.md.
 ## Folder Structure
 
 ```
-/root/xpc-labs/
+/root/opencurelabs/
 ├── agents/          # Specialist agent configs (cancer, rare-disease, drug-response)
 ├── coordinator/     # NemoClaw/LabClaw YAML workflows (NeMo AgentIQ)
 ├── skills/          # LabClaw scientific skill modules
@@ -49,12 +49,12 @@ Architecture spec: see LABCLAW.md.
 
 1. **Always activate venv first:**
    ```bash
-   source /root/xpc-labs/.venv/bin/activate
+   source /root/opencurelabs/.venv/bin/activate
    ```
 
-2. **Always work from /root/xpc-labs** — this is the project root.
+2. **Always work from /root/opencurelabs** — this is the project root.
 
-3. **Grok agent runs from /root/xpc-labs/workspace/ only** — never from project root.
+3. **Grok agent runs from /root/opencurelabs/workspace/ only** — never from project root.
 
 4. **Never commit .env** — API keys live on disk only, never in git. If .env is
    ever accidentally staged, run `git rm --cached .env` immediately and consider
@@ -83,7 +83,7 @@ Architecture spec: see LABCLAW.md.
 ## Running the Coordinator
 
 ```bash
-source /root/xpc-labs/.venv/bin/activate
+source /root/opencurelabs/.venv/bin/activate
 nat run --config_file coordinator/labclaw_workflow.yaml --input "your task here"
 ```
 
@@ -107,6 +107,6 @@ nat run --config_file coordinator/labclaw_workflow.yaml --input "your task here"
 
 ## GitHub
 
-- **Repo:** git@github.com:ShoneAnstey/OpenCureLabs.git
+- **Repo:** git@github.com:OpenCureLabs/XPCLabs.git
 - **Remote:** SSH-based (no password commits)
 - **Identity:** `agent@opencurelabs` / `OpenCure Labs Agent`

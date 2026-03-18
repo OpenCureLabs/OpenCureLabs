@@ -4,11 +4,11 @@
 #  Launches the full OpenCure Labs environment in a single 6-pane tmux session.
 #
 #  Usage:  ./scripts/lab.sh          (from anywhere)
-#          bash /root/xpc-labs/scripts/lab.sh
+#          bash /root/opencurelabs/scripts/lab.sh
 # ──────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
-PROJECT="/root/xpc-labs"
+PROJECT="/root/opencurelabs"
 SESSION="opencurelabs"
 LOGFILE="$PROJECT/logs/agent.log"
 VENV="source $PROJECT/.venv/bin/activate"

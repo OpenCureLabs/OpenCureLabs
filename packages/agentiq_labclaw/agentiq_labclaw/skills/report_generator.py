@@ -15,7 +15,7 @@ class ReportInput(BaseModel):
     pipeline_run_id: int
     sections: list[dict]  # [{"heading": "...", "content": "...", "figures": [...]}]
     critique_json: dict | None = None
-    output_dir: str = "/root/xpc-labs/reports/"
+    output_dir: str = "/root/opencurelabs/reports/"
 
 
 class ReportOutput(BaseModel):

@@ -66,10 +66,10 @@ guardrails:
 publishers:
   github:
     enabled: true
-    repo: https://github.com/ShoneAnstey/OpenCureLabs.git
+    repo: https://github.com/OpenCureLabs/XPCLabs.git
   discord:
     enabled: true
     webhook_url: ${DISCORD_WEBHOOK_URL}
   pdf:
     enabled: true
-    output_dir: /root/xpc-labs/reports/
+    output_dir: /root/opencurelabs/reports/

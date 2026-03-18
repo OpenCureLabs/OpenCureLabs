@@ -7,7 +7,7 @@
 # ──────────────────────────────────────────────────────────────────────────────
 set -uo pipefail
 
-PROJECT="/root/xpc-labs"
+PROJECT="/root/opencurelabs"
 SESSION="opencurelabs"
 
 cd "$PROJECT"

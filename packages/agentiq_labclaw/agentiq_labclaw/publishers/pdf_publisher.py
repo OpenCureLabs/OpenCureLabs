@@ -9,7 +9,7 @@ logger = logging.getLogger("labclaw.publishers.pdf")
 class PDFPublisher:
     """Generates PDF reports from pipeline results."""
 
-    def __init__(self, output_dir: str = "/root/xpc-labs/reports/"):
+    def __init__(self, output_dir: str = "/root/opencurelabs/reports/"):
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
 

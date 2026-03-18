@@ -183,13 +183,13 @@ guardrails:
 publishers:
   github:
     enabled: true
-    repo: git@github.com:ShoneAnstey/OpenCureLabs.git
+    repo: git@github.com:OpenCureLabs/XPCLabs.git
   discord:
     enabled: true
     webhook_url: ${DISCORD_WEBHOOK_URL}
   pdf:
     enabled: true
-    output_dir: /root/xpc-labs/reports/
+    output_dir: /root/opencurelabs/reports/
 ```
 
 ---
@@ -311,7 +311,7 @@ Vast.ai dispatch is handled by `agentiq_labclaw.compute.vast_dispatcher`, which 
 
 ```bash
 # Activate venv
-source /root/xpc-labs/.venv/bin/activate
+source /root/opencurelabs/.venv/bin/activate
 
 # Ensure Ollama is running (local LLM)
 ollama serve &
@@ -320,11 +320,11 @@ ollama serve &
 service postgresql start
 
 # Run the coordinator
-cd /root/xpc-labs
+cd /root/opencurelabs
 nat run --config_file coordinator/labclaw_workflow.yaml --input "your task here"
 
 # Run Grok researcher (from workspace/ only)
-cd /root/xpc-labs/workspace
+cd /root/opencurelabs/workspace
 grok --max-tool-rounds 200 --prompt "search bioRxiv for new neoantigen datasets this week"
 ```
 

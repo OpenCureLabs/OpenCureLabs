@@ -2,7 +2,7 @@
 
 Read CLAUDE.md, README.md, and LABCLAW.md first.
 
-Create /root/xpc-labs/CONTRIBUTING.md — a guide for researchers, developers,
+Create /root/opencurelabs/CONTRIBUTING.md — a guide for researchers, developers,
 and scientists who want to contribute to OpenCure Labs. This is the document that
 turns GitHub visitors into actual contributors.
 
@@ -48,7 +48,7 @@ Step by step, assume Ubuntu 22.04+ or WSL2:
 
 ```bash
 # Clone
-git clone https://github.com/ShoneAnstey/OpenCureLabs.git
+git clone https://github.com/OpenCureLabs/XPCLabs.git
 cd OpenCureLabs
 
 # Python environment

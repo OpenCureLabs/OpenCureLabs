@@ -2,7 +2,7 @@
 
 You have root access and full control of a private WSL2 VM running Ubuntu 24.04
 on a dedicated NVMe (D:\WSL\OpenCure-Labs). The project is OpenCure Labs — an autonomous
-AI-for-Science platform. Read /root/xpc-labs/README.md for full context before
+AI-for-Science platform. Read /root/opencurelabs/README.md for full context before
 doing anything.
 
 ---
@@ -12,7 +12,7 @@ doing anything.
 A .env file with real API keys already exists on disk. Before any git operations:
 
 ```bash
-cd /root/xpc-labs
+cd /root/opencurelabs
 
 # 1. Ensure .gitignore exists and .env is in it
 grep -q "^\.env$" .gitignore || echo ".env" >> .gitignore
@@ -65,8 +65,8 @@ curl -fsSL https://bun.sh/install | bash
 source ~/.bashrc
 
 # NVIDIA NeMo Agent Toolkit
-python3.11 -m venv /root/xpc-labs/.venv
-source /root/xpc-labs/.venv/bin/activate
+python3.11 -m venv /root/opencurelabs/.venv
+source /root/opencurelabs/.venv/bin/activate
 pip install aiq
 
 # Grok CLI
@@ -75,7 +75,7 @@ bun add -g @vibe-kit/grok-cli
 
 ### 2. Set up the folder structure
 
-Create the following under /root/xpc-labs:
+Create the following under /root/opencurelabs:
 
 ```
 agents/          # specialist agent configs (cancer, rare-disease, drug-response)
@@ -93,27 +93,27 @@ docs/            # wiki source files
 ```
 
 ```bash
-mkdir -p /root/xpc-labs/{agents,coordinator,skills,pipelines,data,reviewer,reports,logs,db,config,workspace,docs}
+mkdir -p /root/opencurelabs/{agents,coordinator,skills,pipelines,data,reviewer,reports,logs,db,config,workspace,docs}
 ```
 
 ### 3. CLAUDE.md
 
-Create /root/xpc-labs/CLAUDE.md — this file is read automatically by Claude Code
+Create /root/opencurelabs/CLAUDE.md — this file is read automatically by Claude Code
 agents at the start of every session. It should contain:
 
 - Project overview (summarized from README.md)
 - Folder structure map
 - Key conventions:
-  - Always activate venv: `source /root/xpc-labs/.venv/bin/activate`
-  - Always work in /root/xpc-labs
-  - Grok agent must always run from /root/xpc-labs/workspace/ only
+  - Always activate venv: `source /root/opencurelabs/.venv/bin/activate`
+  - Always work in /root/opencurelabs
+  - Grok agent must always run from /root/opencurelabs/workspace/ only
   - Never commit .env — keys live on disk only, never in git
   - Never overwrite README.md — it is the source of truth
 - Agent roles and responsibilities
 - How to run the coordinator: `nat run --config_file coordinator/workflow.yaml`
 - PostgreSQL connection: `postgresql://localhost/opencurelabs` (local, no auth in dev)
 - Discord logging webhook: read from .env as DISCORD_WEBHOOK_URL
-- GitHub repo: https://github.com/ShoneAnstey/OpenCureLabs
+- GitHub repo: https://github.com/OpenCureLabs/XPCLabs
 
 ### 4. GitHub setup (no password commits)
 
@@ -143,7 +143,7 @@ git config --global user.name "OpenCure Labs Agent"
 After the public key has been added to GitHub, set the remote:
 
 ```bash
-git remote set-url origin git@github.com:ShoneAnstey/OpenCureLabs.git
+git remote set-url origin git@github.com:OpenCureLabs/XPCLabs.git
 
 # Test connection
 ssh -T git@github.com
@@ -152,7 +152,7 @@ ssh -T git@github.com
 ### 5. Initialize and push the repo
 
 ```bash
-cd /root/xpc-labs
+cd /root/opencurelabs
 
 git init
 
@@ -186,10 +186,10 @@ Using the gh CLI (must be authenticated: `gh auth login`):
 
 ```bash
 # Create Project board
-gh project create --owner ShoneAnstey --title "OpenCure Labs" --format json
+gh project create --owner OpenCureLabs --title "OpenCure Labs" --format json
 
 # Enable Wiki (via API)
-gh api repos/ShoneAnstey/OpenCureLabs -X PATCH -f has_wiki=true
+gh api repos/OpenCureLabs/XPCLabs -X PATCH -f has_wiki=true
 ```
 
 Create wiki pages for: Home, Architecture, Agents, Data Sources,
@@ -257,8 +257,8 @@ EOF
 
 - `.env` is never committed — keys live on disk only
 - If `.env` is ever accidentally staged, run `git rm --cached .env` immediately and consider all keys in it compromised and rotate them
-- Grok agent runs exclusively from `/root/xpc-labs/workspace/` — never from project root
-- Always activate venv before running Python: `source /root/xpc-labs/.venv/bin/activate`
+- Grok agent runs exclusively from `/root/opencurelabs/workspace/` — never from project root
+- Always activate venv before running Python: `source /root/opencurelabs/.venv/bin/activate`
 - All agent activity logs to `logs/` directory and Discord webhook
 - README.md is the source of truth — never overwrite it
-- GitHub repo: https://github.com/ShoneAnstey/OpenCureLabs
+- GitHub repo: https://github.com/OpenCureLabs/XPCLabs
