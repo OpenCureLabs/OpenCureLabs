@@ -118,6 +118,16 @@ tmux bind-key -T prefix R run-shell "bash $PROJECT/scripts/lab.sh" \; display-me
 # ── Window name ──────────────────────────────────────────────────────────────
 tmux rename-window -t "$SESSION" "lab"
 
+# ── Start web dashboard server (background) ──────────────────────────────────
+if ! curl -s http://127.0.0.1:8787 &>/dev/null; then
+    echo "[OpenCure Labs] Starting web dashboard → http://localhost:8787"
+    # shellcheck source=/dev/null
+    (cd "$PROJECT" && source "$PROJECT/.venv/bin/activate" && python scripts/dashboard.py >>"$PROJECT/logs/dashboard.log" 2>&1 &)
+    sleep 1
+else
+    echo "[OpenCure Labs] Web dashboard already running on :8787"
+fi
+
 # ── Create panes and send commands ───────────────────────────────────────────
 
 # Pane 0: COORDINATOR (top-left) — already exists from new-session
