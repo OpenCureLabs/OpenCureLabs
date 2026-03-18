@@ -276,35 +276,40 @@ OpenCure Labs is built on three principles:
 
 ## Getting Started
 
-> ⚠️ Full setup documentation is in progress. The following reflects the intended quickstart flow.
+For the full step-by-step guide, see **[docs/QUICKSTART.md](docs/QUICKSTART.md)**.
 
-### Prerequisites
-
-- WSL2 (Ubuntu 22.04+)
-- Python 3.11+
-- CUDA 12.x (for local GPU tasks)
-- Vast.ai account (for burst compute)
-- Anthropic API key (Claude Opus 4.6 reviewer)
-- Discord bot token (for live logging)
-
-### Installation
+### Quick Setup (Fresh Ubuntu VM)
 
 ```bash
 # Clone the repository
 git clone https://github.com/OpenCureLabs/OpenCureLabs.git
 cd OpenCureLabs
 
-# Create and activate virtual environment
-python -m venv .venv
-source .venv/bin/activate
+# Run the automated setup script (installs everything)
+sudo bash scripts/setup.sh
 
-# Install dependencies
-pip install -r requirements.txt
+# Configure your API keys
+nano .env
 
-# Configure environment
-cp .env.example .env
-# Edit .env with your API keys and compute settings
+# Launch the tmux control panel
+bash scripts/lab.sh
 ```
+
+The setup script installs system packages, Python dependencies, scientific models
+(pyensembl, MHCflurry), PostgreSQL, Ollama, and runs verification checks.
+See [docs/QUICKSTART.md](docs/QUICKSTART.md) for manual setup and troubleshooting.
+
+### Prerequisites
+
+- Ubuntu 22.04+ or WSL2
+- Python 3.11+
+- Root access
+- ~5 GB free disk space
+- Anthropic API key (Claude Opus 4.6 reviewer)
+- xAI API key (Grok researcher)
+- CUDA 12.x (optional — for local GPU compute)
+- Vast.ai account (optional — for burst compute)
+- Discord webhook URL (optional — for live logging)
 
 ### Running the Coordinator (NVIDIA NeMo Agent Toolkit)
 

@@ -88,10 +88,11 @@ pyensembl install --release 110 --species human
 mhcflurry-downloads fetch models_class1 models_class1_pan models_class1_presentation
 
 # PostgreSQL (optional — needed for full pipeline runs with DB logging)
+# Note: OpenCure Labs uses port 5433
 sudo apt install postgresql -y
 sudo service postgresql start
-sudo -u postgres psql -c "CREATE DATABASE opencurelabs;"
-psql -d opencurelabs -f db/schema.sql
+sudo -u postgres psql -p 5433 -c "CREATE DATABASE opencurelabs;"
+sudo -u postgres psql -p 5433 -d opencurelabs -f db/schema.sql
 
 # Environment variables
 cp .env.example .env

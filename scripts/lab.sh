@@ -20,6 +20,45 @@ if ! command -v tmux &>/dev/null; then
     apt-get update -qq && apt-get install -y -qq tmux
 fi
 
+# ── Preflight checks ────────────────────────────────────────────────────────
+WARNINGS=0
+
+if [[ ! -d "$PROJECT/.venv" ]]; then
+    echo "[OpenCure Labs] ⚠️  No Python venv found at $PROJECT/.venv"
+    echo "               Run: sudo bash scripts/setup.sh"
+    WARNINGS=$((WARNINGS + 1))
+fi
+
+if [[ ! -f "$PROJECT/.env" ]]; then
+    echo "[OpenCure Labs] ⚠️  No .env file found — API keys not configured"
+    echo "               Run: cp .env.example .env && nano .env"
+    WARNINGS=$((WARNINGS + 1))
+fi
+
+if ! command -v nat &>/dev/null && [[ -d "$PROJECT/.venv" ]]; then
+    # shellcheck source=/dev/null
+    source "$PROJECT/.venv/bin/activate" 2>/dev/null
+    if ! command -v nat &>/dev/null; then
+        echo "[OpenCure Labs] ⚠️  NeMo Agent Toolkit (nat) not installed"
+        echo "               Run: pip install aiq"
+        WARNINGS=$((WARNINGS + 1))
+    fi
+fi
+
+if ! curl -s http://localhost:11434/api/tags &>/dev/null; then
+    echo "[OpenCure Labs] ⚠️  Ollama not responding at localhost:11434"
+    echo "               Run: ollama serve &"
+    WARNINGS=$((WARNINGS + 1))
+fi
+
+if [[ $WARNINGS -gt 0 ]]; then
+    echo ""
+    echo "[OpenCure Labs] $WARNINGS warning(s) — some panes may not work correctly."
+    echo "               Run 'sudo bash scripts/setup.sh' for full setup."
+    echo ""
+    sleep 2
+fi
+
 # ── Ensure log file exists ───────────────────────────────────────────────────
 mkdir -p "$PROJECT/logs"
 touch "$LOGFILE"
