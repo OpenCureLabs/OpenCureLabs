@@ -21,7 +21,8 @@ fi
 echo "🛡️  Running OpenCure Labs security scan..."
 
 # Run scanner with auto-fix (safe tier only) and Discord notification
-if python3 "$SCANNER" --profile "$PROFILE" --autofix safe --discord; then
+# Redirect stderr to suppress pip-audit spinner noise in non-TTY contexts
+if python3 "$SCANNER" --profile "$PROFILE" --autofix safe --discord 2>/dev/null; then
     echo "✅ Security scan passed — commit allowed."
     exit 0
 else
