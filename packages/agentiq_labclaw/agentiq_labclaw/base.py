@@ -3,6 +3,7 @@ Base classes and decorators for LabClaw skills.
 """
 
 import logging
+import os
 from abc import ABC, abstractmethod
 
 from pydantic import BaseModel
@@ -21,8 +22,20 @@ class LabClawSkill(ABC):
     output_schema: type[BaseModel] | None = None
 
     def execute(self, input_data: BaseModel) -> BaseModel:
-        """Execute the skill, routing to Vast.ai if configured."""
-        if self.compute == "vast_ai":
+        """Execute the skill, routing to Vast.ai if configured.
+
+        Priority: LABCLAW_COMPUTE env var > decorator default.
+        Falls back to local if vast_ai requested but VAST_AI_KEY is missing.
+        """
+        compute = os.environ.get("LABCLAW_COMPUTE") or self.compute
+
+        if compute == "vast_ai":
+            if not os.environ.get("VAST_AI_KEY"):
+                logger.warning(
+                    "LABCLAW_COMPUTE=vast_ai but VAST_AI_KEY not set — falling back to local for %s",
+                    self.name,
+                )
+                return self.run(input_data)
             return self._dispatch_to_vast_ai(input_data)
         return self.run(input_data)
 

@@ -12,6 +12,13 @@ dependencies = [
     "psycopg2-binary>=2.9",
     "requests>=2.28",
     "nvidia-nat>=1.5.0",
+    "rdkit>=2024.3",
+    "scikit-learn>=1.4",
+    "numpy>=1.26",
+    "pandas>=2.2",
+    "reportlab>=4.1",
+    "anthropic>=0.25",
+    "openai>=1.20",
 ]
 
 [project.optional-dependencies]
@@ -19,6 +26,9 @@ dev = [
     "pytest>=7.0",
     "pytest-cov>=4.0",
 ]
+
+[project.scripts]
+opencure = "agentiq_labclaw.cli:main"
 
 [project.entry-points."nat.components"]
 labclaw_skills = "agentiq_labclaw.nat_plugin"

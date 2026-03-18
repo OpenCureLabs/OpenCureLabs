@@ -1,0 +1,43 @@
+{
+    "name": "OpenCure Labs",
+    "image": "mcr.microsoft.com/devcontainers/python:3.11",
+    "features": {
+        "ghcr.io/devcontainers/features/common-utils:2": {},
+        "ghcr.io/robbert229/devcontainer-features/postgresql-client:1": {}
+    },
+    "postCreateCommand": "bash scripts/setup.sh --skip-models",
+    "forwardPorts": [
+        8787,
+        5433
+    ],
+    "portsAttributes": {
+        "8787": {
+            "label": "Dashboard",
+            "onAutoForward": "notify"
+        },
+        "5433": {
+            "label": "PostgreSQL",
+            "onAutoForward": "silent"
+        }
+    },
+    "containerEnv": {
+        "LABCLAW_COMPUTE": "local",
+        "POSTGRES_URL": "postgresql://localhost:5433/opencurelabs"
+    },
+    "customizations": {
+        "vscode": {
+            "settings": {
+                "python.defaultInterpreterPath": ".venv/bin/python3",
+                "python.terminal.activateEnvironment": true,
+                "editor.formatOnSave": true
+            },
+            "extensions": [
+                "ms-python.python",
+                "ms-python.vscode-pylance",
+                "GitHub.copilot",
+                "GitHub.copilot-chat"
+            ]
+        }
+    },
+    "remoteUser": "root"
+}

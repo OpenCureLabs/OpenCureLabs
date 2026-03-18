@@ -1,5 +1,7 @@
 # 🧬 OpenCure Labs — Autonomous AI-for-Science Platform
 
+[![CI](https://github.com/OpenCureLabs/OpenCureLabs/actions/workflows/ci.yml/badge.svg)](https://github.com/OpenCureLabs/OpenCureLabs/actions/workflows/ci.yml)
+
 > An open, transparent, multi-agent computational research lab — running real scientific pipelines, iterating autonomously, and sharing every step live with the world.
 
 ---

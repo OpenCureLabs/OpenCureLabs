@@ -25,8 +25,20 @@
 #    - NVIDIA GPU + CUDA 12.x (for local GPU compute)
 #    - Bun + grok-cli (for Grok researcher agent)
 #    - Vast.ai account (for burst GPU compute)
+#
+#  Flags:
+#    --skip-models   Skip heavy model downloads (pyensembl, MHCflurry, Ollama).
+#                    Useful for CI and Codespaces where tests are mocked.
 # ──────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
+
+# ── Parse flags ──────────────────────────────────────────────────────────────
+SKIP_MODELS=false
+for arg in "$@"; do
+    case "$arg" in
+        --skip-models) SKIP_MODELS=true ;;
+    esac
+done
 
 # ── Constants ────────────────────────────────────────────────────────────────
 PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
@@ -92,6 +104,8 @@ PACKAGES=(
     postgresql
     postgresql-contrib
     libpq-dev
+    fastp
+    openbabel
 )
 
 MISSING=()
@@ -154,7 +168,13 @@ ok "Python dependencies installed"
 # ══════════════════════════════════════════════════════════════════════════════
 #  Step 4: Scientific Model Downloads
 # ══════════════════════════════════════════════════════════════════════════════
-step "Downloading scientific models (this may take several minutes)"
+step "Downloading scientific models"
+
+if [[ "$SKIP_MODELS" == "true" ]]; then
+    warn "Skipping model downloads (--skip-models flag set)"
+    info "pyensembl, MHCflurry, and Ollama will not be downloaded."
+    info "Tests use mocks and do not require these models."
+else
 
 info "pyensembl — Ensembl release 110 (human genome, ~500 MB)"
 if python3 -c "from pyensembl import EnsemblRelease; e = EnsemblRelease(110); e.transcript_by_id('ENST00000256078')" 2>/dev/null; then
@@ -171,6 +191,8 @@ else
     mhcflurry-downloads fetch models_class1 models_class1_pan models_class1_presentation 2>&1 | tail -5
     ok "MHCflurry models downloaded"
 fi
+
+fi  # end SKIP_MODELS guard for Step 4
 
 # ══════════════════════════════════════════════════════════════════════════════
 #  Step 5: PostgreSQL Setup
@@ -217,7 +239,9 @@ fi
 # ══════════════════════════════════════════════════════════════════════════════
 step "Setting up Ollama (local LLM inference)"
 
-if command -v ollama &>/dev/null; then
+if [[ "$SKIP_MODELS" == "true" ]]; then
+    warn "Skipping Ollama setup (--skip-models flag set)"
+elif command -v ollama &>/dev/null; then
     ok "Ollama already installed"
 else
     info "Installing Ollama"
@@ -242,6 +266,7 @@ else
     ollama pull llama3.1:8b 2>&1 | tail -3
     ok "llama3.1:8b model ready"
 fi
+fi  # end SKIP_MODELS guard for Step 6
 
 # ══════════════════════════════════════════════════════════════════════════════
 #  Step 7: Environment Configuration
@@ -330,11 +355,15 @@ check "python3 -c 'import requests'"           "requests importable"
 check "python3 -c 'import agentiq_labclaw'"    "agentiq_labclaw importable"
 check "python3 -c 'import pysam'"              "pysam importable"
 check "python3 -c 'import Bio'"                "biopython importable"
+
+if [[ "$SKIP_MODELS" == "false" ]]; then
 check "python3 -c 'import pyensembl'"          "pyensembl importable"
 check "python3 -c 'import mhcflurry'"          "mhcflurry importable"
 check "command -v nat"                          "nat CLI available"
 check "command -v ollama"                       "ollama installed"
 check "curl -s http://localhost:11434/api/tags" "ollama responding"
+fi
+
 check "pg_isready -p $PG_PORT -q"              "PostgreSQL responding"
 check "test -f $PROJECT_DIR/.env"              ".env file exists"
 
