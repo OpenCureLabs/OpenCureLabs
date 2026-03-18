@@ -1,19 +1,51 @@
 """QSAR model training and inference skill."""
 
 import logging
+import pickle
+from pathlib import Path
 
+import numpy as np
+import pandas as pd
 from pydantic import BaseModel
+from rdkit import Chem
+from rdkit.Chem import Descriptors
+from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor
+from sklearn.model_selection import cross_val_score
 
 from agentiq_labclaw.base import LabClawSkill, labclaw_skill
 
 logger = logging.getLogger("labclaw.skills.qsar")
+
+MODELS_DIR = Path("/root/opencurelabs/reports/qsar_models")
+
+# RDKit descriptor set — a curated subset of ~10 commonly-used descriptors
+_DESCRIPTOR_FNS = [
+    ("MolWt", Descriptors.MolWt),
+    ("LogP", Descriptors.MolLogP),
+    ("TPSA", Descriptors.TPSA),
+    ("NumHDonors", Descriptors.NumHDonors),
+    ("NumHAcceptors", Descriptors.NumHAcceptors),
+    ("NumRotatableBonds", Descriptors.NumRotatableBonds),
+    ("RingCount", Descriptors.RingCount),
+    ("FractionCSP3", Descriptors.FractionCSP3),
+    ("HeavyAtomCount", Descriptors.HeavyAtomCount),
+    ("NumAromaticRings", Descriptors.NumAromaticRings),
+]
+
+
+def _compute_descriptors(smiles: str) -> list[float] | None:
+    """Compute RDKit molecular descriptors for a SMILES string."""
+    mol = Chem.MolFromSmiles(smiles)
+    if mol is None:
+        return None
+    return [fn(mol) for _, fn in _DESCRIPTOR_FNS]
 
 
 class QSARInput(BaseModel):
     dataset_path: str
     target_column: str
     smiles_column: str = "smiles"
-    model_type: str = "random_forest"  # "random_forest" | "xgboost" | "neural_net"
+    model_type: str = "random_forest"  # "random_forest" | "xgboost"
     mode: str = "train"  # "train" | "predict"
     model_path: str | None = None  # required for predict mode
 
@@ -37,20 +69,95 @@ class QSAROutput(BaseModel):
 class QSARSkill(LabClawSkill):
     """
     Pipeline:
-    1. Load dataset and compute molecular descriptors / fingerprints
-    2. Train or load QSAR model
-    3. Evaluate on test set (if training)
+    1. Load dataset and compute molecular descriptors (RDKit)
+    2. Train or load QSAR model (RandomForest / GradientBoosting)
+    3. Evaluate via cross-validation (if training)
     4. Generate predictions (if predicting)
     """
 
     def run(self, input_data: QSARInput) -> QSAROutput:
         logger.info("QSAR %s mode on %s", input_data.mode, input_data.dataset_path)
 
-        # TODO: Integrate RDKit for descriptors, scikit-learn / XGBoost for models
+        MODELS_DIR.mkdir(parents=True, exist_ok=True)
+
+        if input_data.mode == "predict":
+            return self._predict(input_data)
+        return self._train(input_data)
+
+    def _train(self, input_data: QSARInput) -> QSAROutput:
+        df = pd.read_csv(input_data.dataset_path)
+
+        # Compute descriptors
+        desc_names = [name for name, _ in _DESCRIPTOR_FNS]
+        desc_rows = []
+        valid_idx = []
+        for i, smi in enumerate(df[input_data.smiles_column]):
+            d = _compute_descriptors(str(smi))
+            if d is not None:
+                desc_rows.append(d)
+                valid_idx.append(i)
+
+        if not desc_rows:
+            raise ValueError("No valid SMILES found in dataset")
+
+        X = np.array(desc_rows)
+        y = df.iloc[valid_idx][input_data.target_column].values.astype(float)
+
+        # Select model
+        if input_data.model_type == "xgboost":
+            model = GradientBoostingRegressor(n_estimators=200, max_depth=5, random_state=42)
+        else:
+            model = RandomForestRegressor(n_estimators=200, max_depth=10, random_state=42)
+
+        # Cross-validation
+        cv_scores = cross_val_score(model, X, y, cv=5, scoring="r2")
+        model.fit(X, y)
+
+        # Save model
+        model_path = MODELS_DIR / f"qsar_{input_data.model_type}.pkl"
+        with open(model_path, "wb") as f:
+            pickle.dump({"model": model, "descriptor_names": desc_names}, f)  # noqa: S301
+
+        metrics = {
+            "r2_mean": round(float(np.mean(cv_scores)), 4),
+            "r2_std": round(float(np.std(cv_scores)), 4),
+            "n_compounds": len(valid_idx),
+            "n_features": len(desc_names),
+            "model_type": input_data.model_type,
+        }
+
+        logger.info("QSAR training complete — R² = %.4f ± %.4f", metrics["r2_mean"], metrics["r2_std"])
+
         return QSAROutput(
-            model_path="",
-            metrics={},
-            predictions=None,
-            novel=False,
+            model_path=str(model_path),
+            metrics=metrics,
+            novel=metrics["r2_mean"] > 0.7,
             critique_required=True,
+        )
+
+    def _predict(self, input_data: QSARInput) -> QSAROutput:
+        if not input_data.model_path:
+            raise ValueError("model_path is required for predict mode")
+
+        with open(input_data.model_path, "rb") as f:
+            bundle = pickle.load(f)  # noqa: S301
+        model = bundle["model"]
+
+        df = pd.read_csv(input_data.dataset_path)
+        predictions = []
+        for _, row in df.iterrows():
+            smi = str(row[input_data.smiles_column])
+            desc = _compute_descriptors(smi)
+            if desc is None:
+                predictions.append({"smiles": smi, "predicted": None, "error": "invalid SMILES"})
+                continue
+            pred = float(model.predict([desc])[0])
+            predictions.append({"smiles": smi, "predicted": round(pred, 4)})
+
+        return QSAROutput(
+            model_path=input_data.model_path,
+            metrics={"n_predictions": len(predictions)},
+            predictions=predictions,
+            novel=False,
+            critique_required=False,
         )
