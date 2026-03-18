@@ -9,14 +9,17 @@ Usage:
 """
 
 import argparse
+import asyncio
+import csv
+import io
 import json
 import logging
 import os
 from datetime import datetime
 
 import psycopg2
-from fastapi import FastAPI, Request
-from fastapi.responses import HTMLResponse
+from fastapi import FastAPI, Query, WebSocket, WebSocketDisconnect
+from fastapi.responses import HTMLResponse, StreamingResponse
 import uvicorn
 
 DB_URL = os.environ.get("POSTGRES_URL", "dbname=opencurelabs port=5433")
@@ -280,7 +283,7 @@ def render_dashboard(stats, runs, findings, critiques, sources):
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<meta http-equiv="refresh" content="15">
+<!-- WebSocket handles live updates — no meta-refresh needed -->
 <title>OpenCure Labs — Dashboard</title>
 <style>
   * {{ margin: 0; padding: 0; box-sizing: border-box; }}
@@ -342,6 +345,20 @@ def render_dashboard(stats, runs, findings, critiques, sources):
   .score-fill {{ height: 100%; border-radius: 3px; }}
   .score-num {{ font-size: 11px; color: #8b949e; width: 40px; }}
   .scores-cell {{ min-width: 260px; }}
+  .toolbar {{
+    display: flex; align-items: center; gap: 12px; margin-bottom: 12px;
+    flex-wrap: wrap;
+  }}
+  .toolbar select, .toolbar button {{
+    background: #161b22; border: 1px solid #30363d; color: #c9d1d9;
+    border-radius: 6px; padding: 6px 12px; font-size: 13px; cursor: pointer;
+  }}
+  .toolbar button:hover {{ border-color: #7aa2f7; }}
+  .ws-dot {{
+    width: 8px; height: 8px; border-radius: 50%; display: inline-block;
+    margin-right: 4px; background: #484f58;
+  }}
+  .ws-dot.connected {{ background: #57F287; }}
 </style>
 </head>
 <body>
@@ -349,7 +366,7 @@ def render_dashboard(stats, runs, findings, critiques, sources):
 <div class="header">
   <h1>🧬 OpenCure Labs</h1>
   <span class="ts">Dashboard · {now}</span>
-  <span class="refresh">auto-refresh 15s</span>
+  <span class="refresh"><span class="ws-dot" id="ws-dot"></span>live</span>
 </div>
 
 <div class="stats">
@@ -363,7 +380,16 @@ def render_dashboard(stats, runs, findings, critiques, sources):
 
 <div class="section">
   <h2>🔬 Experiment Results</h2>
-  <table>
+  <div class="toolbar">
+    <select id="novelFilter" onchange="filterFindings()">
+      <option value="all">All results</option>
+      <option value="novel">Novel only</option>
+      <option value="replication">Replications only</option>
+    </select>
+    <button onclick="window.location='/api/export/findings?fmt=csv'">⬇ CSV</button>
+    <button onclick="window.location='/api/export/findings?fmt=json'">⬇ JSON</button>
+  </div>
+  <table id="findings-table">
     <thead><tr><th>ID</th><th>Type</th><th>Status</th><th>Pipeline</th><th>Time</th><th>Data</th></tr></thead>
     <tbody>{finding_rows or no_findings}</tbody>
   </table>
@@ -379,6 +405,10 @@ def render_dashboard(stats, runs, findings, critiques, sources):
 
 <div class="section">
   <h2>📋 Critiques</h2>
+  <div class="toolbar">
+    <button onclick="window.location='/api/export/critiques?fmt=csv'">⬇ CSV</button>
+    <button onclick="window.location='/api/export/critiques?fmt=json'">⬇ JSON</button>
+  </div>
   <table>
     <thead><tr><th>ID</th><th>Reviewer</th><th>Pipeline</th><th>Recommendation</th><th>Scores</th><th>Time</th></tr></thead>
     <tbody>{critique_rows or no_critiques}</tbody>
@@ -392,6 +422,45 @@ def render_dashboard(stats, runs, findings, critiques, sources):
     <tbody>{source_rows or no_sources}</tbody>
   </table>
 </div>
+
+<script>
+// ── WebSocket live updates ──
+(function() {{
+  const dot = document.getElementById('ws-dot');
+  const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+  let ws;
+  function connect() {{
+    ws = new WebSocket(proto + '//' + location.host + '/ws');
+    ws.onopen = () => {{ dot.classList.add('connected'); }};
+    ws.onclose = () => {{ dot.classList.remove('connected'); setTimeout(connect, 3000); }};
+    ws.onmessage = (e) => {{
+      const msg = JSON.parse(e.data);
+      if (msg.type === 'stats') {{
+        // Update stat cards with new values
+        const cards = document.querySelectorAll('.stat-card');
+        const keys = ['agent_runs', 'pipeline_runs', 'experiment_results', 'novel_count', 'critique_log', 'discovered_sources'];
+        keys.forEach((k, i) => {{
+          if (cards[i]) cards[i].querySelector('.stat-value').textContent = msg.data[k] ?? 0;
+        }});
+      }}
+    }};
+  }}
+  connect();
+}})();
+
+// ── Filter findings table ──
+function filterFindings() {{
+  const filter = document.getElementById('novelFilter').value;
+  const rows = document.querySelectorAll('#findings-table tbody tr');
+  rows.forEach(row => {{
+    if (row.classList.contains('empty')) return;
+    const badges = row.querySelectorAll('.badge');
+    if (filter === 'all') {{ row.style.display = ''; return; }}
+    const isNovel = Array.from(badges).some(b => b.textContent.includes('NOVEL'));
+    row.style.display = (filter === 'novel') === isNovel ? '' : 'none';
+  }});
+}}
+</script>
 
 </body>
 </html>"""
@@ -439,6 +508,126 @@ async def api_runs(limit: int = 50):
     cur.close()
     conn.close()
     return data
+
+
+@app.get("/api/critiques")
+async def api_critiques(limit: int = 50):
+    conn = get_conn()
+    cur = conn.cursor()
+    data = query_critiques(cur, limit=min(limit, 200))
+    cur.close()
+    conn.close()
+    return data
+
+
+@app.get("/api/sources")
+async def api_sources(limit: int = 50):
+    conn = get_conn()
+    cur = conn.cursor()
+    data = query_sources(cur, limit=min(limit, 200))
+    cur.close()
+    conn.close()
+    return data
+
+
+@app.get("/api/export/findings")
+async def export_findings(
+    fmt: str = Query("json", pattern="^(json|csv)$"),
+    novel_only: bool = False,
+    limit: int = 500,
+):
+    conn = get_conn()
+    cur = conn.cursor()
+    data = query_findings(cur, novel_only=novel_only, limit=min(limit, 10000))
+    cur.close()
+    conn.close()
+    if fmt == "csv":
+        buf = io.StringIO()
+        if data:
+            writer = csv.DictWriter(buf, fieldnames=data[0].keys())
+            writer.writeheader()
+            writer.writerows(data)
+        return StreamingResponse(
+            io.BytesIO(buf.getvalue().encode()),
+            media_type="text/csv",
+            headers={"Content-Disposition": "attachment; filename=findings.csv"},
+        )
+    return data
+
+
+@app.get("/api/export/critiques")
+async def export_critiques(fmt: str = Query("json", pattern="^(json|csv)$"), limit: int = 500):
+    conn = get_conn()
+    cur = conn.cursor()
+    data = query_critiques(cur, limit=min(limit, 10000))
+    cur.close()
+    conn.close()
+    if fmt == "csv":
+        buf = io.StringIO()
+        rows = []
+        for c in data:
+            row = {k: v for k, v in c.items() if k != "scores"}
+            for dim, score in c.get("scores", {}).items():
+                row[dim] = score
+            rows.append(row)
+        if rows:
+            writer = csv.DictWriter(buf, fieldnames=rows[0].keys())
+            writer.writeheader()
+            writer.writerows(rows)
+        return StreamingResponse(
+            io.BytesIO(buf.getvalue().encode()),
+            media_type="text/csv",
+            headers={"Content-Disposition": "attachment; filename=critiques.csv"},
+        )
+    return data
+
+
+# ── WebSocket for real-time updates ──────────────────────────────────────────
+
+_ws_clients: set[WebSocket] = set()
+
+
+@app.websocket("/ws")
+async def websocket_endpoint(ws: WebSocket):
+    await ws.accept()
+    _ws_clients.add(ws)
+    try:
+        while True:
+            await ws.receive_text()  # keep connection alive
+    except WebSocketDisconnect:
+        _ws_clients.discard(ws)
+
+
+async def _broadcast_updates():
+    """Background task: poll DB every 5s and push changes to WebSocket clients."""
+    prev_stats = None
+    while True:
+        await asyncio.sleep(5)
+        if not _ws_clients:
+            continue
+        try:
+            conn = get_conn()
+            cur = conn.cursor()
+            stats = query_stats(cur)
+            cur.close()
+            conn.close()
+            if stats != prev_stats:
+                prev_stats = stats
+                payload = json.dumps({"type": "stats", "data": stats})
+                dead = set()
+                for ws in _ws_clients:
+                    try:
+                        await ws.send_text(payload)
+                    except Exception:
+                        dead.add(ws)
+                _ws_clients -= dead
+        except Exception:
+            pass
+
+
+@app.on_event("startup")
+async def start_broadcast():
+    asyncio.create_task(_broadcast_updates())
 
 
 def main():
