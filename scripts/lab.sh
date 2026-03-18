@@ -84,7 +84,7 @@ fi
 #  ├──────────────┼──────────────┤
 #  │    LOGS      │  POSTGRES    │
 #  ├──────────────┼──────────────┤
-#  │   SYSTEM     │   SHELL      │
+#  │  DASHBOARD   │   SHELL      │
 #  └──────────────┴──────────────┘
 # ══════════════════════════════════════════════════════════════════════════════
 
@@ -135,9 +135,9 @@ tmux send-keys -t "$SESSION:0.2" "tail -f $LOGFILE" C-m
 tmux split-window -v -t "$SESSION:0.1"
 tmux send-keys -t "$SESSION:0.3" "watch -n 5 'psql -p $PG_PORT -d opencurelabs -c \"SELECT id, agent_name, status, started_at FROM agent_runs ORDER BY started_at DESC LIMIT 10;\" 2>/dev/null || echo \"PostgreSQL not available on port $PG_PORT\"'" C-m
 
-# Pane 4: SYSTEM (bottom-left)
+# Pane 4: DASHBOARD (bottom-left)
 tmux split-window -v -t "$SESSION:0.2"
-tmux send-keys -t "$SESSION:0.4" "htop" C-m
+tmux send-keys -t "$SESSION:0.4" "cd $PROJECT && $VENV && python scripts/findings.py --watch" C-m
 
 # Pane 5: SHELL (bottom-right)
 tmux split-window -v -t "$SESSION:0.3"
@@ -149,7 +149,7 @@ tmux select-pane -t "$SESSION:0.0" -T "COORDINATOR"
 tmux select-pane -t "$SESSION:0.1" -T "GROK"
 tmux select-pane -t "$SESSION:0.2" -T "LOGS"
 tmux select-pane -t "$SESSION:0.3" -T "POSTGRES"
-tmux select-pane -t "$SESSION:0.4" -T "SYSTEM"
+tmux select-pane -t "$SESSION:0.4" -T "DASHBOARD"
 tmux select-pane -t "$SESSION:0.5" -T "SHELL"
 
 # ── Focus on COORDINATOR pane ────────────────────────────────────────────────
