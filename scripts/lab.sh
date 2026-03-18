@@ -122,7 +122,7 @@ tmux rename-window -t "$SESSION" "lab"
 if ! curl -s http://127.0.0.1:8787 &>/dev/null; then
     echo "[OpenCure Labs] Starting web dashboard → http://localhost:8787"
     # shellcheck source=/dev/null
-    (cd "$PROJECT" && source "$PROJECT/.venv/bin/activate" && python scripts/dashboard.py >>"$PROJECT/logs/dashboard.log" 2>&1 &)
+    (cd "$PROJECT" && source "$PROJECT/.venv/bin/activate" && python dashboard/dashboard.py >>"$PROJECT/logs/dashboard.log" 2>&1 &)
     sleep 1
 else
     echo "[OpenCure Labs] Web dashboard already running on :8787"
@@ -147,7 +147,7 @@ tmux send-keys -t "$SESSION:0.3" "watch -n 5 'psql -p $PG_PORT -d opencurelabs -
 
 # Pane 4: DASHBOARD (bottom-left)
 tmux split-window -v -t "$SESSION:0.2"
-tmux send-keys -t "$SESSION:0.4" "cd $PROJECT && $VENV && python scripts/findings.py --watch" C-m
+tmux send-keys -t "$SESSION:0.4" "cd $PROJECT && $VENV && python dashboard/findings.py --watch" C-m
 
 # Pane 5: SHELL (bottom-right)
 tmux split-window -v -t "$SESSION:0.3"
