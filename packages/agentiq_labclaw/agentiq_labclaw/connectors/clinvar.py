@@ -1,7 +1,6 @@
 """ClinVar / OMIM variant lookup connector."""
 
 import logging
-import xml.etree.ElementTree as ET
 
 import requests
 
