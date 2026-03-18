@@ -315,13 +315,13 @@ See [docs/QUICKSTART.md](docs/QUICKSTART.md) for manual setup and troubleshootin
 
 ```bash
 # Install the NeMo Agent Toolkit CLI
-pip install aiq
+pip install nvidia-nat
 
 # Set your NVIDIA API key (for NIM inference)
 export NVIDIA_API_KEY="your_key_here"  # from build.nvidia.com
 
 # Run the coordinator workflow
-nat run --config_file config/labclaw_workflow.yaml --input "analyze TCGA BRCA cohort"
+nat run --config_file coordinator/labclaw_workflow.yaml --input "analyze TCGA BRCA cohort"
 ```
 
 ### Running the Grok Researcher Agent

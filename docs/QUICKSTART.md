@@ -279,7 +279,7 @@ session.
 
 | Problem | Solution |
 |---|---|
-| `nat: command not found` | `source .venv/bin/activate && pip install aiq` |
+| `nat: command not found` | `source .venv/bin/activate && pip install nvidia-nat` |
 | `ollama: connection refused` | `ollama serve &` (start Ollama in background) |
 | PostgreSQL won't start | Check port: `sudo -u postgres psql -c "SHOW port;"` |
 | `psql: could not connect` | `sudo service postgresql start` |

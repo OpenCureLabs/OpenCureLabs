@@ -5,9 +5,10 @@
 
 llms:
   coordinator_llm:
-    _type: openai_client
+    _type: openai
     base_url: http://localhost:11434/v1   # Ollama local endpoint
-    model_name: llama3.1
+    model_name: llama3.1:8b
+    api_key: ollama                       # Ollama ignores this but NAT requires it
     temperature: 0.0
 
 functions:
@@ -58,18 +59,19 @@ workflow:
   verbose: true
   parse_agent_response_max_retries: 3
 
-guardrails:
-  output_validation: true
-  novelty_filter: true
-  safety_check: true
-
-publishers:
-  github:
-    enabled: true
-    repo: https://github.com/OpenCureLabs/OpenCureLabs.git
-  discord:
-    enabled: true
-    webhook_url: ${DISCORD_WEBHOOK_URL}
-  pdf:
-    enabled: true
-    output_dir: /root/opencurelabs/reports/
+# ── LabClaw runtime settings (read by agentiq_labclaw, not by NAT) ───────────
+# guardrails:
+#   output_validation: true
+#   novelty_filter: true
+#   safety_check: true
+#
+# publishers:
+#   github:
+#     enabled: true
+#     repo: https://github.com/OpenCureLabs/OpenCureLabs.git
+#   discord:
+#     enabled: true
+#     webhook_url: ${DISCORD_WEBHOOK_URL}
+#   pdf:
+#     enabled: true
+#     output_dir: /root/opencurelabs/reports/

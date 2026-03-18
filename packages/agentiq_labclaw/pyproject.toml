@@ -11,6 +11,7 @@ dependencies = [
     "pydantic>=2.0",
     "psycopg2-binary>=2.9",
     "requests>=2.28",
+    "nvidia-nat>=1.5.0",
 ]
 
 [project.optional-dependencies]
@@ -18,6 +19,9 @@ dev = [
     "pytest>=7.0",
     "pytest-cov>=4.0",
 ]
+
+[project.entry-points."nat.components"]
+labclaw_skills = "agentiq_labclaw.nat_plugin"
 
 [tool.setuptools.packages.find]
 include = ["agentiq_labclaw*"]

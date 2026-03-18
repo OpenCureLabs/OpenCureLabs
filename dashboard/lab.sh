@@ -40,7 +40,7 @@ if ! command -v nat &>/dev/null && [[ -d "$PROJECT/.venv" ]]; then
     source "$PROJECT/.venv/bin/activate" 2>/dev/null
     if ! command -v nat &>/dev/null; then
         echo "[OpenCure Labs] ⚠️  NeMo Agent Toolkit (nat) not installed"
-        echo "               Run: pip install aiq"
+        echo "               Run: pip install nvidia-nat"
         WARNINGS=$((WARNINGS + 1))
     fi
 fi
