@@ -38,8 +38,16 @@ else
     echo "       Push failed (offline or auth issue) — changes are committed locally."
 fi
 
-# ── 3. Kill tmux session ────────────────────────────────────────────────────
-echo "[3/4] Terminating tmux session '$SESSION'..."
+# ── 3. Kill web dashboard ────────────────────────────────────────────────────
+echo "[3/5] Stopping web dashboard..."
+if pkill -f "dashboard/dashboard.py" 2>/dev/null; then
+    echo "       Dashboard stopped."
+else
+    echo "       No dashboard process found."
+fi
+
+# ── 4. Kill tmux session ────────────────────────────────────────────────────
+echo "[4/5] Terminating tmux session '$SESSION'..."
 if tmux has-session -t "$SESSION" 2>/dev/null; then
     tmux kill-session -t "$SESSION"
     echo "       Session killed."
@@ -47,8 +55,8 @@ else
     echo "       No active session found."
 fi
 
-# ── 4. Clean exit ────────────────────────────────────────────────────────────
-echo "[4/4] Shutdown complete."
+# ── 5. Clean exit ────────────────────────────────────────────────────────────
+echo "[5/5] Shutdown complete."
 echo ""
 echo "  To restart:  bash $PROJECT/dashboard/lab.sh"
 echo ""

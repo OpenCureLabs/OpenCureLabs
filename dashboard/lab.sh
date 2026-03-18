@@ -111,9 +111,43 @@ tmux set-option -g pane-active-border-style "fg=#7aa2f7"
 tmux set-option -g pane-border-status top
 tmux set-option -g pane-border-format "#[fg=#1a1b26,bg=#7aa2f7,bold] #{pane_index}: #{pane_title} #[default]"
 
-# ── Reload keybinding: Ctrl+b R ──────────────────────────────────────────────
-tmux bind-key -T prefix R source-file ~/.tmux.conf \; display-message "Config reloaded" 2>/dev/null || true
+# ── Mouse support ────────────────────────────────────────────────────────────
+tmux set-option -g mouse on
+
+# ── Activity monitoring ──────────────────────────────────────────────────────
+tmux set-option -g monitor-activity on
+tmux set-option -g visual-activity off
+tmux set-option -g activity-action other
+tmux set-window-option -g window-status-activity-style "fg=#57F287,bold"
+
+# ── Keyboard shortcuts ──────────────────────────────────────────────────────
+#  Ctrl+b Q  → Quit (runs stop.sh — auto-saves, pushes, kills session)
+#  Ctrl+b R  → Reload lab
+#  Ctrl+b f  → Pop up findings summary
+#  Ctrl+b w  → Open web dashboard URL reminder
+#  Ctrl+b h  → Show help overlay
+tmux bind-key -T prefix Q confirm-before -p "Quit OpenCure Labs? (auto-saves & pushes) [y/N]" \
+  "run-shell 'bash $PROJECT/dashboard/stop.sh'"
 tmux bind-key -T prefix R run-shell "bash $PROJECT/dashboard/lab.sh" \; display-message "OpenCure Labs reloaded"
+tmux bind-key -T prefix f display-popup -E -w 80 -h 30 -T " Findings " \
+  "cd $PROJECT && source .venv/bin/activate && python dashboard/findings.py --all 2>/dev/null || echo 'Dashboard unavailable'"
+tmux bind-key -T prefix w display-message "Web dashboard → http://localhost:8787"
+tmux bind-key -T prefix h display-popup -E -w 60 -h 20 -T " Keyboard Shortcuts " \
+  "echo '
+  OpenCure Labs — Keyboard Shortcuts
+  ───────────────────────────────────
+  Ctrl+b Q     Quit (auto-save + push + exit)
+  Ctrl+b f     Findings popup
+  Ctrl+b w     Web dashboard URL
+  Ctrl+b z     Zoom/unzoom current pane
+  Ctrl+b h     This help
+  Ctrl+b R     Reload lab session
+  Ctrl+b d     Detach (session keeps running)
+  Ctrl+b [     Scroll mode (q to exit)
+  Mouse        Click panes, scroll, resize borders
+  ───────────────────────────────────
+  Press Enter or q to close
+'; read -r"
 
 # ── Window name ──────────────────────────────────────────────────────────────
 tmux rename-window -t "$SESSION" "lab"
