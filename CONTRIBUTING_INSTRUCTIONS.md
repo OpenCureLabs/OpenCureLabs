@@ -48,7 +48,7 @@ Step by step, assume Ubuntu 22.04+ or WSL2:
 
 ```bash
 # Clone
-git clone https://github.com/OpenCureLabs/XPCLabs.git
+git clone https://github.com/OpenCureLabs/OpenCureLabs.git
 cd OpenCureLabs
 
 # Python environment

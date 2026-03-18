@@ -291,7 +291,7 @@ OpenCure Labs is built on three principles:
 
 ```bash
 # Clone the repository
-git clone https://github.com/OpenCureLabs/XPCLabs.git
+git clone https://github.com/OpenCureLabs/OpenCureLabs.git
 cd XPCLabs
 
 # Create and activate virtual environment

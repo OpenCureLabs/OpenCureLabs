@@ -183,7 +183,7 @@ guardrails:
 publishers:
   github:
     enabled: true
-    repo: git@github.com:OpenCureLabs/XPCLabs.git
+    repo: git@github.com:OpenCureLabs/OpenCureLabs.git
   discord:
     enabled: true
     webhook_url: ${DISCORD_WEBHOOK_URL}

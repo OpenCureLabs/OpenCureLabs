@@ -107,6 +107,6 @@ nat run --config_file coordinator/labclaw_workflow.yaml --input "your task here"
 
 ## GitHub
 
-- **Repo:** git@github.com:OpenCureLabs/XPCLabs.git
+- **Repo:** git@github.com:OpenCureLabs/OpenCureLabs.git
 - **Remote:** SSH-based (no password commits)
 - **Identity:** `agent@opencurelabs` / `OpenCure Labs Agent`

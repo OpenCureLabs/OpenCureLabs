@@ -113,7 +113,7 @@ agents at the start of every session. It should contain:
 - How to run the coordinator: `nat run --config_file coordinator/workflow.yaml`
 - PostgreSQL connection: `postgresql://localhost/opencurelabs` (local, no auth in dev)
 - Discord logging webhook: read from .env as DISCORD_WEBHOOK_URL
-- GitHub repo: https://github.com/OpenCureLabs/XPCLabs
+- GitHub repo: https://github.com/OpenCureLabs/OpenCureLabs
 
 ### 4. GitHub setup (no password commits)
 
@@ -143,7 +143,7 @@ git config --global user.name "OpenCure Labs Agent"
 After the public key has been added to GitHub, set the remote:
 
 ```bash
-git remote set-url origin git@github.com:OpenCureLabs/XPCLabs.git
+git remote set-url origin git@github.com:OpenCureLabs/OpenCureLabs.git
 
 # Test connection
 ssh -T git@github.com
@@ -189,7 +189,7 @@ Using the gh CLI (must be authenticated: `gh auth login`):
 gh project create --owner OpenCureLabs --title "OpenCure Labs" --format json
 
 # Enable Wiki (via API)
-gh api repos/OpenCureLabs/XPCLabs -X PATCH -f has_wiki=true
+gh api repos/OpenCureLabs/OpenCureLabs -X PATCH -f has_wiki=true
 ```
 
 Create wiki pages for: Home, Architecture, Agents, Data Sources,
@@ -261,4 +261,4 @@ EOF
 - Always activate venv before running Python: `source /root/opencurelabs/.venv/bin/activate`
 - All agent activity logs to `logs/` directory and Discord webhook
 - README.md is the source of truth — never overwrite it
-- GitHub repo: https://github.com/OpenCureLabs/XPCLabs
+- GitHub repo: https://github.com/OpenCureLabs/OpenCureLabs

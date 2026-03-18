@@ -29,7 +29,7 @@ There are many entry points, whether you're a biologist, engineer, or someone wh
 The fastest way to contribute is to clone the repo, run the neoantigen pipeline on the synthetic test data, and report what worked and what didn't. Real feedback from real environments is invaluable.
 
 ```bash
-git clone https://github.com/OpenCureLabs/XPCLabs.git
+git clone https://github.com/OpenCureLabs/OpenCureLabs.git
 cd OpenCureLabs
 python3 -m venv .venv && source .venv/bin/activate
 pip install -e packages/agentiq_labclaw
@@ -74,7 +74,7 @@ Assumes Ubuntu 22.04+ or WSL2.
 
 ```bash
 # Clone
-git clone https://github.com/OpenCureLabs/XPCLabs.git
+git clone https://github.com/OpenCureLabs/OpenCureLabs.git
 cd OpenCureLabs
 
 # Python environment
