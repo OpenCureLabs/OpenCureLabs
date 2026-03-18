@@ -17,14 +17,14 @@ class GitHubPublisher:
         """Stage files, commit, and push to GitHub."""
         try:
             for f in files:
-                subprocess.run(["git", "add", f], cwd=self.repo_path, check=True, capture_output=True)
+                subprocess.run(["git", "add", f], cwd=self.repo_path, check=True, capture_output=True)  # noqa: S603, S607
 
-            subprocess.run(
-                ["git", "commit", "-m", message],
+            subprocess.run(  # noqa: S603
+                ["git", "commit", "-m", message],  # noqa: S607
                 cwd=self.repo_path, check=True, capture_output=True,
             )
-            subprocess.run(
-                ["git", "push", "origin", branch],
+            subprocess.run(  # noqa: S603
+                ["git", "push", "origin", branch],  # noqa: S607
                 cwd=self.repo_path, check=True, capture_output=True,
             )
             logger.info("Pushed commit to %s: %s", branch, message)

@@ -21,3 +21,15 @@ dev = [
 
 [tool.setuptools.packages.find]
 include = ["agentiq_labclaw*"]
+
+[tool.ruff]
+target-version = "py311"
+line-length = 120
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "S", "B", "UP"]
+ignore = ["S101"]  # allow assert in tests
+
+[tool.bandit]
+exclude_dirs = ["tests"]
+skips = ["B101"]  # allow assert

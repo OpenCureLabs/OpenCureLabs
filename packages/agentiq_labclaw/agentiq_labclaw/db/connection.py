@@ -1,7 +1,7 @@
 """PostgreSQL connection management."""
 
-import os
 import logging
+import os
 
 import psycopg2
 

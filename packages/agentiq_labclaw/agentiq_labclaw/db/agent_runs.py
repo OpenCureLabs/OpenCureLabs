@@ -2,7 +2,6 @@
 
 import json
 import logging
-from datetime import datetime
 
 from agentiq_labclaw.db.connection import get_connection
 
@@ -37,7 +36,10 @@ def get_run(run_id: int) -> dict | None:
     """Get an agent run by ID."""
     conn = get_connection()
     with conn.cursor() as cur:
-        cur.execute("SELECT id, agent_name, started_at, completed_at, status, result_json FROM agent_runs WHERE id = %s", (run_id,))
+        cur.execute(
+            "SELECT id, agent_name, started_at, completed_at, status, result_json FROM agent_runs WHERE id = %s",
+            (run_id,),
+        )
         row = cur.fetchone()
         if row:
             return {

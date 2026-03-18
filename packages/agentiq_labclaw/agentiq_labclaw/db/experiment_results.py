@@ -13,7 +13,8 @@ def store_result(pipeline_run_id: int, result_type: str, result_data: dict, nove
     conn = get_connection()
     with conn.cursor() as cur:
         cur.execute(
-            "INSERT INTO experiment_results (pipeline_run_id, result_type, result_data, novel) VALUES (%s, %s, %s, %s) RETURNING id",
+            "INSERT INTO experiment_results (pipeline_run_id, result_type, result_data, novel)"
+            " VALUES (%s, %s, %s, %s) RETURNING id",
             (pipeline_run_id, result_type, json.dumps(result_data), novel),
         )
         result_id = cur.fetchone()[0]

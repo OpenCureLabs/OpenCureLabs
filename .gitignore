@@ -9,3 +9,5 @@ logs/*.log
 db/data/
 .DS_Store
 *.swp
+security/reports/
+security/security_scan.py.bak

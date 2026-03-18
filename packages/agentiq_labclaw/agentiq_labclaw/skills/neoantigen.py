@@ -16,7 +16,6 @@ a manual install — MHCflurry is the default fallback.
 """
 
 import logging
-import os
 from pathlib import Path
 
 from pydantic import BaseModel
@@ -115,8 +114,8 @@ def _get_affected_transcripts(chrom: str, pos: int, ref: str, alt: str):
     Look up protein-coding transcripts overlapping a variant position.
     Returns list of (transcript, codon_index, ref_aa, alt_aa, protein_sequence).
     """
-    from pyensembl import EnsemblRelease
     from Bio.Data.CodonTable import standard_dna_table
+    from pyensembl import EnsemblRelease
 
     ensembl = EnsemblRelease(ENSEMBL_RELEASE)
 
@@ -133,7 +132,7 @@ def _get_affected_transcripts(chrom: str, pos: int, ref: str, alt: str):
     for tid in transcript_ids:
         try:
             tx = ensembl.transcript_by_id(tid)
-        except Exception:
+        except Exception:  # noqa: S112
             continue
 
         # Only protein-coding transcripts
@@ -147,7 +146,7 @@ def _get_affected_transcripts(chrom: str, pos: int, ref: str, alt: str):
                 continue
 
             codon_index = coding_offset // 3
-            codon_pos_in_triplet = coding_offset % 3
+            _codon_pos_in_triplet = coding_offset % 3  # noqa: F841
 
             protein_seq = tx.protein_sequence
             if codon_index >= len(protein_seq):
@@ -374,7 +373,7 @@ class NeoantigenSkill(LabClawSkill):
         # --- Log pipeline start to DB (best-effort) ---
         pipeline_run_id = None
         try:
-            from agentiq_labclaw.db.pipeline_runs import start_pipeline, complete_pipeline
+            from agentiq_labclaw.db.pipeline_runs import complete_pipeline, start_pipeline
 
             pipeline_run_id = start_pipeline(
                 "neoantigen_prediction",
@@ -385,11 +384,11 @@ class NeoantigenSkill(LabClawSkill):
 
         try:
             result = self._run_pipeline(input_data)
-        except Exception as e:
+        except Exception:
             if pipeline_run_id is not None:
                 try:
                     complete_pipeline(pipeline_run_id, "failed")
-                except Exception:
+                except Exception:  # noqa: S110
                     pass
             raise
 

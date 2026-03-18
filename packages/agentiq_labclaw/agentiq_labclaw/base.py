@@ -2,10 +2,8 @@
 Base classes and decorators for LabClaw skills.
 """
 
-import functools
 import logging
 from abc import ABC, abstractmethod
-from typing import Any
 
 from pydantic import BaseModel
 

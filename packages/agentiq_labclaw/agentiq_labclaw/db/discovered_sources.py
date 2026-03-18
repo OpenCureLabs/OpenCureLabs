@@ -32,9 +32,17 @@ def list_unvalidated() -> list[dict]:
     """List all unvalidated discovered sources."""
     conn = get_connection()
     with conn.cursor() as cur:
-        cur.execute("SELECT id, url, domain, discovered_by, discovered_at, notes FROM discovered_sources WHERE validated = FALSE")
+        cur.execute(
+            "SELECT id, url, domain, discovered_by, discovered_at, notes"
+            " FROM discovered_sources WHERE validated = FALSE"
+        )
         rows = cur.fetchall()
         return [
-            {"id": r[0], "url": r[1], "domain": r[2], "discovered_by": r[3], "discovered_at": r[4].isoformat() if r[4] else None, "notes": r[5]}
+            {
+                "id": r[0], "url": r[1], "domain": r[2],
+                "discovered_by": r[3],
+                "discovered_at": r[4].isoformat() if r[4] else None,
+                "notes": r[5],
+            }
             for r in rows
         ]

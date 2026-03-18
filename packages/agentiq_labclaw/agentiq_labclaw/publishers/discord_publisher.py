@@ -43,7 +43,10 @@ class DiscordPublisher:
 
         embed = {"title": title[:256], "description": description[:4096], "color": color}
         if fields:
-            embed["fields"] = [{"name": f["name"][:256], "value": f["value"][:1024], "inline": f.get("inline", False)} for f in fields[:25]]
+            embed["fields"] = [
+                {"name": f["name"][:256], "value": f["value"][:1024], "inline": f.get("inline", False)}
+                for f in fields[:25]
+            ]
 
         payload = {"embeds": [embed], "username": username}
         try:

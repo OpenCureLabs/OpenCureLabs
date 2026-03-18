@@ -1,0 +1,7 @@
+name: opencurelabs
+
+static:
+  ruff_target: packages/agentiq_labclaw/
+  bandit_target: packages/agentiq_labclaw/
+  bandit_config: packages/agentiq_labclaw/pyproject.toml
+  secrets_baseline: .secrets.baseline

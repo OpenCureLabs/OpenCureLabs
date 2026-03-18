@@ -2,8 +2,6 @@
 
 import logging
 
-from pydantic import BaseModel
-
 from agentiq_labclaw.db.experiment_results import check_novelty as db_check_novelty
 
 logger = logging.getLogger("labclaw.guardrails.novelty_filter")
