@@ -22,7 +22,7 @@ sudo bash scripts/setup.sh
 nano .env
 
 # Launch the control panel
-bash scripts/lab.sh
+bash dashboard/lab.sh
 ```
 
 The setup script handles system packages, Python venv, scientific models,
@@ -159,7 +159,7 @@ R175H, all tests pass.
 ### 8. Launch
 
 ```bash
-bash scripts/lab.sh
+bash dashboard/lab.sh
 ```
 
 This opens a 6-pane tmux session:
@@ -170,7 +170,7 @@ This opens a 6-pane tmux session:
 ├──────────────┼──────────────┤
 │    LOGS      │  POSTGRES    │
 ├──────────────┼──────────────┤
-│   SYSTEM     │   SHELL      │
+│  DASHBOARD   │   SHELL      │
 └──────────────┴──────────────┘
 ```
 
@@ -180,13 +180,13 @@ This opens a 6-pane tmux session:
 | **GROK** | Grok researcher workspace (runs from `/workspace`) |
 | **LOGS** | Live tail of agent activity log |
 | **POSTGRES** | Auto-refreshing view of recent agent runs |
-| **SYSTEM** | System monitor (htop) |
+| **DASHBOARD** | Live findings CLI (auto-refreshing) |
 | **SHELL** | General purpose terminal with venv activated |
 
 **Keyboard shortcuts:**
 - `Ctrl+b` then arrow keys — switch between panes
 - `Ctrl+b` then `d` — detach (session keeps running)
-- `bash scripts/lab.sh` — reattach to existing session
+- `bash dashboard/lab.sh` — reattach to existing session
 
 ---
 
@@ -267,7 +267,7 @@ The script is idempotent — running it again skips steps that are already compl
 ## Stopping
 
 ```bash
-bash scripts/stop.sh
+bash dashboard/stop.sh
 ```
 
 This auto-commits any uncommitted changes, pushes to GitHub, and kills the tmux
@@ -287,7 +287,7 @@ session.
 | MHCflurry import error | `mhcflurry-downloads fetch models_class1 models_class1_pan models_class1_presentation` |
 | `.env not found` | `cp .env.example .env && nano .env` |
 | Pre-commit hook blocks commit | Fix findings, or bypass with `git commit --no-verify` |
-| tmux session exists | `bash scripts/lab.sh` will reattach automatically |
+| tmux session exists | `bash dashboard/lab.sh` will reattach automatically |
 
 ---
 
@@ -296,8 +296,8 @@ session.
 | File | Purpose |
 |---|---|
 | `scripts/setup.sh` | Automated full setup |
-| `scripts/lab.sh` | Launch tmux control panel |
-| `scripts/stop.sh` | Shutdown and auto-commit |
+| `dashboard/lab.sh` | Launch tmux control panel |
+| `dashboard/stop.sh` | Shutdown and auto-commit |
 | `.env.example` | Template for API keys |
 | `requirements.txt` | Python dependencies |
 | `db/schema.sql` | PostgreSQL schema |

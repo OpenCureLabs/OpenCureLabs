@@ -292,7 +292,7 @@ sudo bash scripts/setup.sh
 nano .env
 
 # Launch the tmux control panel
-bash scripts/lab.sh
+bash dashboard/lab.sh
 ```
 
 The setup script installs system packages, Python dependencies, scientific models

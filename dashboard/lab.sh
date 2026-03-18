@@ -3,8 +3,8 @@
 #  OpenCure Labs — tmux Control Panel
 #  Launches the full OpenCure Labs environment in a single 6-pane tmux session.
 #
-#  Usage:  ./scripts/lab.sh          (from anywhere)
-#          bash /root/opencurelabs/scripts/lab.sh
+#  Usage:  ./dashboard/lab.sh          (from anywhere)
+#          bash /root/opencurelabs/dashboard/lab.sh
 # ──────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
@@ -113,7 +113,7 @@ tmux set-option -g pane-border-format "#[fg=#1a1b26,bg=#7aa2f7,bold] #{pane_inde
 
 # ── Reload keybinding: Ctrl+b R ──────────────────────────────────────────────
 tmux bind-key -T prefix R source-file ~/.tmux.conf \; display-message "Config reloaded" 2>/dev/null || true
-tmux bind-key -T prefix R run-shell "bash $PROJECT/scripts/lab.sh" \; display-message "OpenCure Labs reloaded"
+tmux bind-key -T prefix R run-shell "bash $PROJECT/dashboard/lab.sh" \; display-message "OpenCure Labs reloaded"
 
 # ── Window name ──────────────────────────────────────────────────────────────
 tmux rename-window -t "$SESSION" "lab"

@@ -3,7 +3,7 @@
 #  OpenCure Labs — Clean Shutdown
 #  Auto-saves uncommitted work, pushes to GitHub, then tears down the session.
 #
-#  Usage:  ./scripts/stop.sh
+#  Usage:  ./dashboard/stop.sh
 # ──────────────────────────────────────────────────────────────────────────────
 set -uo pipefail
 
@@ -50,5 +50,5 @@ fi
 # ── 4. Clean exit ────────────────────────────────────────────────────────────
 echo "[4/4] Shutdown complete."
 echo ""
-echo "  To restart:  bash $PROJECT/scripts/lab.sh"
+echo "  To restart:  bash $PROJECT/dashboard/lab.sh"
 echo ""
