@@ -1,7 +1,15 @@
-"""PDF report publisher — generates and stores PDF reports."""
+"""PDF report publisher — generates and stores PDF reports using reportlab."""
 
+import json
 import logging
+from datetime import datetime
 from pathlib import Path
+
+from reportlab.lib import colors
+from reportlab.lib.pagesizes import A4
+from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
+from reportlab.lib.units import cm
+from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
 
 logger = logging.getLogger("labclaw.publishers.pdf")
 
@@ -23,20 +31,32 @@ class PDFPublisher:
         """
         logger.info("Generating PDF report: %s", title)
 
-        # TODO: Integrate reportlab or weasyprint for PDF generation
-        # For now, generate a Markdown file as placeholder
         safe_title = "".join(c if c.isalnum() or c in " -_" else "" for c in title).strip().replace(" ", "_")
-        md_path = self.output_dir / f"{safe_title}.md"
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        pdf_path = self.output_dir / f"{safe_title}_{timestamp}.pdf"
 
-        lines = [f"# {title}\n"]
+        doc = SimpleDocTemplate(str(pdf_path), pagesize=A4, topMargin=2*cm, bottomMargin=2*cm)
+        styles = getSampleStyleSheet()
+        elements = []
+
+        # Title
+        elements.append(Paragraph(title, styles["Title"]))
+        elements.append(Spacer(1, 0.5 * cm))
+
+        # Sections
         for section in sections:
-            lines.append(f"\n## {section.get('heading', 'Untitled')}\n")
-            lines.append(section.get("content", "") + "\n")
+            elements.append(Paragraph(section.get("heading", ""), styles["Heading2"]))
+            content = section.get("content", "").replace("\n", "<br/>")
+            elements.append(Paragraph(content, styles["BodyText"]))
+            elements.append(Spacer(1, 0.3 * cm))
 
+        # Critique
         if critique:
-            lines.append("\n## Reviewer Critique\n")
-            lines.append(f"```json\n{critique}\n```\n")
+            elements.append(Paragraph("Reviewer Critique", styles["Heading2"]))
+            code_style = ParagraphStyle("Code", parent=styles["Code"], fontSize=8, backColor=colors.HexColor("#f5f5f5"))
+            for line in json.dumps(critique, indent=2, default=str).split("\n"):
+                elements.append(Paragraph(line, code_style))
 
-        md_path.write_text("\n".join(lines))
-        logger.info("Report saved to %s (Markdown placeholder — PDF generation pending)", md_path)
-        return str(md_path)
+        doc.build(elements)
+        logger.info("PDF report saved to %s", pdf_path)
+        return str(pdf_path)
