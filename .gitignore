@@ -12,3 +12,4 @@ db/data/
 *.swp
 security/reports/
 security/security_scan.py.bak
+scripts/tunnel-setup.sh
