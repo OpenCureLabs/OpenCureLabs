@@ -77,7 +77,7 @@ if ! pg_isready -p "$PG_PORT" -q 2>/dev/null; then
 fi
 
 # ── Reattach if session already exists ───────────────────────────────────────
-if zellij list-sessions 2>/dev/null | grep -q "^${SESSION}"; then
+if zellij list-sessions -s 2>/dev/null | grep -q "^${SESSION}$"; then
     echo "[OpenCure Labs] Session '$SESSION' already running — reattaching."
     exec zellij attach "$SESSION"
 fi
@@ -94,4 +94,4 @@ fi
 
 # ── Launch Zellij ────────────────────────────────────────────────────────────
 echo "[OpenCure Labs] Launching Zellij session '$SESSION'..."
-exec env ZELLIJ_CONFIG_DIR="$ZELLIJ_CFG" zellij --session "$SESSION" --layout opencurelabs
+exec env ZELLIJ_CONFIG_DIR="$ZELLIJ_CFG" zellij -s "$SESSION"
