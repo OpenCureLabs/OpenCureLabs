@@ -10,6 +10,9 @@ pyyaml>=6.0
 # ── NVIDIA NeMo Agent Toolkit ────────────────────────────────────────────────
 nvidia-nat
 
+# ── Numerical (pin numpy < 2 for pyarrow / sklearn wheel compat) ────────────
+numpy>=1.26,<2.0
+
 # ── Scientific Stack (neoantigen pipeline) ───────────────────────────────────
 pysam>=0.22
 biopython>=1.83

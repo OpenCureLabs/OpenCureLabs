@@ -11,6 +11,7 @@ import os
 import sys
 import json
 import logging
+import pytest
 
 # Ensure the package is importable
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "packages", "agentiq_labclaw"))
@@ -46,6 +47,10 @@ def test_vcf_parsing():
     print(f"PASS: VCF parsing — {len(variants)} variants")
 
 
+@pytest.mark.skipif(
+    not os.path.isdir(os.path.expanduser("~/.local/share/mhcflurry")),
+    reason="MHCflurry models not downloaded (use --skip-models?)",
+)
 def test_full_pipeline():
     """Run the full neoantigen prediction pipeline on synthetic data."""
     vcf_path = os.path.join(os.path.dirname(__file__), "data", "synthetic_somatic.vcf")
