@@ -163,19 +163,49 @@ Builds quantitative structure–activity relationship models, runs molecular doc
 
 ## Compute Infrastructure
 
-OpenCure Labs is designed for hybrid local/cloud execution:
+OpenCure Labs is designed for hybrid local/cloud execution.
 
-### Local Compute
+### Minimum Requirements
+
+| Component | Minimum | Recommended |
+|---|---|---|
+| **GPU** | NVIDIA GTX 1080 (8 GB VRAM) | RTX 3090+ (24 GB VRAM) |
+| **CPU** | 8 cores / 16 threads | 16+ cores |
+| **RAM** | 32 GB | 64+ GB |
+| **Storage** | 50 GB free (SSD) | 500 GB+ NVMe |
+| **OS** | Ubuntu 22.04+ / WSL2 | Ubuntu 24.04 / WSL2 |
+| **Python** | 3.11+ | 3.12 |
+| **PostgreSQL** | 14+ | 16 |
+
+> **No GPU?** The platform still runs — agent coordination, data ingestion, and reviews work on CPU only. GPU is needed for structure prediction, docking, and ML inference pipelines.
+
+### Required API Keys
+
+Configure these in `.env` (never committed to git):
+
+| Key | Service | Required for | Free tier? |
+|---|---|---|---|
+| `GENAI_API_KEY` | Google Gemini | NemoClaw coordinator | Yes |
+| `ANTHROPIC_API_KEY` | Anthropic Claude | Scientific critic (reviewer) | No |
+| `XAI_API_KEY` | xAI Grok | Literature monitor (reviewer) | No |
+| `GITHUB_TOKEN` | GitHub | Publishing results, CI | Yes |
+| `DISCORD_WEBHOOK_URL` | Discord | Live agent log streaming | Yes |
+| `OPENAI_API_KEY` | OpenAI | Optional — alternate LLM routing | No |
+| `NVIDIA_API_KEY` | NVIDIA NIM | Optional — NIM model endpoints | Yes |
+| `VAST_AI_KEY` | Vast.ai | Optional — cloud burst compute | No |
+| `EMAIL_PASSWORD` | SMTP | Optional — email alerts | — |
+
+At minimum, you need **`GENAI_API_KEY`** to run the coordinator. Add reviewer keys (`ANTHROPIC_API_KEY`, `XAI_API_KEY`) to enable the full critique loop.
+
+### Current Lab Setup
 
 | Component | Specification |
 |---|---|
-| GPU | RTX 5070 (current) → dual RTX 5090 (planned) |
-| CPU | Future: Threadripper Pro |
-| RAM | 256 GB |
-| Storage | 8 TB NVMe |
-| Environment | WSL-Agents + Python venv |
-
-Best suited for: **genomics pipelines, protein structure prediction, standard ML inference**
+| GPU | NVIDIA RTX 5070 (12 GB VRAM) |
+| CPU | AMD (32 threads) |
+| RAM | 128 GB |
+| Storage | 1 TB NVMe |
+| Environment | WSL2 + Python 3.12 venv |
 
 ### Cloud Burst — Vast.ai
 
@@ -309,7 +339,7 @@ OpenCure Labs is currently capable of or actively building toward:
 - Closed-loop experiment design and iteration
 - Active learning for compound optimization
 - Multi-omics data fusion
-- Threadripper Pro + dual 5090 local cluster upgrade
+- RAM upgrade to 256 GB, dual RTX 5090 + Threadripper Pro
 
 ---
 
