@@ -15,6 +15,7 @@
 - [Compute Infrastructure](#compute-infrastructure)
 - [Reviewer Agents](#reviewer-agents)
 - [Outputs & Publishing](#outputs--publishing)
+- [Dashboard & Monitoring](#dashboard--monitoring)
 - [Scientific Capabilities](#scientific-capabilities)
 - [Roadmap](#roadmap)
 - [Philosophy](#philosophy)
@@ -221,6 +222,54 @@ This dual-role design means Grok is not just a passive critic but an **active la
 | **PDF Reports** | Formal findings documents with methodology, results, and reviewer notes |
 
 The Discord stream is designed to be human-readable: anyone, regardless of technical background, can follow what the agents are doing and why.
+
+---
+
+## Dashboard & Monitoring
+
+OpenCure Labs provides multiple ways to monitor research progress and view results in real time.
+
+### Zellij Control Panel
+
+The lab runs inside a [Zellij](https://zellij.dev/) terminal multiplexer with three clickable tabs:
+
+| Tab | Purpose |
+|---|---|
+| **Lab** | 6-pane grid: COORDINATOR, GROK, LOGS, POSTGRES, DASHBOARD, SHELL |
+| **Agents** | Agent configs, skills, pipeline runner, reviewer configs |
+| **Monitor** | Live logs, dashboard log, DB monitor, system info (GPU, disk, versions) |
+
+![Zellij Lab Tab](docs/screenshots/zellij-lab.png)
+
+### Web Dashboard
+
+A full web UI is available at `http://localhost:8787` with stat cards, data tables, filters, and CSV/JSON export.
+
+![Web Dashboard](docs/screenshots/web-dashboard.png)
+
+### Viewing Results
+
+Results flow automatically: run a task in COORDINATOR → agents execute → results land in PostgreSQL → dashboards update live.
+
+| Method | How | What you see |
+|---|---|---|
+| **DASHBOARD pane** | Lab tab, bottom-left | Live auto-refreshing summary: Agent Runs, Results, Critiques, Sources |
+| **Alt+f** | Press anywhere in Zellij | Detailed findings overlay (floating pane) |
+| **Monitor tab** | Click "Monitor" tab | DB MONITOR with run/finding counts, live agent logs, system stats |
+| **Web dashboard** | Browser → `http://localhost:8787` | Full web UI with tables, charts, filters, CSV/JSON export |
+| **POSTGRES pane** | Lab tab, middle-right | Raw SQL query of `agent_runs` table, refreshing every 5s |
+
+### Keyboard Shortcuts
+
+| Shortcut | Action |
+|---|---|
+| `Alt+q` | Clean quit — auto-commits, pushes to GitHub, kills session |
+| `Alt+f` | Pop up findings overlay |
+| `Ctrl+t` | New tab |
+| `Alt+n` | Switch tab |
+| `Alt+h/j/k/l` | Navigate between panes |
+| `Ctrl+p n` | New pane |
+| `Ctrl+q` | Quit Zellij |
 
 ---
 
