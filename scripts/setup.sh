@@ -157,6 +157,9 @@ step "Installing Python dependencies"
 info "Upgrading pip"
 pip install --upgrade pip --quiet
 
+info "Pre-installing numpy<2.0 (avoids pyarrow ABI mismatch)"
+pip install 'numpy>=1.26,<2.0' --quiet
+
 info "Installing from requirements.txt"
 pip install -r "$PROJECT_DIR/requirements.txt" --quiet 2>&1 | tail -3
 

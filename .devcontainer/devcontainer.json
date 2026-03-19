@@ -3,6 +3,7 @@
     "image": "mcr.microsoft.com/devcontainers/python:3.11",
     "features": {
         "ghcr.io/devcontainers/features/common-utils:2": {},
+        "ghcr.io/devcontainers/features/sshd:1": {},
         "ghcr.io/robbert229/devcontainer-features/postgresql-client:1": {}
     },
     "postCreateCommand": "bash scripts/setup.sh --skip-models",
