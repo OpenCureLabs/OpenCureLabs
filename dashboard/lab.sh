@@ -37,7 +37,7 @@ WARNINGS=0
 
 if [[ ! -d "$PROJECT/.venv" ]]; then
     echo "[OpenCure Labs] ⚠️  No Python venv found at $PROJECT/.venv"
-    echo "               Run: sudo bash scripts/setup.sh"
+    echo "               Run: bash scripts/setup.sh"
     WARNINGS=$((WARNINGS + 1))
 fi
 
@@ -60,7 +60,7 @@ fi
 if [[ $WARNINGS -gt 0 ]]; then
     echo ""
     echo "[OpenCure Labs] $WARNINGS warning(s) — some panes may not work correctly."
-    echo "               Run 'sudo bash scripts/setup.sh' for full setup."
+    echo "               Run 'bash scripts/setup.sh' for full setup."
     echo ""
     sleep 2
 fi
@@ -77,7 +77,7 @@ if ! pg_isready -p "$PG_PORT" -q 2>/dev/null; then
 fi
 
 # ── Reattach if session already exists ───────────────────────────────────────
-if zellij list-sessions -s 2>/dev/null | grep -q "^${SESSION}$"; then
+if zellij list-sessions -s 2>&1 | grep -q "^${SESSION}$"; then
     echo "[OpenCure Labs] Session '$SESSION' already running — reattaching."
     exec zellij attach "$SESSION"
 fi
