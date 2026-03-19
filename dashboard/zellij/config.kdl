@@ -37,12 +37,16 @@ copy_on_select true
 // Custom OpenCure Labs shortcuts are bound under a shared mode
 // to match the tmux "Ctrl+b then key" feel.
 keybinds {
-    // In normal mode, Ctrl+o enters the "session" mode which
-    // we use for our custom OpenCure Labs shortcuts.
     shared_except "locked" {
-        // Quick-access: findings popup in a floating pane
+        // Alt+q — clean quit via stop.sh (auto-commit, push, kill session)
+        bind "Alt q" {
+            Run "bash" "-c" "bash /root/opencurelabs/dashboard/stop.sh" {
+                in_place true
+            }
+        }
+        // Alt+f — findings popup in a floating pane
         bind "Alt f" {
-            Run "bash" "-c" "cd /root/opencurelabs && source .venv/bin/activate && python dashboard/findings.py --all 2>/dev/null || echo 'Dashboard unavailable'; echo; echo 'Press Enter to close'; read" {
+            Run "bash" "-c" "cd /root/opencurelabs && source .venv/bin/activate && python3 dashboard/findings.py --all 2>/dev/null || echo 'Dashboard unavailable'; echo; echo 'Press Enter to close'; read" {
                 in_place true
             }
             ToggleFloatingPanes;

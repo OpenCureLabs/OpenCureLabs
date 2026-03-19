@@ -1,6 +1,7 @@
 // ──────────────────────────────────────────────────────────────────────────────
-//  OpenCure Labs — 6-Pane Lab Layout
+//  OpenCure Labs — Multi-Tab Lab Layout
 //
+//  Tab 1 "Lab" (main 6-pane grid):
 //  ┌──────────────┬──────────────┐
 //  │ COORDINATOR  │    GROK      │
 //  ├──────────────┼──────────────┤
@@ -9,18 +10,28 @@
 //  │  DASHBOARD   │   SHELL      │
 //  └──────────────┴──────────────┘
 //
-//  Loaded automatically by lab.sh via: zellij --layout dashboard/zellij/layout.kdl
+//  Tab 2 "Agents"   — config viewer, runner, skills, pipelines
+//  Tab 3 "Monitor"  — live logs, DB monitor, web dashboard status
+//
+//  Status bar at bottom shows keybind hints (Alt+q QUIT, Alt+f FINDINGS).
+//  Clickable tab bar at top via compact-bar plugin.
 // ──────────────────────────────────────────────────────────────────────────────
 
 layout {
     default_tab_template {
+        // Clickable tab bar at top
         pane size=1 borderless=true {
             plugin location="compact-bar"
         }
         children
+        // Status bar at bottom — shows keybinding hints as visual "buttons"
+        pane size=2 borderless=true {
+            plugin location="status-bar"
+        }
     }
 
-    tab name="lab" focus=true {
+    // ── Tab 1: Lab ──────────────────────────────────────────────────────────
+    tab name="Lab" focus=true {
         // Row 1: COORDINATOR | GROK
         pane split_direction="vertical" size="33%" {
             pane name="COORDINATOR" focus=true command="bash" {
@@ -42,10 +53,50 @@ layout {
         // Row 3: DASHBOARD | SHELL
         pane split_direction="vertical" size="34%" {
             pane name="DASHBOARD" command="bash" {
-                args "-c" "cd /root/opencurelabs && source .venv/bin/activate 2>/dev/null && python dashboard/findings.py --watch"
+                args "-c" "cd /root/opencurelabs && source .venv/bin/activate 2>/dev/null && python3 dashboard/findings.py --watch"
             }
             pane name="SHELL" command="bash" {
                 args "-c" "cd /root/opencurelabs && source .venv/bin/activate 2>/dev/null; clear; echo '── SHELL ── general purpose'; exec bash"
+            }
+        }
+    }
+
+    // ── Tab 2: Agents ───────────────────────────────────────────────────────
+    tab name="Agents" {
+        pane split_direction="vertical" size="50%" {
+            pane name="AGENT CONFIGS" command="bash" {
+                args "-c" "cd /root/opencurelabs && clear; echo '── AGENT CONFIGS ──'; echo; ls -la agents/*.yaml; echo; echo 'Use: cat agents/<name>.yaml to inspect'; exec bash"
+            }
+            pane name="SKILLS" command="bash" {
+                args "-c" "cd /root/opencurelabs && clear; echo '── SKILLS ──'; echo; ls -la skills/ 2>/dev/null || echo 'No skills yet'; echo; ls -la pipelines/ 2>/dev/null || echo 'No pipelines yet'; exec bash"
+            }
+        }
+        pane split_direction="vertical" size="50%" {
+            pane name="RUNNER" command="bash" {
+                args "-c" "cd /root/opencurelabs && source .venv/bin/activate 2>/dev/null; clear; echo '── AGENT RUNNER ──'; echo 'Run: nat run --config_file coordinator/labclaw_workflow.yaml --input \"task\"'; exec bash"
+            }
+            pane name="REVIEWER" command="bash" {
+                args "-c" "cd /root/opencurelabs && clear; echo '── REVIEWER CONFIGS ──'; echo; ls -la reviewer/*.yaml; echo; echo 'Use: cat reviewer/<name>.yaml to inspect'; exec bash"
+            }
+        }
+    }
+
+    // ── Tab 3: Monitor ──────────────────────────────────────────────────────
+    tab name="Monitor" {
+        pane split_direction="vertical" size="50%" {
+            pane name="LIVE LOGS" command="bash" {
+                args "-c" "touch /root/opencurelabs/logs/agent.log && echo '── LIVE LOGS ──' && tail -f /root/opencurelabs/logs/agent.log"
+            }
+            pane name="DASHBOARD LOG" command="bash" {
+                args "-c" "touch /root/opencurelabs/logs/dashboard.log && echo '── DASHBOARD LOG ──' && tail -f /root/opencurelabs/logs/dashboard.log"
+            }
+        }
+        pane split_direction="vertical" size="50%" {
+            pane name="DB MONITOR" command="bash" {
+                args "-c" "watch -n 10 'echo \"── DB MONITOR ──\"; echo; psql -p 5433 -d opencurelabs -c \"SELECT COUNT(*) as runs FROM agent_runs;\" 2>/dev/null; psql -p 5433 -d opencurelabs -c \"SELECT COUNT(*) as findings FROM experiment_results;\" 2>/dev/null || echo \"DB unavailable\"'"
+            }
+            pane name="SYSTEM" command="bash" {
+                args "-c" "cd /root/opencurelabs && clear; echo '── SYSTEM ──'; echo; echo 'Zellij:     '$(zellij --version); echo 'Python:     '$(python3 --version 2>/dev/null); echo 'PostgreSQL: '$(psql --version 2>/dev/null | head -1); echo 'Git branch: '$(git branch --show-current); echo; echo 'Disk:'; df -h / | tail -1; echo; echo 'GPU:'; nvidia-smi --query-gpu=name,memory.used,memory.total --format=csv,noheader 2>/dev/null || echo 'No GPU detected'; exec bash"
             }
         }
     }
