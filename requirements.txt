@@ -11,7 +11,7 @@ pyyaml>=6.0
 nvidia-nat
 
 # ── Numerical & Data ─────────────────────────────────────────────────────────
-numpy>=1.26
+numpy>=2.3
 pandas>=2.2
 scikit-learn>=1.4
 pyarrow>=17.0
