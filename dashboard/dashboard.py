@@ -15,6 +15,7 @@ import io
 import json
 import logging
 import os
+from contextlib import asynccontextmanager
 from datetime import datetime
 
 import psycopg2
@@ -25,7 +26,15 @@ import uvicorn
 DB_URL = os.environ.get("POSTGRES_URL", "dbname=opencurelabs port=5433")
 logger = logging.getLogger("opencurelabs.dashboard")
 
-app = FastAPI(title="OpenCure Labs Dashboard")
+
+@asynccontextmanager
+async def lifespan(app):
+    """Start background WebSocket broadcast task on startup."""
+    asyncio.create_task(_broadcast_updates())
+    yield
+
+
+app = FastAPI(title="OpenCure Labs Dashboard", lifespan=lifespan)
 
 
 def get_conn():
@@ -625,11 +634,6 @@ async def _broadcast_updates():
                 _ws_clients -= dead
         except Exception:
             pass
-
-
-@app.on_event("startup")
-async def start_broadcast():
-    asyncio.create_task(_broadcast_updates())
 
 
 def main():
