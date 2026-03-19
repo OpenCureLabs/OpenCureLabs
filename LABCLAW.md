@@ -141,9 +141,10 @@ The coordinator is configured via YAML and run with `nat run`. A LabClaw workflo
 
 llms:
   coordinator_llm:
-    _type: openai_client          # points to local Ollama or Anthropic API
-    base_url: http://localhost:11434/v1   # Ollama local endpoint
-    model_name: llama3.1          # or claude-opus-4-6 via Anthropic API
+    _type: openai
+    base_url: https://generativelanguage.googleapis.com/v1beta/openai/
+    model_name: gemini-2.0-flash-lite
+    api_key: ${GENAI_API_KEY}
     temperature: 0.0
 
 functions:
@@ -200,23 +201,20 @@ LabClaw does **not** require NVIDIA hosted NIM endpoints. The coordinator LLM ca
 
 | Option | Setup | Notes |
 |---|---|---|
-| **Ollama (recommended)** | `apt install ollama && ollama pull llama3.1` | Fully local, free, runs on RTX 5070 |
+| **Gemini API (current)** | `GENAI_API_KEY` in .env | Uses Gemini 2.0 Flash Lite for coordinator reasoning |
 | **Anthropic API** | `ANTHROPIC_API_KEY` in .env | Uses Claude for coordinator reasoning |
 | **xAI API** | `XAI_API_KEY` in .env | Uses Grok for coordinator reasoning |
 | **Hosted NIM** | `NVIDIA_API_KEY` in .env | Optional, only if self-hosted NIMs aren't viable |
 
 The RTX 5070 is reserved for scientific compute (structure prediction, docking, ML). The coordinator LLM should be lightweight — its job is routing and reasoning, not heavy inference.
 
-**Recommended local setup:**
+**Current setup:**
 ```bash
-# Install Ollama
-curl -fsSL https://ollama.com/install.sh | sh
+# Set your Gemini API key in .env
+# GENAI_API_KEY=your-key-here
 
-# Pull a lightweight coordinator model
-ollama pull llama3.1:8b
-
-# Ollama serves at http://localhost:11434/v1 (OpenAI-compatible)
-# NeMo AgentIQ connects to it via openai_client type in workflow YAML
+# The coordinator connects to Gemini 2.0 Flash Lite via OpenAI-compatible API
+# Configuration is in coordinator/labclaw_workflow.yaml
 ```
 
 ---
@@ -313,9 +311,6 @@ Vast.ai dispatch is handled by `agentiq_labclaw.compute.vast_dispatcher`, which 
 # Activate venv
 source /root/opencurelabs/.venv/bin/activate
 
-# Ensure Ollama is running (local LLM)
-ollama serve &
-
 # Ensure PostgreSQL is running
 service postgresql start
 
@@ -352,7 +347,7 @@ grok --max-tool-rounds 200 --prompt "search bioRxiv for new neoantigen datasets 
 | GitHub publisher | ✅ Implemented |
 | PDF publisher | ✅ Scaffold (Markdown placeholder) |
 | Vast.ai dispatcher | ✅ Scaffold (API integration TODO) |
-| Ollama local LLM | ✅ Installed (llama3.1:8b) |
+| Ollama local LLM | ❌ Removed (coordinator uses Gemini API) |
 | Data connectors (TCGA, ClinVar, ChEMBL) | ✅ Scaffold (API calls TODO) |
 | Agent configs (cancer, rare-disease, drug-response) | ✅ Implemented |
 | Reviewer configs (Claude Opus, Grok) | ✅ Implemented |

@@ -4,7 +4,7 @@ This guide takes you from a **fresh Ubuntu machine** to a **running OpenCure Lab
 platform** with all agents, pipelines, and the tmux control panel.
 
 **Time required:** ~20 minutes (plus model download time on your connection)
-**Disk space:** ~5 GB (Python packages, scientific models, Ollama LLM)
+**Disk space:** ~5 GB (Python packages, scientific models)
 
 ---
 
@@ -26,7 +26,7 @@ bash dashboard/lab.sh
 ```
 
 The setup script handles system packages, Python venv, scientific models,
-PostgreSQL, Ollama, and verification. See [What the Setup Script Does](#what-the-setup-script-does)
+PostgreSQL, and verification. See [What the Setup Script Does](#what-the-setup-script-does)
 below for details.
 
 ---
@@ -102,24 +102,10 @@ sudo -u postgres psql -p 5433 -c "CREATE DATABASE opencurelabs;"
 sudo -u postgres psql -p 5433 -d opencurelabs -f db/schema.sql
 ```
 
-### 5. Ollama (Local LLM)
+### 5. Coordinator LLM
 
-The coordinator uses a local LLM via Ollama for task routing and agent reasoning.
-This runs on CPU — no GPU required for the coordinator.
-
-```bash
-# Install Ollama
-curl -fsSL https://ollama.com/install.sh | sh
-
-# Pull the coordinator model (~4.7 GB)
-ollama pull llama3.1:8b
-
-# Start Ollama (runs in background)
-ollama serve &
-
-# Verify it's running
-curl http://localhost:11434/api/tags
-```
+The coordinator uses Gemini 2.0 Flash Lite via the Gemini API for task routing
+and agent reasoning. Set your `GENAI_API_KEY` in `.env`.
 
 ### 6. Environment Variables
 
@@ -133,6 +119,7 @@ nano .env
 
 | Key | Where to get it | Used by |
 |---|---|---|
+| `GENAI_API_KEY` | [aistudio.google.com](https://aistudio.google.com) | Gemini coordinator LLM |
 | `ANTHROPIC_API_KEY` | [console.anthropic.com](https://console.anthropic.com) | Claude Opus 4.6 reviewer |
 | `XAI_API_KEY` | [console.x.ai](https://console.x.ai) | Grok researcher agent |
 
@@ -141,7 +128,7 @@ nano .env
 | Key | Where to get it | Used by |
 |---|---|---|
 | `DISCORD_WEBHOOK_URL` | Discord server settings → Integrations | Live agent logging |
-| `NVIDIA_API_KEY` | [build.nvidia.com](https://build.nvidia.com) | NIM endpoints (if not using Ollama) |
+| `NVIDIA_API_KEY` | [build.nvidia.com](https://build.nvidia.com) | NIM endpoints (optional) |
 | `VAST_AI_KEY` | [vast.ai](https://vast.ai) | Burst GPU compute |
 
 ### 7. Verify Installation
@@ -239,7 +226,7 @@ For local GPU compute (structure prediction, molecular docking, QSAR):
 3. Verify: `nvidia-smi` should show your GPU
 
 The RTX 5070 or equivalent is recommended. GPU is used by scientific skills, not
-by the coordinator (which uses Ollama on CPU).
+by the coordinator (which uses the Gemini API).
 
 ---
 
@@ -254,11 +241,10 @@ by the coordinator (which uses Ollama on CPU).
 | 3 | Installs requirements.txt + agentiq_labclaw |
 | 4 | Downloads pyensembl and MHCflurry models |
 | 5 | Starts PostgreSQL, creates database, applies schema |
-| 6 | Installs Ollama and pulls llama3.1:8b |
-| 7 | Creates .env from template (if missing) |
-| 8 | Installs pre-commit security hook |
-| 9 | Creates required directories |
-| 10 | Runs verification checks |
+| 6 | Creates .env from template (if missing) |
+| 7 | Installs pre-commit security hook |
+| 8 | Creates required directories |
+| 9 | Runs verification checks |
 
 The script is idempotent — running it again skips steps that are already complete.
 
@@ -280,7 +266,6 @@ session.
 | Problem | Solution |
 |---|---|
 | `nat: command not found` | `source .venv/bin/activate && pip install nvidia-nat` |
-| `ollama: connection refused` | `ollama serve &` (start Ollama in background) |
 | PostgreSQL won't start | Check port: `sudo -u postgres psql -c "SHOW port;"` |
 | `psql: could not connect` | `sudo service postgresql start` |
 | pyensembl errors | `pyensembl install --release 110 --species human` |

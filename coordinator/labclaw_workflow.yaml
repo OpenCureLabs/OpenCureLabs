@@ -10,13 +10,6 @@ llms:
     model_name: gemini-2.0-flash-lite
     api_key: ${GENAI_API_KEY}
     temperature: 0.0
-  # Previous config (Ollama local):
-  # coordinator_llm:
-  #   _type: openai
-  #   base_url: http://localhost:11434/v1
-  #   model_name: llama3.1:8b
-  #   api_key: ollama
-  #   temperature: 0.0
 
 functions:
   neoantigen_prediction:

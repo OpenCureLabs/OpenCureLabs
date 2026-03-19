@@ -70,7 +70,7 @@ Architecture spec: see LABCLAW.md.
 
 | Agent | Role | Compute |
 |---|---|---|
-| **NemoClaw** | Coordinator process — boots system, manages sessions | Local (Ollama) |
+| **NemoClaw** | Coordinator process — boots system, manages sessions | Gemini API |
 | **LabClaw** | Scientific skill layer — domain routing, guardrails | Local |
 | **Cancer Agent** | Tumor immunology, neoantigen prediction | RTX 5070 |
 | **Rare Disease Agent** | Variant pathogenicity analysis | RTX 5070 |

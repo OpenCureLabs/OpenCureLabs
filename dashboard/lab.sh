@@ -45,11 +45,6 @@ if ! command -v nat &>/dev/null && [[ -d "$PROJECT/.venv" ]]; then
     fi
 fi
 
-if ! curl -s http://localhost:11434/api/tags &>/dev/null; then
-    echo "[OpenCure Labs] ⚠️  Ollama not responding at localhost:11434"
-    echo "               Run: ollama serve &"
-    WARNINGS=$((WARNINGS + 1))
-fi
 
 if [[ $WARNINGS -gt 0 ]]; then
     echo ""

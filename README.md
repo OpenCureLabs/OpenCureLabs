@@ -298,7 +298,7 @@ bash dashboard/lab.sh
 ```
 
 The setup script installs system packages, Python dependencies, scientific models
-(pyensembl, MHCflurry), PostgreSQL, Ollama, and runs verification checks.
+(pyensembl, MHCflurry), PostgreSQL, and runs verification checks.
 See [docs/QUICKSTART.md](docs/QUICKSTART.md) for manual setup and troubleshooting.
 
 ### Prerequisites

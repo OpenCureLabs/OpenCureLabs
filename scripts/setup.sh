@@ -10,10 +10,9 @@
 #    2. Creates Python virtual environment and installs dependencies
 #    3. Downloads scientific models (pyensembl, MHCflurry)
 #    4. Sets up PostgreSQL database and schema
-#    5. Installs Ollama for local LLM inference
-#    6. Creates .env from template (if not already present)
-#    7. Installs the pre-commit security hook
-#    8. Runs verification checks
+#    5. Creates .env from template (if not already present)
+#    6. Installs the pre-commit security hook
+#    7. Runs verification checks
 #
 #  Requirements:
 #    - Ubuntu 22.04+ or WSL2 (Debian-based)
@@ -27,7 +26,7 @@
 #    - Vast.ai account (for burst GPU compute)
 #
 #  Flags:
-#    --skip-models   Skip heavy model downloads (pyensembl, MHCflurry, Ollama).
+#    --skip-models   Skip heavy model downloads (pyensembl, MHCflurry).
 #                    Useful for CI and Codespaces where tests are mocked.
 # ──────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
@@ -178,7 +177,7 @@ step "Downloading scientific models"
 
 if [[ "$SKIP_MODELS" == "true" ]]; then
     warn "Skipping model downloads (--skip-models flag set)"
-    info "pyensembl, MHCflurry, and Ollama will not be downloaded."
+    info "pyensembl and MHCflurry will not be downloaded."
     info "Tests use mocks and do not require these models."
 else
 
@@ -203,7 +202,7 @@ fi  # end SKIP_MODELS guard for Step 4
 # ══════════════════════════════════════════════════════════════════════════════
 #  Step 5: PostgreSQL Setup
 # ══════════════════════════════════════════════════════════════════════════════
-step "Setting up PostgreSQL (port $PG_PORT)"
+step "Setting up PostgreSQL (port \$PG_PORT)"
 
 # Start PostgreSQL if not running
 if ! pg_isready -p "$PG_PORT" -q 2>/dev/null; then
@@ -241,41 +240,7 @@ else
 fi
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  Step 6: Ollama (Local LLM)
-# ══════════════════════════════════════════════════════════════════════════════
-step "Setting up Ollama (local LLM inference)"
-
-if [[ "$SKIP_MODELS" == "true" ]]; then
-    warn "Skipping Ollama setup (--skip-models flag set)"
-elif command -v ollama &>/dev/null; then
-    ok "Ollama already installed"
-else
-    info "Installing Ollama"
-    curl -fsSL https://ollama.com/install.sh | sh
-    ok "Ollama installed"
-fi
-
-# Start Ollama if not running
-if curl -s http://localhost:11434/api/tags &>/dev/null; then
-    ok "Ollama is running"
-else
-    info "Starting Ollama in background"
-    ollama serve &>/dev/null &
-    sleep 3
-fi
-
-# Pull coordinator model
-if ollama list 2>/dev/null | grep -q "llama3.1"; then
-    ok "llama3.1 model already pulled"
-else
-    info "Pulling llama3.1:8b model (this may take several minutes)"
-    ollama pull llama3.1:8b 2>&1 | tail -3
-    ok "llama3.1:8b model ready"
-fi
-fi  # end SKIP_MODELS guard for Step 6
-
-# ══════════════════════════════════════════════════════════════════════════════
-#  Step 7: Environment Configuration
+#  Step 6: Environment Configuration
 # ══════════════════════════════════════════════════════════════════════════════
 step "Environment configuration"
 
@@ -307,7 +272,7 @@ else
 fi
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  Step 8: Pre-commit Security Hook
+#  Step 7: Pre-commit Security Hook
 # ══════════════════════════════════════════════════════════════════════════════
 step "Installing pre-commit security hook"
 
@@ -327,7 +292,7 @@ else
 fi
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  Step 9: Create directories
+#  Step 8: Create directories
 # ══════════════════════════════════════════════════════════════════════════════
 step "Ensuring directory structure"
 
@@ -338,7 +303,7 @@ mkdir -p "$PROJECT_DIR/security/reports"
 ok "All directories present"
 
 # ══════════════════════════════════════════════════════════════════════════════
-#  Step 10: Verification
+#  Step 9: Verification
 # ══════════════════════════════════════════════════════════════════════════════
 step "Running verification checks"
 
@@ -366,8 +331,6 @@ if [[ "$SKIP_MODELS" == "false" ]]; then
 check "python3 -c 'import pyensembl'"          "pyensembl importable"
 check "python3 -c 'import mhcflurry'"          "mhcflurry importable"
 check "command -v nat"                          "nat CLI available"
-check "command -v ollama"                       "ollama installed"
-check "curl -s http://localhost:11434/api/tags" "ollama responding"
 fi
 
 check "pg_isready -p $PG_PORT -q"              "PostgreSQL responding"
