@@ -1,10 +1,12 @@
 .env
 .venv/
-notes/
+local/
 __pycache__/
 *.pyc
 *.pyo
 *.egg-info/
+.pytest_cache/
+.ruff_cache/
 data/raw/
 logs/*.log
 db/data/
@@ -12,4 +14,3 @@ db/data/
 *.swp
 security/reports/
 security/security_scan.py.bak
-scripts/tunnel-setup.sh
