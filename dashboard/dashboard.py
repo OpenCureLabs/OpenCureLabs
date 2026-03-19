@@ -589,6 +589,7 @@ _ws_clients: set[WebSocket] = set()
 
 @app.websocket("/ws")
 async def websocket_endpoint(ws: WebSocket):
+    global _ws_clients
     await ws.accept()
     _ws_clients.add(ws)
     try:
@@ -600,6 +601,7 @@ async def websocket_endpoint(ws: WebSocket):
 
 async def _broadcast_updates():
     """Background task: poll DB every 5s and push changes to WebSocket clients."""
+    global _ws_clients
     prev_stats = None
     while True:
         await asyncio.sleep(5)
