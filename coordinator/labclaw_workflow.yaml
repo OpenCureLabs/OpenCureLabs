@@ -71,7 +71,7 @@ workflow:
 #     repo: https://github.com/OpenCureLabs/OpenCureLabs.git
 #   discord:
 #     enabled: true
-#     webhook_url: ${DISCORD_WEBHOOK_URL}
+#     webhook_url: ${DISCORD_WEBHOOK_URL_AGENT_LOGS}
 #   pdf:
 #     enabled: true
 #     output_dir: /root/opencurelabs/reports/

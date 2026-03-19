@@ -417,9 +417,10 @@ def run_autofix(result: ScanResult, mode: str, profile: dict) -> dict:
 
 def send_discord_notification(result: ScanResult, grade: str, report_path: str) -> bool:
     """Post scan summary to Discord webhook. Only sends on CRITICAL/HIGH findings."""
-    webhook_url = os.environ.get("DISCORD_WEBHOOK_URL", "")
+    webhook_url = (os.environ.get("DISCORD_WEBHOOK_URL_AGENT_LOGS", "")
+                    or os.environ.get("DISCORD_WEBHOOK_URL", ""))
     if not webhook_url:
-        _p("  ⚠️  DISCORD_WEBHOOK_URL not set, skipping notification")
+        _p("  ⚠️  DISCORD_WEBHOOK_URL_AGENT_LOGS not set, skipping notification")
         return False
 
     by_sev: dict[str, int] = {}

@@ -190,7 +190,8 @@ when Grok finds a new dataset, it calls this skill to write to
 | `GENAI_API_KEY` | Yes | Gemini API — coordinator LLM |
 | `ANTHROPIC_API_KEY` | Yes | Claude Opus 4.6 scientific reviewer |
 | `XAI_API_KEY` | Yes | Grok researcher and literature monitor |
-| `DISCORD_WEBHOOK_URL` | No | Live agent logging to Discord |
+| `DISCORD_WEBHOOK_URL_AGENT_LOGS` | No | Agent trace logging to Discord #agent-logs |
+| `DISCORD_WEBHOOK_URL_RESULTS` | No | Findings/results to Discord #results |
 | `VAST_AI_KEY` | No | Burst GPU compute (Vast.ai) |
 | `NVIDIA_API_KEY` | No | NIM endpoints (if needed) |
 | `POSTGRES_URL` | No | Database connection (default: `postgresql://localhost:5433/opencurelabs`) |

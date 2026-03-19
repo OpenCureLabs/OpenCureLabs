@@ -209,12 +209,12 @@ Publishers deliver results to external systems.
 ### DiscordPublisher
 
 **File:** `agentiq_labclaw/publishers/discord_publisher.py`  
-**Environment:** `DISCORD_WEBHOOK_URL`
+**Environment:** `DISCORD_WEBHOOK_URL_AGENT_LOGS`, `DISCORD_WEBHOOK_URL_RESULTS`
 
 ```python
 from agentiq_labclaw.publishers.discord_publisher import DiscordPublisher
 
-pub = DiscordPublisher()  # reads DISCORD_WEBHOOK_URL from env
+pub = DiscordPublisher()  # reads DISCORD_WEBHOOK_URL_AGENT_LOGS / _RESULTS from env
 ```
 
 | Method | Parameters | Returns | Description |

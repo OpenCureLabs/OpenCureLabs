@@ -58,7 +58,8 @@ bash scripts/setup.sh
 | `ANTHROPIC_API_KEY` | `.env` | Yes | Claude Opus reviewer |
 | `XAI_API_KEY` | `.env` | Yes | Grok agent |
 | `GENAI_API_KEY` | `.env` | Yes | Gemini 2.0 Flash Lite (coordinator LLM) |
-| `DISCORD_WEBHOOK_URL` | `.env` | No | Discord logging |
+| `DISCORD_WEBHOOK_URL_AGENT_LOGS` | `.env` | No | Discord #agent-logs |
+| `DISCORD_WEBHOOK_URL_RESULTS` | `.env` | No | Discord #results |
 | `VAST_AI_KEY` | `.env` | No | Vast.ai GPU burst compute |
 | `POSTGRES_URL` | `.env` or system | No | Default: `postgresql://localhost:5433/opencurelabs` |
 | `LABCLAW_COMPUTE` | `.env` or system | No | `"local"` (default) or `"vast_ai"` |

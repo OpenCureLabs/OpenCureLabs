@@ -127,7 +127,8 @@ nano .env
 
 | Key | Where to get it | Used by |
 |---|---|---|
-| `DISCORD_WEBHOOK_URL` | Discord server settings → Integrations | Live agent logging |
+| `DISCORD_WEBHOOK_URL_AGENT_LOGS` | Discord → Integrations → Webhooks | Agent trace logging (#agent-logs) |
+| `DISCORD_WEBHOOK_URL_RESULTS` | Discord → Integrations → Webhooks | Findings & results (#results) |
 | `NVIDIA_API_KEY` | [build.nvidia.com](https://build.nvidia.com) | NIM endpoints (optional) |
 | `VAST_AI_KEY` | [vast.ai](https://vast.ai) | Burst GPU compute |
 

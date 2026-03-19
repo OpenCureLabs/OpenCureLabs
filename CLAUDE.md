@@ -100,7 +100,8 @@ nat run --config_file coordinator/labclaw_workflow.yaml --input "your task here"
 
 ## Discord Logging
 
-- Webhook URL read from `.env` as `DISCORD_WEBHOOK_URL`
+- Agent logs webhook URL read from `.env` as `DISCORD_WEBHOOK_URL_AGENT_LOGS`
+- Results webhook URL read from `.env` as `DISCORD_WEBHOOK_URL_RESULTS`
 - All agent reasoning traces and results stream to Discord in real time
 
 ---

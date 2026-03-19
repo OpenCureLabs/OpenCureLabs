@@ -188,12 +188,9 @@ Configure these in `.env` (never committed to git):
 | `GENAI_API_KEY` | Google Gemini | NemoClaw coordinator | Yes |
 | `ANTHROPIC_API_KEY` | Anthropic Claude | Scientific critic (reviewer) | No |
 | `XAI_API_KEY` | xAI Grok | Literature monitor (reviewer) | No |
-| `GITHUB_TOKEN` | GitHub | Publishing results, CI | Yes |
-| `DISCORD_WEBHOOK_URL` | Discord | Live agent log streaming | Yes |
-| `OPENAI_API_KEY` | OpenAI | Optional — alternate LLM routing | No |
-| `NVIDIA_API_KEY` | NVIDIA NIM | Optional — NIM model endpoints | Yes |
+| `DISCORD_WEBHOOK_URL_AGENT_LOGS` | Discord | Optional — agent traces (#agent-logs) | Yes |
+| `DISCORD_WEBHOOK_URL_RESULTS` | Discord | Optional — findings (#results) | Yes |
 | `VAST_AI_KEY` | Vast.ai | Optional — cloud burst compute | No |
-| `EMAIL_PASSWORD` | SMTP | Optional — email alerts | — |
 
 At minimum, you need **`GENAI_API_KEY`** to run the coordinator. Add reviewer keys (`ANTHROPIC_API_KEY`, `XAI_API_KEY`) to enable the full critique loop.
 
