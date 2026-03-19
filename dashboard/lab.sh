@@ -86,7 +86,7 @@ fi
 if ! curl -s http://127.0.0.1:8787 &>/dev/null; then
     echo "[OpenCure Labs] Starting web dashboard → http://localhost:8787"
     # shellcheck source=/dev/null
-    (cd "$PROJECT" && source "$PROJECT/.venv/bin/activate" && python dashboard/dashboard.py >>"$PROJECT/logs/dashboard.log" 2>&1 &)
+    (cd "$PROJECT" && source "$PROJECT/.venv/bin/activate" && python3 dashboard/dashboard.py >>"$PROJECT/logs/dashboard.log" 2>&1 &)
     sleep 1
 else
     echo "[OpenCure Labs] Web dashboard already running on :8787"
