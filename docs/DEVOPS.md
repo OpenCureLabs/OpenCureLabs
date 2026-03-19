@@ -4,7 +4,7 @@
 
 This document covers the complete development, testing, deployment, and
 operational infrastructure for OpenCure Labs: CI/CD pipelines, Codespaces
-configuration, security scanning, testing, backup strategy, and the tmux-based
+configuration, security scanning, testing, backup strategy, and the Zellij-based
 lab session manager.
 
 ---
@@ -330,7 +330,7 @@ Or automatically via `scripts/setup.sh` (Step 7).
 bash dashboard/lab.sh
 ```
 
-Creates a 6-pane tmux session named `opencurelabs`:
+Creates a 6-pane Zellij session named `opencurelabs`:
 
 ```
 ┌──────────────┬──────────────┐
@@ -353,13 +353,19 @@ Creates a 6-pane tmux session named `opencurelabs`:
 
 ### Keyboard Shortcuts
 
+Zellij uses a mode-based keybinding system with a discoverable status bar.
+Common shortcuts:
+
 | Shortcut | Action |
 |---|---|
-| `Ctrl+b Q` | Clean shutdown via `stop.sh` |
-| `Ctrl+b R` | Reload session |
-| `Ctrl+b f` | Findings popup |
-| `Ctrl+b w` | Open dashboard URL |
-| `Ctrl+b h` | Help |
+| `Ctrl+q` then `d` | Detach (session keeps running) |
+| `Ctrl+p` then arrows | Switch pane focus |
+| `Ctrl+p` then `f` | Toggle fullscreen (zoom) |
+| `Ctrl+p` then `w` | Toggle floating pane |
+| `Ctrl+n` | New pane |
+| `Ctrl+t` | New tab |
+| `Ctrl+s` then arrows | Scroll mode |
+| `Alt f` | Findings popup (custom) |
 
 ### Stopping the Lab
 
@@ -372,7 +378,7 @@ bash dashboard/stop.sh
 1. Auto-commits uncommitted changes (`chore: auto-save on shutdown`)
 2. Pushes to GitHub
 3. Stops web dashboard
-4. Kills tmux session
+4. Kills Zellij session
 
 ---
 

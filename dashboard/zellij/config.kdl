@@ -1,0 +1,51 @@
+// ──────────────────────────────────────────────────────────────────────────────
+//  OpenCure Labs — Zellij Configuration
+//  Loaded by dashboard/lab.sh when launching the lab session.
+// ──────────────────────────────────────────────────────────────────────────────
+
+theme "tokyonight"
+
+// Mouse support — click panes, scroll output, resize borders
+mouse_mode true
+
+// Show pane frames with names
+pane_frames true
+
+// Scrollback depth
+scroll_buffer_size 50000
+
+// Don't attach to existing sessions on launch — lab.sh handles this
+on_force_close "quit"
+
+// Default shell
+default_shell "bash"
+
+// Default layout — loads layouts/opencurelabs.kdl
+default_layout "opencurelabs"
+
+// Disable session serialization prompts
+session_serialization false
+
+// Copy behaviour
+copy_on_select true
+
+// Keybindings
+// Zellij uses modes instead of tmux's Ctrl+b prefix.
+// Normal mode: the default mode when using panes.
+// Locked mode: all keys pass through to the running program.
+//
+// Custom OpenCure Labs shortcuts are bound under a shared mode
+// to match the tmux "Ctrl+b then key" feel.
+keybinds {
+    // In normal mode, Ctrl+o enters the "session" mode which
+    // we use for our custom OpenCure Labs shortcuts.
+    shared_except "locked" {
+        // Quick-access: findings popup in a floating pane
+        bind "Alt f" {
+            Run "bash" "-c" "cd /root/opencurelabs && source .venv/bin/activate && python dashboard/findings.py --all 2>/dev/null || echo 'Dashboard unavailable'; echo; echo 'Press Enter to close'; read" {
+                in_place true
+            }
+            ToggleFloatingPanes;
+        }
+    }
+}

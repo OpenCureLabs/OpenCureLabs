@@ -293,7 +293,7 @@ sudo bash scripts/setup.sh
 # Configure your API keys
 nano .env
 
-# Launch the tmux control panel
+# Launch the Zellij control panel
 bash dashboard/lab.sh
 ```
 

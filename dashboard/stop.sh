@@ -39,24 +39,26 @@ else
 fi
 
 # ── 3. Kill web dashboard ────────────────────────────────────────────────────
-echo "[3/5] Stopping web dashboard..."
+echo "[3/4] Stopping web dashboard..."
 if pkill -f "dashboard/dashboard.py" 2>/dev/null; then
     echo "       Dashboard stopped."
 else
     echo "       No dashboard process found."
 fi
 
-# ── 4. Kill tmux session ────────────────────────────────────────────────────
-echo "[4/5] Terminating tmux session '$SESSION'..."
-if tmux has-session -t "$SESSION" 2>/dev/null; then
-    tmux kill-session -t "$SESSION"
+# ── 4. Kill Zellij session ───────────────────────────────────────────────────
+echo "[4/4] Terminating Zellij session '$SESSION'..."
+if zellij list-sessions 2>/dev/null | grep -q "^${SESSION}"; then
+    zellij kill-session "$SESSION" 2>/dev/null
     echo "       Session killed."
 else
     echo "       No active session found."
 fi
 
-# ── 5. Clean exit ────────────────────────────────────────────────────────────
-echo "[5/5] Shutdown complete."
+# ── Done ─────────────────────────────────────────────────────────────────────
+echo ""
+echo "Shutdown complete."
+echo "Restart with: bash $PROJECT/dashboard/lab.sh"
 echo ""
 echo "  To restart:  bash $PROJECT/dashboard/lab.sh"
 echo ""

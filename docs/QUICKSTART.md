@@ -1,7 +1,7 @@
 # Quickstart Guide
 
 This guide takes you from a **fresh Ubuntu machine** to a **running OpenCure Labs
-platform** with all agents, pipelines, and the tmux control panel.
+platform** with all agents, pipelines, and the Zellij control panel.
 
 **Time required:** ~20 minutes (plus model download time on your connection)
 **Disk space:** ~5 GB (Python packages, scientific models)
@@ -42,7 +42,7 @@ your environment, follow this section.
 sudo apt update && sudo apt upgrade -y
 sudo apt install -y \
   python3 python3-venv python3-pip python3-dev \
-  build-essential git curl wget tmux htop \
+  build-essential git curl wget tmux htop zellij \
   postgresql postgresql-contrib libpq-dev
 ```
 
@@ -149,7 +149,7 @@ R175H, all tests pass.
 bash dashboard/lab.sh
 ```
 
-This opens a 6-pane tmux session:
+This opens a 6-pane Zellij session:
 
 ```
 ┌──────────────┬──────────────┐
@@ -171,8 +171,8 @@ This opens a 6-pane tmux session:
 | **SHELL** | General purpose terminal with venv activated |
 
 **Keyboard shortcuts:**
-- `Ctrl+b` then arrow keys — switch between panes
-- `Ctrl+b` then `d` — detach (session keeps running)
+- `Ctrl+p` then arrow keys — switch between panes
+- `Ctrl+q` then `d` — detach (session keeps running)
 - `bash dashboard/lab.sh` — reattach to existing session
 
 ---
@@ -256,7 +256,7 @@ The script is idempotent — running it again skips steps that are already compl
 bash dashboard/stop.sh
 ```
 
-This auto-commits any uncommitted changes, pushes to GitHub, and kills the tmux
+This auto-commits any uncommitted changes, pushes to GitHub, and kills the Zellij
 session.
 
 ---
@@ -272,7 +272,7 @@ session.
 | MHCflurry import error | `mhcflurry-downloads fetch models_class1 models_class1_pan models_class1_presentation` |
 | `.env not found` | `cp .env.example .env && nano .env` |
 | Pre-commit hook blocks commit | Fix findings, or bypass with `git commit --no-verify` |
-| tmux session exists | `bash dashboard/lab.sh` will reattach automatically |
+| Zellij session exists | `bash dashboard/lab.sh` will reattach automatically |
 
 ---
 
@@ -281,7 +281,7 @@ session.
 | File | Purpose |
 |---|---|
 | `scripts/setup.sh` | Automated full setup |
-| `dashboard/lab.sh` | Launch tmux control panel |
+| `dashboard/lab.sh` | Launch Zellij control panel |
 | `dashboard/stop.sh` | Shutdown and auto-commit |
 | `.env.example` | Template for API keys |
 | `requirements.txt` | Python dependencies |

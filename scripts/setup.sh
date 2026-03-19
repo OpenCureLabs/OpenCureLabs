@@ -6,7 +6,7 @@
 #  Usage:  sudo bash scripts/setup.sh
 #
 #  What this script does (in order):
-#    1. Installs system packages (Python 3.11, PostgreSQL, tmux, git, etc.)
+#    1. Installs system packages (Python 3.11, PostgreSQL, Zellij, git, etc.)
 #    2. Creates Python virtual environment and installs dependencies
 #    3. Downloads scientific models (pyensembl, MHCflurry)
 #    4. Sets up PostgreSQL database and schema
@@ -120,6 +120,28 @@ if [[ ${#MISSING[@]} -gt 0 ]]; then
     ok "System packages installed"
 else
     ok "All system packages already present"
+fi
+
+# ── Zellij terminal multiplexer ──────────────────────────────────────────────
+if command -v zellij &>/dev/null; then
+    ok "Zellij already installed ($(zellij --version))"
+else
+    info "Installing Zellij terminal multiplexer"
+    ZELLIJ_VERSION="v0.41.2"
+    ARCH="$(uname -m)"
+    case "$ARCH" in
+        x86_64)  TARGET="x86_64-unknown-linux-musl" ;;
+        aarch64) TARGET="aarch64-unknown-linux-musl" ;;
+        *)       warn "Unsupported architecture for Zellij: $ARCH — skipping" ;;
+    esac
+    if [[ -n "${TARGET:-}" ]]; then
+        curl -fsSL "https://github.com/zellij-org/zellij/releases/download/${ZELLIJ_VERSION}/zellij-${TARGET}.tar.gz" \
+            -o /tmp/zellij.tar.gz
+        tar -xzf /tmp/zellij.tar.gz -C /usr/local/bin
+        chmod +x /usr/local/bin/zellij
+        rm /tmp/zellij.tar.gz
+        ok "Zellij $(zellij --version) installed"
+    fi
 fi
 
 # ── Python version check ────────────────────────────────────────────────────
@@ -357,7 +379,7 @@ echo ""
 echo "  1. Edit your API keys:"
 echo "     nano $PROJECT_DIR/.env"
 echo ""
-echo "  2. Launch the tmux control panel:"
+echo "  2. Launch the Zellij control panel:"
 echo "     bash $PROJECT_DIR/dashboard/lab.sh"
 echo ""
 echo "  3. In the COORDINATOR pane, run a pipeline:"

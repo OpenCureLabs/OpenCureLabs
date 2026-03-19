@@ -1,0 +1,52 @@
+// ──────────────────────────────────────────────────────────────────────────────
+//  OpenCure Labs — 6-Pane Lab Layout
+//
+//  ┌──────────────┬──────────────┐
+//  │ COORDINATOR  │    GROK      │
+//  ├──────────────┼──────────────┤
+//  │    LOGS      │  POSTGRES    │
+//  ├──────────────┼──────────────┤
+//  │  DASHBOARD   │   SHELL      │
+//  └──────────────┴──────────────┘
+//
+//  Loaded automatically by lab.sh via: zellij --layout dashboard/zellij/layout.kdl
+// ──────────────────────────────────────────────────────────────────────────────
+
+layout {
+    default_tab_template {
+        pane size=1 borderless=true {
+            plugin location="compact-bar"
+        }
+        children
+    }
+
+    tab name="lab" focus=true {
+        // Row 1: COORDINATOR | GROK
+        pane split_direction="vertical" size="33%" {
+            pane name="COORDINATOR" focus=true command="bash" {
+                args "-c" "cd /root/opencurelabs && source .venv/bin/activate 2>/dev/null; clear; echo '── COORDINATOR ── ready for nat commands'; exec bash"
+            }
+            pane name="GROK" command="bash" {
+                args "-c" "cd /root/opencurelabs/workspace && clear; echo '── GROK ── workspace ready'; exec bash"
+            }
+        }
+        // Row 2: LOGS | POSTGRES
+        pane split_direction="vertical" size="33%" {
+            pane name="LOGS" command="bash" {
+                args "-c" "touch /root/opencurelabs/logs/agent.log && tail -f /root/opencurelabs/logs/agent.log"
+            }
+            pane name="POSTGRES" command="bash" {
+                args "-c" "watch -n 5 'psql -p 5433 -d opencurelabs -c \"SELECT id, agent_name, status, started_at FROM agent_runs ORDER BY started_at DESC LIMIT 10;\" 2>/dev/null || echo \"PostgreSQL not available on port 5433\"'"
+            }
+        }
+        // Row 3: DASHBOARD | SHELL
+        pane split_direction="vertical" size="34%" {
+            pane name="DASHBOARD" command="bash" {
+                args "-c" "cd /root/opencurelabs && source .venv/bin/activate 2>/dev/null && python dashboard/findings.py --watch"
+            }
+            pane name="SHELL" command="bash" {
+                args "-c" "cd /root/opencurelabs && source .venv/bin/activate 2>/dev/null; clear; echo '── SHELL ── general purpose'; exec bash"
+            }
+        }
+    }
+}

@@ -226,7 +226,7 @@ when Grok finds a new dataset, it calls this skill to write to
 ├── dashboard/           # Monitoring tools
 │   ├── dashboard.py     # FastAPI web dashboard (port 8787)
 │   ├── findings.py      # CLI findings viewer
-│   ├── lab.sh           # tmux 6-pane launcher
+│   ├── lab.sh           # Zellij 6-pane launcher
 │   └── stop.sh          # Graceful shutdown
 ├── reviewer/            # Reviewer agent configs + code
 │   ├── claude_opus_config.yaml
