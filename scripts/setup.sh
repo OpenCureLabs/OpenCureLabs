@@ -157,11 +157,14 @@ step "Installing Python dependencies"
 info "Upgrading pip"
 pip install --upgrade pip --quiet
 
-info "Pre-installing numpy<2.0 (avoids pyarrow ABI mismatch)"
-pip install 'numpy>=1.26,<2.0' --quiet
+info "Installing nvidia-nat first (complex dependency tree)"
+pip install 'nvidia-nat>=1.5.0' --quiet 2>&1 | tail -3
 
-info "Installing from requirements.txt"
+info "Installing remaining requirements"
 pip install -r "$PROJECT_DIR/requirements.txt" --quiet 2>&1 | tail -3
+
+info "Verifying numpy version"
+python3 -c "import numpy; print('  numpy', numpy.__version__)"
 
 info "Installing agentiq_labclaw package (editable)"
 pip install -e "$PROJECT_DIR/packages/agentiq_labclaw" --quiet

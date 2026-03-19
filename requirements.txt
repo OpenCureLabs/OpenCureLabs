@@ -10,14 +10,22 @@ pyyaml>=6.0
 # ── NVIDIA NeMo Agent Toolkit ────────────────────────────────────────────────
 nvidia-nat
 
-# ── Numerical (pin numpy < 2 for pyarrow / sklearn wheel compat) ────────────
-numpy>=1.26,<2.0
+# ── Numerical & Data ─────────────────────────────────────────────────────────
+numpy>=1.26
+pandas>=2.2
+scikit-learn>=1.4
 
 # ── Scientific Stack (neoantigen pipeline) ───────────────────────────────────
 pysam>=0.22
 biopython>=1.83
 pyensembl>=2.3
 mhcflurry>=2.1
+rdkit>=2024.3
+
+# ── Reviewer Dependencies ───────────────────────────────────────────────────
+anthropic>=0.25
+openai>=1.20
+reportlab>=4.1
 
 # ── Development & Testing ───────────────────────────────────────────────────
 pytest>=7.0
