@@ -1,12 +1,22 @@
 #!/usr/bin/env bash
-# OpenCure Labs — Pre-commit security gate
-# Blocks commits on CRITICAL or HIGH findings (grade D or F).
+# OpenCure Labs — Pre-commit gate
+# Runs documentation check + security scan before allowing commits.
 # Install: cp security/pre-commit-hook.sh .git/hooks/pre-commit && chmod +x .git/hooks/pre-commit
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")/../.." && pwd)"
 SCANNER="${SCRIPT_DIR}/security/security_scan.py"
 PROFILE="${SCRIPT_DIR}/security/profiles/opencurelabs.yaml"
+DOCS_CHECK="${SCRIPT_DIR}/scripts/pre-commit-docs-check.sh"
+
+# ── Step 1: Documentation check ─────────────────────────────────────────────
+if [[ -f "$DOCS_CHECK" ]]; then
+    bash "$DOCS_CHECK"
+else
+    echo "⚠️  Documentation checker not found, skipping."
+fi
+
+# ── Step 2: Security scan ────────────────────────────────────────────────────
 
 if [[ ! -f "$SCANNER" ]]; then
     echo "⚠️  Security scanner not found at ${SCANNER}, skipping pre-commit check."
