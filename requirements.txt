@@ -14,6 +14,7 @@ nvidia-nat
 numpy>=1.26
 pandas>=2.2
 scikit-learn>=1.4
+pyarrow>=17.0
 
 # ── Scientific Stack (neoantigen pipeline) ───────────────────────────────────
 pysam>=0.22
