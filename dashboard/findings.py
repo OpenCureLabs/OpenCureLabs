@@ -240,9 +240,15 @@ def print_critiques(cur):
         if isinstance(crit, dict):
             for dim in ("scientific_logic", "statistical_validity", "interpretive_accuracy", "reproducibility"):
                 if dim in crit:
-                    score = crit[dim]
-                    bar = "█" * int(score) + "░" * (10 - int(score))
+                    raw = crit[dim]
+                    score = raw["score"] if isinstance(raw, dict) else raw
+                    score = max(0, min(10, int(score)))
+                    bar = "█" * score + "░" * (10 - score)
                     print(f"    {dim:<24} {bar} {score}/10")
+            # Grok literature reviews: show summary snippet
+            if "summary" in crit:
+                summary = crit["summary"][:200]
+                print(f"    {'summary':<24} {DIM}{summary}{RESET}")
             rec = crit.get("recommendation", "—")
             color = GREEN if rec == "publish" else YELLOW if rec == "revise" else RED
             print(f"    {'recommendation':<24} → {color}{BOLD}{rec}{RESET}")

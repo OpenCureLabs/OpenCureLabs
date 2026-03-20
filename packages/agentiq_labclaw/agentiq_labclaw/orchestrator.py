@@ -212,6 +212,20 @@ async def post_execute(
             orch["safety"] = {"safe": is_safe, "reason": reason}
             if not is_safe:
                 logger.warning("Safety check blocked publishing for %s: %s", skill_name, reason)
+                # Store the blocked result so it's visible in the dashboard
+                if run_id is not None:
+                    try:
+                        from agentiq_labclaw.db.experiment_results import store_result
+
+                        store_result(
+                            pipeline_run_id=run_id,
+                            result_type=skill_name,
+                            result_data=result_dict,
+                            novel=novel,
+                            status="blocked",
+                        )
+                    except Exception as e:
+                        logger.warning("Failed to store blocked result: %s", e)
                 return enriched
         except Exception as e:
             logger.warning("Safety check error (proceeding): %s", e)

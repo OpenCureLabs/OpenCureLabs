@@ -19,8 +19,13 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 
 import psycopg2
-from fastapi import FastAPI, Query, WebSocket, WebSocketDisconnect
-from fastapi.responses import HTMLResponse, StreamingResponse
+from fastapi import FastAPI, Query, Request, WebSocket, WebSocketDisconnect
+from fastapi.responses import HTMLResponse, FileResponse, StreamingResponse
+from slowapi import Limiter
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+from starlette.middleware.cors import CORSMiddleware
+from starlette.responses import JSONResponse
 import uvicorn
 
 DB_URL = os.environ.get("POSTGRES_URL", "dbname=opencurelabs port=5433")
@@ -35,6 +40,43 @@ async def lifespan(app):
 
 
 app = FastAPI(title="OpenCure Labs Dashboard", lifespan=lifespan)
+
+# Rate limiting — 60 requests/minute per IP
+limiter = Limiter(key_func=get_remote_address)
+app.state.limiter = limiter
+
+
+@app.exception_handler(RateLimitExceeded)
+async def _rate_limit_handler(request: Request, exc: RateLimitExceeded):
+    return JSONResponse(status_code=429, content={"error": "Rate limit exceeded. Try again later."})
+
+
+# CORS — allow any origin for public dashboard
+app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET"], allow_headers=["*"])
+
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+
+@app.get("/logo.png")
+async def serve_logo():
+    logo_path = os.path.join(PROJECT_ROOT, "OpenCureLabs.png")
+    if os.path.exists(logo_path):
+        return FileResponse(logo_path, media_type="image/png", headers={"Cache-Control": "public, max-age=86400"})
+    return HTMLResponse(status_code=404)
+
+
+@app.get("/health")
+async def health():
+    """Health check for load balancers and uptime monitors."""
+    try:
+        conn = get_conn()
+        cur = conn.cursor()
+        cur.execute("SELECT 1")
+        cur.close()
+        conn.close()
+        return {"status": "healthy", "database": "connected"}
+    except Exception:
+        return JSONResponse(status_code=503, content={"status": "unhealthy", "database": "disconnected"})
 
 
 def get_conn():
@@ -105,7 +147,8 @@ def query_findings(cur, novel_only=False, limit=20):
         return []
     where = "WHERE e.novel = TRUE" if novel_only else ""
     cur.execute(
-        f"SELECT e.id, e.result_type, e.result_data, e.novel, e.timestamp, p.pipeline_name"  # noqa: S608
+        f"SELECT e.id, e.result_type, e.result_data, e.novel, e.timestamp, p.pipeline_name,"  # noqa: S608
+        f" COALESCE(e.status, 'published') as status"
         f" FROM experiment_results e"
         f" LEFT JOIN pipeline_runs p ON e.pipeline_run_id = p.id"
         f" {where}"
@@ -114,7 +157,7 @@ def query_findings(cur, novel_only=False, limit=20):
     )
     rows = cur.fetchall()
     results = []
-    for rid, rtype, rdata, novel, ts, pipeline in rows:
+    for rid, rtype, rdata, novel, ts, pipeline, status in rows:
         data_preview = ""
         if isinstance(rdata, dict):
             data_preview = json.dumps(rdata, default=str)[:200]
@@ -124,6 +167,7 @@ def query_findings(cur, novel_only=False, limit=20):
             "id": rid,
             "type": rtype,
             "novel": novel,
+            "status": status,
             "timestamp": ts.strftime("%Y-%m-%d %H:%M:%S") if ts else "—",
             "pipeline": pipeline or "—",
             "preview": data_preview,
@@ -154,8 +198,15 @@ def query_critiques(cur, limit=10):
         if isinstance(crit, dict):
             for dim in ("scientific_logic", "statistical_validity", "interpretive_accuracy", "reproducibility"):
                 if dim in crit:
-                    scores[dim] = crit[dim]
+                    raw = crit[dim]
+                    scores[dim] = raw["score"] if isinstance(raw, dict) else raw
             recommendation = crit.get("recommendation", "—")
+            # Grok literature reviews use 'summary' instead of scored dimensions
+            if "summary" in crit and not scores:
+                overall = crit.get("overall_score", crit.get("score"))
+                if overall is not None:
+                    scores["overall"] = overall
+                recommendation = crit.get("recommendation", "literature")
         results.append({
             "id": cid,
             "reviewer": reviewer,
@@ -163,6 +214,7 @@ def query_critiques(cur, limit=10):
             "timestamp": ts.strftime("%Y-%m-%d %H:%M:%S") if ts else "—",
             "scores": scores,
             "recommendation": recommendation,
+            "summary": crit.get("summary", "") if isinstance(crit, dict) else "",
         })
     return results
 
@@ -190,11 +242,57 @@ def query_sources(cur, limit=15):
     return results
 
 
-def render_dashboard(stats, runs, findings, critiques, sources):
+def query_activity_log(cur, limit=30):
+    """Unified timeline of all events across tables."""
+    events = []
+    if table_exists(cur, "agent_runs"):
+        cur.execute(
+            "SELECT 'agent' as kind, agent_name as label, status as detail, started_at as ts"
+            " FROM agent_runs ORDER BY started_at DESC LIMIT %s",
+            (limit,),
+        )
+        for kind, label, detail, ts in cur.fetchall():
+            icon = {"completed": "✅", "running": "⏳", "failed": "❌"}.get(detail, "🤖")
+            events.append({"ts": ts, "icon": icon, "text": f"{label} — {detail}"})
+
+    if table_exists(cur, "critique_log"):
+        cur.execute(
+            "SELECT 'critique' as kind, reviewer as label, critique_json as detail, timestamp as ts"
+            " FROM critique_log ORDER BY timestamp DESC LIMIT %s",
+            (limit,),
+        )
+        for kind, label, crit, ts in cur.fetchall():
+            rec = ""
+            if isinstance(crit, dict):
+                rec = crit.get("recommendation", "")
+            elif isinstance(crit, str):
+                try:
+                    rec = json.loads(crit).get("recommendation", "")
+                except (json.JSONDecodeError, AttributeError):
+                    pass
+            icon = {"publish": "📗", "revise": "📙", "reject": "📕"}.get(rec, "📋")
+            events.append({"ts": ts, "icon": icon, "text": f"{label} → {rec or 'review'}"})
+
+    if table_exists(cur, "experiment_results"):
+        cur.execute(
+            "SELECT result_type, novel, COALESCE(status, 'published'), timestamp"
+            " FROM experiment_results ORDER BY timestamp DESC LIMIT %s",
+            (limit,),
+        )
+        for rtype, novel, status, ts in cur.fetchall():
+            icon = "🚫" if status == "blocked" else ("🆕" if novel else "🔬")
+            events.append({"ts": ts, "icon": icon, "text": f"{rtype} — {status}" + (" (novel)" if novel else "")})
+
+    events.sort(key=lambda e: e["ts"] or datetime.min, reverse=True)
+    return events[:limit]
+
+
+def render_dashboard(stats, runs, findings, critiques, sources, activity=None):
     """Generate the full HTML dashboard page."""
 
     def stat_card(label, value, color="#7aa2f7", subtitle=""):
-        sub_html = f'<div class="stat-sub">{subtitle}</div>' if subtitle else ""
+        pulse_class = ' running' if 'running' in subtitle and not subtitle.startswith('0') else ''
+        sub_html = f'<div class="stat-sub{pulse_class}">{subtitle}</div>' if subtitle else ""
         return f"""
         <div class="stat-card">
             <div class="stat-value" style="color:{color}">{value}</div>
@@ -203,9 +301,10 @@ def render_dashboard(stats, runs, findings, critiques, sources):
         </div>"""
 
     def status_badge(status):
-        colors = {"completed": "#57F287", "running": "#FEE75C", "failed": "#ED4245", "unknown": "#5865F2"}
+        colors = {"completed": "#57F287", "running": "#FEE75C", "failed": "#ED4245", "unknown": "#5865F2", "blocked": "#ED4245", "published": "#57F287"}
         c = colors.get(status, "#5865F2")
-        return f'<span class="badge" style="background:{c}20;color:{c};border:1px solid {c}40">{status}</span>'
+        icon = {"blocked": "🚫 ", "published": "✅ ", "running": "⏳ "}.get(status, "")
+        return f'<span class="badge" style="background:{c}20;color:{c};border:1px solid {c}40">{icon}{status}</span>'
 
     def novel_badge(is_novel):
         if is_novel:
@@ -241,6 +340,7 @@ def render_dashboard(stats, runs, findings, critiques, sources):
         <tr>
             <td>{f['id']}</td>
             <td><strong>{f['type']}</strong></td>
+            <td>{status_badge(f.get('status', 'published'))}</td>
             <td>{novel_badge(f['novel'])}</td>
             <td>{f['pipeline']}</td>
             <td>{f['timestamp']}</td>
@@ -254,6 +354,10 @@ def render_dashboard(stats, runs, findings, critiques, sources):
         for dim, score in c["scores"].items():
             label = dim.replace("_", " ").title()
             scores_html += f'<div class="score-row"><span class="score-label">{label}</span>{score_bar(score)}</div>'
+        # Show summary snippet for Grok reviews that have no scored dimensions
+        if not c["scores"] and c.get("summary"):
+            snippet = c["summary"][:120] + "…" if len(c.get("summary", "")) > 120 else c.get("summary", "")
+            scores_html = f'<div class="score-label" style="font-style:italic;max-width:260px">{snippet}</div>'
         critique_rows += f"""
         <tr>
             <td>{c['id']}</td>
@@ -281,8 +385,18 @@ def render_dashboard(stats, runs, findings, critiques, sources):
 
     now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
+    # Activity log entries
+    activity_items = activity or []
+    if activity_items:
+        activity_html = ""
+        for evt in activity_items:
+            ts_str = evt["ts"].strftime("%H:%M:%S") if evt["ts"] else "—"
+            activity_html += f'<div class="activity-item"><span class="activity-ts">{ts_str}</span><span class="activity-icon">{evt["icon"]}</span><span class="activity-text">{evt["text"]}</span></div>'
+    else:
+        activity_html = '<div class="empty">No activity recorded yet.</div>'
+
     # Finding/source empty state
-    no_findings = '<tr><td colspan="6" class="empty">No findings recorded yet. Run a pipeline to generate results.</td></tr>' if not findings else ""
+    no_findings = '<tr><td colspan="7" class="empty">No findings recorded yet. Run a pipeline to generate results.</td></tr>' if not findings else ""
     no_runs = '<tr><td colspan="5" class="empty">No agent runs recorded yet.</td></tr>' if not runs else ""
     no_critiques = '<tr><td colspan="6" class="empty">No critiques recorded yet.</td></tr>' if not critiques else ""
     no_sources = '<tr><td colspan="6" class="empty">No sources discovered yet.</td></tr>' if not sources else ""
@@ -307,8 +421,15 @@ def render_dashboard(stats, runs, findings, critiques, sources):
     border-bottom: 1px solid #21262d;
   }}
   .header h1 {{ color: #7aa2f7; font-size: 24px; }}
+  .header-logo {{ width: 96px; height: 96px; border-radius: 16px; }}
   .header .ts {{ color: #484f58; font-size: 13px; margin-left: auto; }}
   .header .refresh {{ color: #484f58; font-size: 12px; }}
+  .discord-link {{
+    background: #5865F220; color: #5865F2; border: 1px solid #5865F240;
+    padding: 4px 12px; border-radius: 6px; font-size: 13px; font-weight: 600;
+    text-decoration: none; transition: background 0.2s;
+  }}
+  .discord-link:hover {{ background: #5865F240; }}
   .stats {{
     display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
     gap: 16px; margin-bottom: 32px;
@@ -349,9 +470,9 @@ def render_dashboard(stats, runs, findings, critiques, sources):
   .score-row {{ display: flex; align-items: center; gap: 8px; margin: 2px 0; }}
   .score-label {{ font-size: 11px; color: #8b949e; width: 120px; }}
   .score-bar {{
-    width: 80px; height: 6px; background: #21262d; border-radius: 3px; overflow: hidden;
+    width: 100px; height: 8px; background: #21262d; border-radius: 4px; overflow: hidden;
   }}
-  .score-fill {{ height: 100%; border-radius: 3px; }}
+  .score-fill {{ height: 100%; border-radius: 4px; transition: width 0.3s ease; }}
   .score-num {{ font-size: 11px; color: #8b949e; width: 40px; }}
   .scores-cell {{ min-width: 260px; }}
   .toolbar {{
@@ -368,12 +489,28 @@ def render_dashboard(stats, runs, findings, critiques, sources):
     margin-right: 4px; background: #484f58;
   }}
   .ws-dot.connected {{ background: #57F287; }}
+  @keyframes pulse {{ 0%, 100% {{ opacity: 1; }} 50% {{ opacity: 0.4; }} }}
+  .stat-sub.running {{ color: #FEE75C !important; animation: pulse 2s ease-in-out infinite; }}
+  .activity-log {{
+    background: #161b22; border: 1px solid #21262d; border-radius: 8px;
+    padding: 12px; max-height: 320px; overflow-y: auto;
+  }}
+  .activity-item {{
+    display: flex; align-items: center; gap: 10px; padding: 6px 8px;
+    border-bottom: 1px solid #21262d; font-size: 13px;
+  }}
+  .activity-item:last-child {{ border-bottom: none; }}
+  .activity-ts {{ color: #484f58; font-family: monospace; font-size: 12px; width: 70px; flex-shrink: 0; }}
+  .activity-icon {{ font-size: 14px; width: 20px; text-align: center; flex-shrink: 0; }}
+  .activity-text {{ color: #c9d1d9; }}
 </style>
 </head>
 <body>
 
 <div class="header">
-  <h1>🧬 OpenCure Labs</h1>
+  <img src="/logo.png" alt="OpenCure Labs" class="header-logo">
+  <h1>OpenCure Labs</h1>
+  <a href="https://discord.com/channels/1484240467477659941/1484241124104081680" target="_blank" class="discord-link" title="Discord Server">💬 Discord</a>
   <span class="ts">Dashboard · {now}</span>
   <span class="refresh"><span class="ws-dot" id="ws-dot"></span>live</span>
 </div>
@@ -399,7 +536,7 @@ def render_dashboard(stats, runs, findings, critiques, sources):
     <button onclick="window.location='/api/export/findings?fmt=json'">⬇ JSON</button>
   </div>
   <table id="findings-table">
-    <thead><tr><th>ID</th><th>Type</th><th>Status</th><th>Pipeline</th><th>Time</th><th>Data</th></tr></thead>
+    <thead><tr><th>ID</th><th>Type</th><th>Status</th><th>Novelty</th><th>Pipeline</th><th>Time</th><th>Data</th></tr></thead>
     <tbody>{finding_rows or no_findings}</tbody>
   </table>
 </div>
@@ -432,6 +569,13 @@ def render_dashboard(stats, runs, findings, critiques, sources):
   </table>
 </div>
 
+<div class="section">
+  <h2>📜 Activity Log</h2>
+  <div class="activity-log">
+    {activity_html}
+  </div>
+</div>
+
 <script>
 // ── WebSocket live updates ──
 (function() {{
@@ -451,6 +595,17 @@ def render_dashboard(stats, runs, findings, critiques, sources):
         keys.forEach((k, i) => {{
           if (cards[i]) cards[i].querySelector('.stat-value').textContent = msg.data[k] ?? 0;
         }});
+        // Update running count subtitle
+        const sub = cards[0]?.querySelector('.stat-sub');
+        if (sub) {{
+          const running = msg.data.running_agents ?? 0;
+          sub.textContent = running + ' running';
+          sub.style.color = running > 0 ? '#FEE75C' : '#484f58';
+        }}
+        // If counts changed, reload tables after a short delay
+        if (msg.data._changed) {{
+          setTimeout(() => location.reload(), 1000);
+        }}
       }}
     }};
   }}
@@ -476,7 +631,8 @@ function filterFindings() {{
 
 
 @app.get("/", response_class=HTMLResponse)
-async def dashboard():
+@limiter.limit("30/minute")
+async def dashboard(request: Request):
     conn = get_conn()
     cur = conn.cursor()
     stats = query_stats(cur)
@@ -484,13 +640,15 @@ async def dashboard():
     findings = query_findings(cur)
     critiques = query_critiques(cur)
     sources = query_sources(cur)
+    activity = query_activity_log(cur)
     cur.close()
     conn.close()
-    return render_dashboard(stats, runs, findings, critiques, sources)
+    return render_dashboard(stats, runs, findings, critiques, sources, activity)
 
 
 @app.get("/api/stats")
-async def api_stats():
+@limiter.limit("60/minute")
+async def api_stats(request: Request):
     conn = get_conn()
     cur = conn.cursor()
     stats = query_stats(cur)
@@ -500,7 +658,8 @@ async def api_stats():
 
 
 @app.get("/api/findings")
-async def api_findings(novel_only: bool = False, limit: int = 50):
+@limiter.limit("30/minute")
+async def api_findings(request: Request, novel_only: bool = False, limit: int = 50):
     conn = get_conn()
     cur = conn.cursor()
     data = query_findings(cur, novel_only=novel_only, limit=min(limit, 200))
@@ -510,7 +669,8 @@ async def api_findings(novel_only: bool = False, limit: int = 50):
 
 
 @app.get("/api/runs")
-async def api_runs(limit: int = 50):
+@limiter.limit("30/minute")
+async def api_runs(request: Request, limit: int = 50):
     conn = get_conn()
     cur = conn.cursor()
     data = query_recent_runs(cur, limit=min(limit, 200))
@@ -520,7 +680,8 @@ async def api_runs(limit: int = 50):
 
 
 @app.get("/api/critiques")
-async def api_critiques(limit: int = 50):
+@limiter.limit("30/minute")
+async def api_critiques(request: Request, limit: int = 50):
     conn = get_conn()
     cur = conn.cursor()
     data = query_critiques(cur, limit=min(limit, 200))
@@ -530,7 +691,8 @@ async def api_critiques(limit: int = 50):
 
 
 @app.get("/api/sources")
-async def api_sources(limit: int = 50):
+@limiter.limit("30/minute")
+async def api_sources(request: Request, limit: int = 50):
     conn = get_conn()
     cur = conn.cursor()
     data = query_sources(cur, limit=min(limit, 200))
@@ -540,7 +702,9 @@ async def api_sources(limit: int = 50):
 
 
 @app.get("/api/export/findings")
+@limiter.limit("10/minute")
 async def export_findings(
+    request: Request,
     fmt: str = Query("json", pattern="^(json|csv)$"),
     novel_only: bool = False,
     limit: int = 500,
@@ -565,7 +729,8 @@ async def export_findings(
 
 
 @app.get("/api/export/critiques")
-async def export_critiques(fmt: str = Query("json", pattern="^(json|csv)$"), limit: int = 500):
+@limiter.limit("10/minute")
+async def export_critiques(request: Request, fmt: str = Query("json", pattern="^(json|csv)$"), limit: int = 500):
     conn = get_conn()
     cur = conn.cursor()
     data = query_critiques(cur, limit=min(limit, 10000))
@@ -623,8 +788,10 @@ async def _broadcast_updates():
             cur.close()
             conn.close()
             if stats != prev_stats:
+                changed = prev_stats is not None
                 prev_stats = stats
-                payload = json.dumps({"type": "stats", "data": stats})
+                broadcast_data = {**stats, "_changed": changed}
+                payload = json.dumps({"type": "stats", "data": broadcast_data})
                 dead = set()
                 for ws in _ws_clients:
                     try:
@@ -639,7 +806,7 @@ async def _broadcast_updates():
 def main():
     parser = argparse.ArgumentParser(description="OpenCure Labs Dashboard")
     parser.add_argument("--port", type=int, default=8787, help="Port (default: 8787)")
-    parser.add_argument("--host", default="127.0.0.1", help="Host (default: 127.0.0.1)")
+    parser.add_argument("--host", default="0.0.0.0", help="Host (default: 0.0.0.0)")
     args = parser.parse_args()
     print(f"🧬 OpenCure Labs Dashboard → http://{args.host}:{args.port}")
     uvicorn.run(app, host=args.host, port=args.port, log_level="warning")

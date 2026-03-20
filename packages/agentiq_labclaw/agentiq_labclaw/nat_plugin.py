@@ -80,7 +80,7 @@ async def labclaw_skill_function(config: LabClawSkillConfig, builder: Builder):
             # Create an agent run in DB so safety check passes
             run_id = None
             try:
-                from agentiq_labclaw.db.agent_runs import start_run, complete_run
+                from agentiq_labclaw.db.agent_runs import complete_run, start_run
 
                 run_id = start_run(agent_name=config.skill_name)
             except Exception as e:
@@ -96,7 +96,7 @@ async def labclaw_skill_function(config: LabClawSkillConfig, builder: Builder):
                 try:
                     complete_run(run_id, status="completed")
                 except Exception:
-                    pass
+                    logger.debug("Failed to mark run %s as completed", run_id)
 
             return json.dumps(enriched, default=str, indent=2)
         except Exception as e:

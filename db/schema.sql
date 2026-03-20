@@ -47,6 +47,7 @@ CREATE TABLE IF NOT EXISTS experiment_results (
   result_type TEXT,
   result_data JSONB,
   novel BOOLEAN DEFAULT FALSE,
+  status TEXT DEFAULT 'published',
   timestamp TIMESTAMP DEFAULT NOW()
 );
 
