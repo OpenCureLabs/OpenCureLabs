@@ -4,8 +4,10 @@
 
 OpenCure Labs is an autonomous AI-for-Science platform that runs computational
 biology pipelines through specialist agents coordinated by NVIDIA NeMo Agent
-Toolkit (AgentIQ). Results are reviewed by Claude Opus 4.6 (scientific critic) and
-Grok (literature monitor), then published to GitHub, Discord, and PDF reports.
+Toolkit (AgentIQ). A hierarchical coordinator delegates tasks to domain-specific
+specialist agents, each with curated skill subsets. Results pass through a
+post-execution pipeline (guardrails → reviewers → publishers) before being
+stored and published.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
@@ -15,44 +17,42 @@ Grok (literature monitor), then published to GitHub, Discord, and PDF reports.
                                │
                                ▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│                    NemoClaw (Coordinator)                            │
-│              Gemini 2.0 Flash Lite — ReAct Agent                    │
-│         Routes tasks to skills via NeMo AgentIQ                     │
-└──────┬──────────┬──────────┬──────────┬──────────┬─────────────────┘
-       │          │          │          │          │
-       ▼          ▼          ▼          ▼          ▼
-┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌──────────────┐
-│Neoantigen│ │Structure │ │Molecular │ │  QSAR    │ │  Variant     │
-│Prediction│ │Prediction│ │ Docking  │ │ Modeling │ │Pathogenicity │
-│(MHCflurry│ │ (ESMFold │ │ (Vina /  │ │(RDKit +  │ │ (ClinVar +   │
-│+pyensembl│ │AlphaFold)│ │  Gnina)  │ │  sklearn)│ │   CADD)      │
-└──────┬───┘ └──────┬───┘ └──────┬───┘ └──────┬───┘ └──────┬───────┘
-       │          │          │          │          │
-       └──────────┴──────────┴──────────┴──────────┘
+│              Hierarchical Coordinator (Gemini 2.5 Flash Lite)       │
+│              Routes tasks to specialist agents + utility tools       │
+│              Implemented in nat_specialists.py as LangGraph ReAct   │
+└──────┬──────────────┬──────────────┬──────────────┬────────────────┘
+       │              │              │              │
+       ▼              ▼              ▼              ▼
+┌──────────────┐ ┌──────────────┐ ┌──────────────┐ ┌──────────────┐
+│ Cancer Agent │ │ Rare Disease │ │ Drug Response│ │   Utility    │
+│ (specialist) │ │   Agent      │ │   Agent      │ │   Tools      │
+│              │ │ (specialist) │ │ (specialist) │ │              │
+│ neoantigen   │ │ variant_path │ │ qsar         │ │ register_src │
+│ structure    │ │ sequencing_qc│ │ mol_docking  │ │ report_gen   │
+│ sequencing_qc│ │              │ │ structure    │ │ grok_research│
+└──────┬───────┘ └──────┬───────┘ └──────┬───────┘ └──────┬───────┘
+       │              │              │              │
+       └──────────────┴──────────────┴──────────────┘
                                │
                                ▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│                       Guardrails Layer                               │
-│   output_validator  →  novelty_filter  →  safety_check              │
-└──────────────────────────────┬──────────────────────────────────────┘
-                               │
-                    ┌──────────┴──────────┐
-                    ▼                     ▼
-          ┌──────────────┐      ┌──────────────────┐
-          │ Claude Opus  │      │  Grok Reviewer   │
-          │ (Anthropic)  │      │  (xAI API)       │
-          │ Scientific   │      │  Literature       │
-          │ Critique     │      │  Monitor          │
-          └──────┬───────┘      └──────┬───────────┘
-                 │                     │
-                 └──────────┬──────────┘
-                            ▼
-┌─────────────────────────────────────────────────────────────────────┐
-│                        Publishers                                    │
-│          GitHub  ←→  Discord  ←→  PDF Reports                       │
-└──────────────────────────────┬──────────────────────────────────────┘
-                               │
-                               ▼
+│              Post-Execution Orchestrator (orchestrator.py)           │
+│                                                                      │
+│   output_validator → novelty_filter → safety_check                  │
+│         │                                                            │
+│         ▼                                                            │
+│   ┌─────────────┐  ┌──────────────────┐                             │
+│   │ Claude Opus  │  │  Grok Reviewer   │  ← called for novel results│
+│   │ (critique)   │  │  (literature)    │                             │
+│   └──────┬───────┘  └──────┬───────────┘                             │
+│          └─────────┬───────┘                                         │
+│                    ▼                                                  │
+│         ┌──────────────────────┐                                     │
+│         │     Publishers       │                                     │
+│         │ GitHub · Discord · PDF│                                    │
+│         └──────────┬───────────┘                                     │
+└────────────────────┼────────────────────────────────────────────────┘
+                     ▼
 ┌─────────────────────────────────────────────────────────────────────┐
 │                        PostgreSQL                                    │
 │  agent_runs │ pipeline_runs │ experiment_results │ critique_log      │
@@ -70,12 +70,12 @@ The system is composed of three nested layers:
 ┌─────────────────────────────────────────────────────┐
 │                   NemoClaw                           │
 │  The running coordinator process — boots system,     │
-│  manages sessions, routes tasks                      │
+│  manages sessions, routes tasks to specialists       │
 │                                                      │
 │  ┌───────────────────────────────────────────────┐  │
 │  │               LabClaw                          │  │
 │  │  Scientific skill registry, domain logic,      │  │
-│  │  guardrails, compute routing                   │  │
+│  │  guardrails, compute routing, orchestrator     │  │
 │  │                                                │  │
 │  │  ┌─────────────────────────────────────────┐  │  │
 │  │  │     NVIDIA NeMo Agent Toolkit (AgentIQ)  │  │  │
@@ -87,9 +87,11 @@ The system is composed of three nested layers:
 ```
 
 - **NemoClaw** — the coordinator process. Boots the system, loads YAML config,
-  creates a NeMo ReAct agent with Gemini as the reasoning LLM.
+  creates a hierarchical LangGraph ReAct agent with Gemini as the reasoning LLM.
+  Delegates to domain-specialist agents instead of calling skills directly.
 - **LabClaw** — the scientific plugin layer. Registers skills into NeMo's tool
-  registry, enforces guardrails, routes compute to local GPU or Vast.ai.
+  registry, enforces guardrails, routes compute to local GPU or Vast.ai, and
+  runs the post-execution orchestrator (review + publish).
 - **NeMo AgentIQ** — the underlying orchestration framework. Provides YAML
   workflow definitions, the `nat` CLI, tool invocation, and telemetry.
 
@@ -97,14 +99,241 @@ The system is composed of three nested layers:
 
 ## Agent Roles
 
-| Agent | Role | LLM / Compute | Config |
+| Agent | Role | Type | LLM / Compute | Config |
+|---|---|---|---|---|
+| **Coordinator** | Hierarchical task routing to specialists | `hierarchical_coordinator` | Gemini 2.5 Flash Lite (API) | `coordinator/labclaw_workflow.yaml` |
+| **Cancer Agent** | Tumor immunology, neoantigen prediction | `specialist_agent` | RTX 5070 (local) | `labclaw_workflow.yaml` → `cancer_agent` |
+| **Rare Disease Agent** | Variant pathogenicity analysis | `specialist_agent` | RTX 5070 (local) | `labclaw_workflow.yaml` → `rare_disease_agent` |
+| **Drug Response Agent** | QSAR modeling + molecular docking | `specialist_agent` | RTX 5070 / Vast.ai | `labclaw_workflow.yaml` → `drug_response_agent` |
+| **Claude Opus 4.6** | Scientific critic — structured JSON critique | reviewer | Anthropic API | `reviewer/claude_opus_config.yaml` |
+| **Grok** | Literature reviewer + dataset discovery | reviewer + skill | xAI API (Grok-3) | `reviewer/grok_config.yaml` |
+
+### Coordinator → Specialist → Skill Mapping
+
+```
+Coordinator
+├── cancer_agent
+│   ├── neoantigen_prediction    (MHCflurry + pyensembl)
+│   ├── structure_prediction     (ESMFold / AlphaFold DB)
+│   └── sequencing_qc            (fastp)
+├── rare_disease_agent
+│   ├── variant_pathogenicity    (ClinVar + CADD)
+│   └── sequencing_qc            (fastp)
+├── drug_response_agent
+│   ├── qsar                     (RDKit + sklearn)
+│   ├── molecular_docking        (AutoDock Vina)
+│   └── structure_prediction     (ESMFold / AlphaFold DB)
+└── Utility tools (coordinator-level)
+    ├── register_discovered_source
+    ├── report_generator
+    └── grok_research
+```
+
+Skills can be shared across agents (e.g., `structure_prediction` is used by both
+the cancer and drug response agents). The coordinator decides which specialist to
+invoke based on the task description.
+
+---
+
+## Adding Custom Agents
+
+The platform is designed to scale. Adding a new specialist agent requires only
+YAML configuration — no Python code changes.
+
+### Step 1: Define the Agent in the Workflow YAML
+
+Add a new block to `coordinator/labclaw_workflow.yaml`:
+
+```yaml
+  literature_researcher:
+    _type: specialist_agent
+    llm_name: coordinator_llm
+    specialty_domain: literature_research
+    system_prompt: >
+      You are a literature research specialist for biomedical science.
+      Your tools include dataset discovery and source registration.
+      When given a task:
+      1. Search for relevant datasets and publications
+      2. Register newly discovered sources in the database
+      3. Return structured findings with citations.
+      Always use your tools — never fabricate results.
+    tool_names:
+      - grok_research
+      - register_discovered_source
+```
+
+### Step 2: Register with the Coordinator
+
+Add the agent name to the coordinator's `specialist_names` list:
+
+```yaml
+workflow:
+  _type: hierarchical_coordinator
+  specialist_names:
+    - cancer_agent
+    - rare_disease_agent
+    - drug_response_agent
+    - literature_researcher          # ← new
+```
+
+### Step 3: Update the Coordinator System Prompt (optional)
+
+If you want the coordinator to know when to route to the new agent, update
+`COORDINATOR_SYSTEM_PROMPT` in `nat_specialists.py` to describe the new agent's
+domain. The coordinator will use this to decide which specialist handles each task.
+
+### That's It
+
+The `specialist_agent` config type is generic — it accepts any system prompt and
+any subset of registered skills as tools. No Python code changes are needed
+unless you're adding a new skill. NAT discovers the agent automatically from the
+YAML.
+
+### Example Agents You Could Add
+
+| Agent | Domain | Skills (tool_names) |
+|---|---|---|
+| Literature Researcher | Proactive dataset/paper discovery | `grok_research`, `register_discovered_source` |
+| Pharmacogenomics Agent | Drug-gene interaction analysis | `variant_pathogenicity`, `qsar` |
+| Epigenetics Agent | Methylation/chromatin analysis | New skill needed |
+| Clinical Trial Tracker | Trial registry monitoring | New connector + skill needed |
+| Immunotherapy Agent | Checkpoint inhibitor response | `neoantigen_prediction`, `qsar` |
+
+### Hierarchical Nesting
+
+Agents can also be nested. Since specialist agents are just tools to the
+coordinator, you can create a sub-coordinator that manages its own specialists:
+
+```
+Coordinator
+├── genomics_coordinator        ← sub-coordinator (hierarchical_coordinator)
+│   ├── cancer_agent
+│   └── rare_disease_agent
+├── drug_discovery_coordinator  ← sub-coordinator
+│   ├── drug_response_agent
+│   └── pharmacogenomics_agent
+└── Utility tools
+```
+
+This is supported because LangGraph agents are composable — an agent's output is
+just a string, so any agent can be wrapped as a tool for another agent.
+
+---
+
+## Scaling Constraints
+
+| Factor | Practical Limit | Why | Mitigation |
 |---|---|---|---|
-| **NemoClaw** | Coordinator — task routing, session management | Gemini 2.0 Flash Lite (API) | `coordinator/labclaw_workflow.yaml` |
-| **Cancer Agent** | Tumor immunology, neoantigen prediction | RTX 5070 (local) | `agents/cancer_agent.yaml` |
-| **Rare Disease Agent** | Variant pathogenicity analysis | RTX 5070 (local) | `agents/rare_disease_agent.yaml` |
-| **Drug Response Agent** | QSAR modeling + molecular docking | RTX 5070 / Vast.ai | `agents/drug_response_agent.yaml` |
-| **Claude Opus 4.6** | Scientific critic — structured JSON critique | Anthropic API | `reviewer/claude_opus_config.yaml` |
-| **Grok** | Literature reviewer + proactive dataset discovery | xAI API (Grok-3) | `reviewer/grok_config.yaml` |
+| **Coordinator context window** | ~10-15 specialist agents | Each agent is a tool description the coordinator LLM must reason about. Beyond ~15, routing accuracy degrades. | Use hierarchical nesting (sub-coordinators) to keep each coordinator's tool count under 10. |
+| **GPU** | 1 concurrent GPU job (local) | RTX 5070 runs one heavy workload at a time (docking, structure prediction). | Queue jobs sequentially, or burst to Vast.ai for parallel GPU compute. |
+| **LLM API rate limits** | Per-provider | Each specialist agent makes its own LLM reasoning calls. More agents = more Gemini API calls per task. | Use Gemini Flash Lite (high rate limits, low cost). Batch tasks through fewer specialists when possible. |
+| **LLM API cost** | Linear with agent count | Each specialist makes 2-5 LLM calls for ReAct reasoning per task delegation. | Share the same `coordinator_llm` across all specialists (already configured this way). |
+| **External API rate limits** | ~1 req/sec (ChEMBL, ClinVar) | Connector APIs rate-limit clients. Multiple agents hitting the same API can trigger 429 errors. | Caching + exponential backoff on connectors (see Caching Strategy below). |
+| **Memory** | ~500MB per specialist agent (in-process) | LangGraph agents hold their state in memory. | 128GB RAM on this machine supports ~50+ concurrent agents easily. |
+| **PostgreSQL** | Thousands of concurrent agents | DB is not the bottleneck. Connection pooling handles scale. | Add indexes on commonly queried columns (novel, timestamp, status). |
+
+### Serial vs. Parallel Execution
+
+Currently, the coordinator dispatches to one specialist at a time (serial). For
+tasks spanning multiple domains (e.g., "find drug candidates for this neoantigen
+target"), the coordinator calls specialists sequentially.
+
+**Future: Parallel dispatch.** Replace the sequential coordinator with a LangGraph
+`StateGraph` that dispatches independent specialist calls in parallel:
+
+```python
+# Future parallel dispatch (not yet implemented)
+graph = StateGraph(...)
+graph.add_node("cancer", cancer_agent)
+graph.add_node("drug", drug_response_agent)
+graph.add_edge(START, "cancer")
+graph.add_edge(START, "drug")  # parallel branch
+graph.add_edge("cancer", "merge")
+graph.add_edge("drug", "merge")
+```
+
+This would let the cancer agent and drug response agent run simultaneously when
+their work is independent.
+
+---
+
+## Caching Strategy
+
+### Current: In-Process Cache
+
+API connectors (ChEMBL, ClinVar, TCGA) use Python's `functools.lru_cache` for
+in-memory memoization. This eliminates duplicate API calls within the same agent
+run.
+
+```python
+@functools.lru_cache(maxsize=256)
+def fetch_compound(self, compound_id: str) -> dict:
+    ...
+```
+
+Combined with exponential backoff on 429/503 responses:
+
+```python
+for attempt in range(max_retries):
+    resp = requests.get(url)
+    if resp.status_code == 429:
+        wait = min(2 ** attempt, 60)
+        retry_after = resp.headers.get("Retry-After")
+        if retry_after:
+            wait = int(retry_after)
+        time.sleep(wait)
+        continue
+    return resp.json()
+```
+
+### Why `lru_cache` Is Sufficient (For Now)
+
+NAT runs all agents **in a single Python process**. When the coordinator calls
+the cancer agent, which calls neoantigen prediction, which calls the ClinVar
+connector — all of that happens in the same process. One shared `lru_cache` covers
+all agents, all skills, all connector calls within a pipeline run.
+
+**When it's NOT sufficient:**
+
+| Scenario | lru_cache works? | Upgrade path |
+|---|---|---|
+| Single `nat run` invocation | Yes | — |
+| Multiple sequential `nat run` calls | No (cache resets between runs) | Add `requests-cache` for disk-backed caching |
+| Vast.ai remote execution | No (separate machine) | Add Redis or shared disk cache on compute nodes |
+| Multiple coordinator instances | No (separate processes) | Add Redis for cross-process cache |
+| Cron-scheduled pipeline runs | No (new process each time) | Add `requests-cache` with SQLite backend |
+
+### Upgrade Path: `requests-cache`
+
+When you need persistence across runs, swap `lru_cache` for `requests-cache`
+(zero-config SQLite-backed HTTP cache):
+
+```python
+import requests_cache
+requests_cache.install_cache("labclaw_cache", expire_after=3600)
+# All requests.get() calls are now cached to disk automatically
+```
+
+This is a drop-in replacement — no architecture changes needed. Install with
+`pip install requests-cache`.
+
+### Upgrade Path: Redis (Multi-Node)
+
+For multi-node deployments (multiple Vast.ai instances, distributed agents),
+use Redis as a shared cache backend:
+
+```python
+import requests_cache
+requests_cache.install_cache(
+    "labclaw_cache",
+    backend="redis",
+    connection=redis.Redis(host="cache-host"),
+    expire_after=3600,
+)
+```
+
+This requires a Redis instance but gives cross-process, cross-machine caching
+with automatic TTL expiration.
 
 ---
 
@@ -269,7 +498,8 @@ when Grok finds a new dataset, it calls this skill to write to
 |---|---|---|
 | **Language** | Python | 3.11+ |
 | **Agent Framework** | NVIDIA NeMo Agent Toolkit (AgentIQ) | 1.5.0+ |
-| **Coordinator LLM** | Gemini 2.0 Flash Lite | Google AI API |
+| **Agent Orchestration** | LangGraph + LangChain | 1.0+ |
+| **Coordinator LLM** | Gemini 2.5 Flash Lite | Google AI API |
 | **Scientific Reviewer** | Claude Opus 4.6 | Anthropic API |
 | **Literature Reviewer** | Grok-3 | xAI API |
 | **Database** | PostgreSQL | 16 |
