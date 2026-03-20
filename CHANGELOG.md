@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - CI pipeline with tests, ruff, and bandit
 - Commitizen conventional commits enforcement
 
+## v0.3.1 (2026-03-20)
+
+### Fix
+
+- **qsar**: replace pickle with joblib — resolves Bandit B301
+
 ## v0.3.0 (2026-03-20)
 
 ### Feat
