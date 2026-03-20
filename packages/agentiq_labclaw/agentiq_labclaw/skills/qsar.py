@@ -1,9 +1,9 @@
 """QSAR model training and inference skill."""
 
 import logging
-import pickle
 from pathlib import Path
 
+import joblib
 import numpy as np
 import pandas as pd
 from pydantic import BaseModel
@@ -115,8 +115,7 @@ class QSARSkill(LabClawSkill):
 
         # Save model
         model_path = MODELS_DIR / f"qsar_{input_data.model_type}.pkl"
-        with open(model_path, "wb") as f:
-            pickle.dump({"model": model, "descriptor_names": desc_names}, f)  # noqa: S301
+        joblib.dump({"model": model, "descriptor_names": desc_names}, model_path)
 
         metrics = {
             "r2_mean": round(float(np.mean(cv_scores)), 4),
@@ -139,8 +138,7 @@ class QSARSkill(LabClawSkill):
         if not input_data.model_path:
             raise ValueError("model_path is required for predict mode")
 
-        with open(input_data.model_path, "rb") as f:
-            bundle = pickle.load(f)  # noqa: S301
+        bundle = joblib.load(input_data.model_path)
         model = bundle["model"]
 
         df = pd.read_csv(input_data.dataset_path)
