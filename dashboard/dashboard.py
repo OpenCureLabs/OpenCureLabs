@@ -19,6 +19,7 @@ from contextlib import asynccontextmanager
 from datetime import datetime
 
 import psycopg2
+import psycopg2.pool
 from fastapi import FastAPI, Query, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, FileResponse, StreamingResponse
 from slowapi import Limiter
@@ -31,12 +32,40 @@ import uvicorn
 DB_URL = os.environ.get("POSTGRES_URL", "dbname=opencurelabs port=5433")
 logger = logging.getLogger("opencurelabs.dashboard")
 
+# Connection pool — lazily initialized
+_pool = None
+
+
+def _get_pool():
+    """Return a threaded connection pool, creating it on first call."""
+    global _pool
+    if _pool is None or _pool.closed:
+        _pool = psycopg2.pool.ThreadedConnectionPool(1, 5, DB_URL)
+    return _pool
+
+
+def get_conn():
+    """Get a connection from the pool with autocommit enabled."""
+    conn = _get_pool().getconn()
+    conn.autocommit = True
+    return conn
+
+
+def put_conn(conn):
+    """Return a connection to the pool."""
+    try:
+        _get_pool().putconn(conn)
+    except Exception:
+        pass
+
 
 @asynccontextmanager
 async def lifespan(app):
-    """Start background WebSocket broadcast task on startup."""
+    """Start background WebSocket broadcast task on startup; close pool on shutdown."""
     asyncio.create_task(_broadcast_updates())
     yield
+    if _pool and not _pool.closed:
+        _pool.closeall()
 
 
 app = FastAPI(title="OpenCure Labs Dashboard", lifespan=lifespan)
@@ -73,16 +102,10 @@ async def health():
         cur = conn.cursor()
         cur.execute("SELECT 1")
         cur.close()
-        conn.close()
+        put_conn(conn)
         return {"status": "healthy", "database": "connected"}
     except Exception:
         return JSONResponse(status_code=503, content={"status": "unhealthy", "database": "disconnected"})
-
-
-def get_conn():
-    conn = psycopg2.connect(DB_URL)
-    conn.autocommit = True
-    return conn
 
 
 def table_exists(cur, table_name):
@@ -953,7 +976,7 @@ async def dashboard(request: Request):
     sources = query_sources(cur)
     activity = query_activity_log(cur)
     cur.close()
-    conn.close()
+    put_conn(conn)
     return render_dashboard(stats, runs, findings, critiques, sources, activity)
 
 
@@ -964,7 +987,7 @@ async def api_stats(request: Request):
     cur = conn.cursor()
     stats = query_stats(cur)
     cur.close()
-    conn.close()
+    put_conn(conn)
     return stats
 
 
@@ -975,7 +998,7 @@ async def api_findings(request: Request, novel_only: bool = False, limit: int = 
     cur = conn.cursor()
     data = query_findings(cur, novel_only=novel_only, limit=min(limit, 200))
     cur.close()
-    conn.close()
+    put_conn(conn)
     return data
 
 
@@ -986,7 +1009,7 @@ async def api_runs(request: Request, limit: int = 50):
     cur = conn.cursor()
     data = query_recent_runs(cur, limit=min(limit, 200))
     cur.close()
-    conn.close()
+    put_conn(conn)
     return data
 
 
@@ -997,7 +1020,7 @@ async def api_critiques(request: Request, limit: int = 50):
     cur = conn.cursor()
     data = query_critiques(cur, limit=min(limit, 200))
     cur.close()
-    conn.close()
+    put_conn(conn)
     return data
 
 
@@ -1008,7 +1031,7 @@ async def api_sources(request: Request, limit: int = 50):
     cur = conn.cursor()
     data = query_sources(cur, limit=min(limit, 200))
     cur.close()
-    conn.close()
+    put_conn(conn)
     return data
 
 
@@ -1024,7 +1047,7 @@ async def export_findings(
     cur = conn.cursor()
     data = query_findings(cur, novel_only=novel_only, limit=min(limit, 10000))
     cur.close()
-    conn.close()
+    put_conn(conn)
     if fmt == "csv":
         buf = io.StringIO()
         if data:
@@ -1046,7 +1069,7 @@ async def export_critiques(request: Request, fmt: str = Query("json", pattern="^
     cur = conn.cursor()
     data = query_critiques(cur, limit=min(limit, 10000))
     cur.close()
-    conn.close()
+    put_conn(conn)
     if fmt == "csv":
         buf = io.StringIO()
         rows = []
@@ -1097,7 +1120,7 @@ async def _broadcast_updates():
             cur = conn.cursor()
             stats = query_stats(cur)
             cur.close()
-            conn.close()
+            put_conn(conn)
             if stats != prev_stats:
                 changed = prev_stats is not None
                 prev_stats = stats
