@@ -30,9 +30,18 @@ fi
 
 echo "🛡️  Running OpenCure Labs security scan..."
 
+# Collect staged files for targeted secret scanning (avoids full-repo scan hang)
+STAGED_FILES=$(git diff --cached --name-only --diff-filter=ACMR 2>/dev/null || true)
+FILES_ARG=""
+if [[ -n "$STAGED_FILES" ]]; then
+    FILES_ARG="--files $STAGED_FILES"
+fi
+
 # Run scanner with auto-fix (safe tier only) and Discord notification
+# --files passes only staged files to detect-secrets (fast, avoids hang)
 # Redirect stderr to suppress pip-audit spinner noise in non-TTY contexts
-if python3 "$SCANNER" --profile "$PROFILE" --autofix safe --discord 2>/dev/null; then
+# shellcheck disable=SC2086
+if python3 "$SCANNER" --profile "$PROFILE" --autofix safe --discord $FILES_ARG 2>/dev/null; then
     echo "✅ Security scan passed — commit allowed."
     exit 0
 else

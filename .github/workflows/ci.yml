@@ -50,12 +50,12 @@ jobs:
           PGPASSWORD=postgres psql -h localhost -p 5433 -U postgres -d opencurelabs -f db/schema.sql
 
       - name: Run tests
-        run: pytest tests/ -v --tb=short
+        run: pytest tests/ -v --tb=short --cov=packages/agentiq_labclaw --cov-report=term-missing --cov-fail-under=60
 
       - name: Lint (ruff)
         run: ruff check packages/ pipelines/ dashboard/ --output-format=github
         if: always()
 
       - name: Security scan (bandit)
-        run: bandit -r packages/agentiq_labclaw/agentiq_labclaw -q -ll
+        run: bandit -r packages/agentiq_labclaw/agentiq_labclaw -q -l
         if: always()

@@ -299,14 +299,35 @@ test/test-description    # New tests
 
 ### Commit messages
 
-Follow [Conventional Commits](https://www.conventionalcommits.org/):
+We use [Conventional Commits](https://www.conventionalcommits.org/) and enforce them with [commitizen](https://commitizen-tools.github.io/commitizen/). A `commit-msg` hook validates every commit message — non-conforming commits are blocked.
 
 ```
 feat: add structure prediction skill
 fix: correct MHC binding threshold in neoantigen pipeline
 docs: add worked example for variant pathogenicity
 test: add synthetic VCF test for edge cases
+chore: bump dependencies
+refactor: extract peptide generation into helper
+ci: add coverage threshold to CI
 ```
+
+Allowed types: `feat`, `fix`, `docs`, `test`, `chore`, `refactor`, `ci`, `style`, `perf`, `build`, `revert`.
+
+To bypass in an emergency: `git commit --no-verify` (use sparingly).
+
+### Branch naming
+
+Use a type prefix matching the commit type:
+
+```
+feat/skill-name          # New skill or feature
+fix/issue-description    # Bug fix
+docs/section-name        # Documentation
+test/test-description    # New tests
+chore/cleanup-name       # Maintenance
+```
+
+Link to issues when applicable: `feat/36-wiki-sync`, `fix/42-binding-threshold`.
 
 ### Pull request requirements
 

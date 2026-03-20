@@ -300,17 +300,27 @@ step "Installing pre-commit security hook"
 
 HOOK_SRC="$PROJECT_DIR/security/pre-commit-hook.sh"
 HOOK_DST="$PROJECT_DIR/.git/hooks/pre-commit"
+COMMIT_MSG_SRC="$PROJECT_DIR/scripts/commit-msg-hook.sh"
+COMMIT_MSG_DST="$PROJECT_DIR/.git/hooks/commit-msg"
 
-if [[ -f "$HOOK_SRC" ]] && [[ -d "$PROJECT_DIR/.git/hooks" ]]; then
-    cp "$HOOK_SRC" "$HOOK_DST"
-    chmod +x "$HOOK_DST"
-    ok "Pre-commit hook installed"
-else
-    if [[ ! -d "$PROJECT_DIR/.git" ]]; then
-        warn "Not a git repository — skipping hook install"
+if [[ -d "$PROJECT_DIR/.git/hooks" ]]; then
+    if [[ -f "$HOOK_SRC" ]]; then
+        cp "$HOOK_SRC" "$HOOK_DST"
+        chmod +x "$HOOK_DST"
+        ok "Pre-commit hook installed"
     else
         warn "Security hook not found at $HOOK_SRC — skipping"
     fi
+
+    if [[ -f "$COMMIT_MSG_SRC" ]]; then
+        cp "$COMMIT_MSG_SRC" "$COMMIT_MSG_DST"
+        chmod +x "$COMMIT_MSG_DST"
+        ok "Commit-msg hook installed (conventional commits enforcement)"
+    else
+        warn "Commit-msg hook not found at $COMMIT_MSG_SRC — skipping"
+    fi
+else
+    warn "Not a git repository — skipping hook install"
 fi
 
 # ══════════════════════════════════════════════════════════════════════════════

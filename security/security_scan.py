@@ -248,10 +248,11 @@ def check_static_pip_audit(result: ScanResult) -> None:
         _p(f"  ... and {len(vuln_pkgs) - 3} more vulnerable packages")
 
 
-def check_static_secrets(result: ScanResult) -> None:
+def check_static_secrets(result: ScanResult, file_list: list[str] | None = None) -> None:
     """Run detect-secrets for hardcoded secrets.
 
     Uses baseline comparison: only flags NEW secrets not already in .secrets.baseline.
+    If file_list is provided, scans only those files (e.g. staged files in pre-commit).
     """
     _p("\n🔐 Static: detect-secrets (secret scanning)...")
     result.total += 1
@@ -264,7 +265,12 @@ def check_static_secrets(result: ScanResult) -> None:
     for pat in exclude_patterns:
         cmd.extend(["--exclude-files", pat])
 
-    rc, stdout, stderr = _run_tool(cmd)
+    if file_list:
+        # Scan only specified files (e.g. staged files from pre-commit)
+        cmd.extend(file_list)
+
+    timeout = 15 if file_list else 60
+    rc, stdout, stderr = _run_tool(cmd, timeout=timeout)
 
     if rc == -1:
         _p("  ⚠️  detect-secrets not installed, skipping")
@@ -319,7 +325,7 @@ def check_static_secrets(result: ScanResult) -> None:
         _p(f"  ... and {len(new_secrets) - 3} more new secrets")
 
 
-def run_static_analysis(result: ScanResult, profile: dict) -> None:
+def run_static_analysis(result: ScanResult, profile: dict, file_list: list[str] | None = None) -> None:
     """Run all static analysis tools."""
     _p(f"\n{'─'*60}")
     _p("  📋 Static Analysis")
@@ -327,7 +333,7 @@ def run_static_analysis(result: ScanResult, profile: dict) -> None:
     check_static_ruff(result, profile)
     check_static_bandit(result, profile)
     check_static_pip_audit(result)
-    check_static_secrets(result)
+    check_static_secrets(result, file_list=file_list)
     _p(f"{'─'*60}")
     static_findings = [f for f in result.findings if f.category.startswith("Static Analysis")]
     if static_findings:
@@ -636,6 +642,8 @@ def main() -> None:
                         help="Compare scan results against a saved baseline JSON")
     parser.add_argument("--discord", action="store_true",
                         help="Send Discord notification on CRITICAL/HIGH findings")
+    parser.add_argument("--files", nargs="*", default=None,
+                        help="Scan only these files (e.g. staged files from pre-commit)")
     args = parser.parse_args()
 
     profile = load_profile(args.profile)
@@ -652,7 +660,7 @@ def main() -> None:
         started=datetime.datetime.now().isoformat(timespec="seconds"),
     )
 
-    run_static_analysis(result, profile)
+    run_static_analysis(result, profile, file_list=args.files)
 
     result.finished = datetime.datetime.now().isoformat(timespec="seconds")
     report_md, grade = generate_report(result)

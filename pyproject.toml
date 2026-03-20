@@ -1,0 +1,19 @@
+# ── OpenCure Labs — Project Configuration ────────────────────────────────────
+# This is the root project config. The agentiq_labclaw sub-package has its own
+# pyproject.toml in packages/agentiq_labclaw/ for build/install purposes.
+# This root file holds shared tool config: commitizen, pytest, etc.
+
+[tool.commitizen]
+name = "cz_conventional_commits"
+version = "0.1.0"
+version_files = [
+    "packages/agentiq_labclaw/pyproject.toml:version",
+    "packages/agentiq_labclaw/agentiq_labclaw/__init__.py:__version__",
+]
+tag_format = "v$version"
+changelog_file = "CHANGELOG.md"
+update_changelog_on_bump = true
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "--cov=packages/agentiq_labclaw --cov-report=term-missing"

@@ -140,12 +140,8 @@ done
 
 echo -e "${CYAN}📋 Kanban update complete.${NC}"
 
-# ── Phase 2: Wiki sync (if docs changed) ────────────────────────────────────
+# ── Phase 2: Wiki sync ───────────────────────────────────────────────────────
 WIKI_SYNC="$(dirname "$0")/sync-wiki.sh"
 if [[ -x "$WIKI_SYNC" ]]; then
-    # Check if any docs/ or top-level .md files changed in this commit
-    CHANGED_FILES=$(git diff-tree --no-commit-id --name-only -r HEAD 2>/dev/null || true)
-    if echo "$CHANGED_FILES" | grep -qE '(^docs/|\.md$)'; then
-        "$WIKI_SYNC" || true  # Don't fail the hook if wiki sync fails
-    fi
+    "$WIKI_SYNC" || true  # Don't fail the hook if wiki sync fails
 fi
