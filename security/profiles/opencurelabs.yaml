@@ -5,3 +5,11 @@ static:
   bandit_target: packages/agentiq_labclaw/
   bandit_config: packages/agentiq_labclaw/pyproject.toml
   secrets_baseline: .secrets.baseline
+
+# CVEs accepted as known risks (no upstream fix available).
+# Each entry must include the CVE ID, package, and justification.
+accepted_risks:
+  - cve: CVE-2025-68463
+    package: biopython
+    reason: "Bio.Entrez XXE — Biopython 1.86 is latest; no patched version. We do not use Bio.Entrez with untrusted XML."
+    accepted_date: "2026-03-20"

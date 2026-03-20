@@ -2,6 +2,9 @@
 #
 # Analyzes rare and de novo variants against ClinVar/OMIM databases
 # to assess pathogenicity, identify candidate genes, and support diagnosis.
+#
+# Backed by NAT specialist_agent registration in nat_specialists.py
+# Coordinator YAML entry: rare_disease_agent (_type: specialist_agent)
 
 agent:
   name: rare_disease_agent

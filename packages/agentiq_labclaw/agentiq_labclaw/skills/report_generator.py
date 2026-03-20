@@ -77,7 +77,10 @@ class ReportGeneratorSkill(LabClawSkill):
         title_style = ParagraphStyle("ReportTitle", parent=styles["Title"], fontSize=20, spaceAfter=30)
         heading_style = ParagraphStyle("SectionHeading", parent=styles["Heading2"], spaceBefore=20, spaceAfter=10)
         body_style = styles["BodyText"]
-        code_style = ParagraphStyle("Code", parent=styles["Code"], fontSize=8, leading=10, backColor=colors.HexColor("#f5f5f5"))
+        code_style = ParagraphStyle(
+            "Code", parent=styles["Code"], fontSize=8, leading=10,
+            backColor=colors.HexColor("#f5f5f5"),
+        )
 
         elements = []
 

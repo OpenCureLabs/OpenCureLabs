@@ -10,7 +10,6 @@ that uses LangGraph to route tasks through LabClaw skills.
 
 import json
 import logging
-from typing import List
 
 from nat.builder.builder import Builder
 from nat.builder.function_info import FunctionInfo
@@ -19,6 +18,8 @@ from nat.data_models.agent import AgentBaseConfig
 from nat.data_models.function import FunctionBaseConfig
 from pydantic import BaseModel, Field
 
+# Import specialist agent registrations so NAT discovers them
+import agentiq_labclaw.nat_specialists  # noqa: F401
 from agentiq_labclaw.base import get_skill
 
 logger = logging.getLogger("labclaw.nat_plugin")
@@ -35,6 +36,7 @@ async def labclaw_skill_function(config: LabClawSkillConfig, builder: Builder):
     # Eagerly import all skill modules to trigger @labclaw_skill registration
     from agentiq_labclaw.skills import (  # noqa: F401
         docking,
+        grok_research,
         neoantigen,
         qsar,
         register_source,
@@ -50,9 +52,21 @@ async def labclaw_skill_function(config: LabClawSkillConfig, builder: Builder):
     async def _run_skill(input_json: str) -> str:
         input_data = skill_instance.input_schema.model_validate_json(input_json)
         result = skill_instance.execute(input_data)
-        if isinstance(result, BaseModel):
-            return result.model_dump_json(indent=2)
-        return json.dumps(result, default=str)
+
+        # Post-execution orchestration: guardrails → reviewer → publisher
+        try:
+            from agentiq_labclaw.orchestrator import post_execute
+
+            enriched = await post_execute(
+                skill_name=config.skill_name,
+                result=result,
+            )
+            return json.dumps(enriched, default=str, indent=2)
+        except Exception as e:
+            logger.warning("Post-execution orchestration error (returning raw result): %s", e)
+            if isinstance(result, BaseModel):
+                return result.model_dump_json(indent=2)
+            return json.dumps(result, default=str)
 
     yield FunctionInfo.from_fn(
         _run_skill,
@@ -66,7 +80,7 @@ async def labclaw_skill_function(config: LabClawSkillConfig, builder: Builder):
 class LabClawReactConfig(AgentBaseConfig, name="labclaw_react"):
     """ReAct agent workflow for LabClaw — routes tasks through scientific skills."""
 
-    tool_names: List[str] = Field(
+    tool_names: list[str] = Field(
         default_factory=list,
         description="Names of registered NAT functions to use as tools",
     )
@@ -121,5 +135,9 @@ async def labclaw_react_workflow(config: LabClawReactConfig, builder: Builder):
 
     yield FunctionInfo.from_fn(
         _run,
-        description=config.description if hasattr(config, "description") and config.description else "LabClaw ReAct coordinator agent",
+        description=(
+            config.description
+            if hasattr(config, "description") and config.description
+            else "LabClaw ReAct coordinator agent"
+        ),
     )

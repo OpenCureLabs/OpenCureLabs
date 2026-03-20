@@ -2,6 +2,9 @@
 #
 # Builds QSAR models, runs molecular docking simulations,
 # and predicts compound efficacy profiles using ChEMBL data.
+#
+# Backed by NAT specialist_agent registration in nat_specialists.py
+# Coordinator YAML entry: drug_response_agent (_type: specialist_agent)
 
 agent:
   name: drug_response_agent

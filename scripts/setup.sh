@@ -105,6 +105,7 @@ PACKAGES=(
     libpq-dev
     fastp
     openbabel
+    autodock-vina
 )
 
 MISSING=()

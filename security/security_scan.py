@@ -201,7 +201,7 @@ def check_static_bandit(result: ScanResult, profile: dict) -> None:
         _p(f"  ... and {len(serious) - 3} more")
 
 
-def check_static_pip_audit(result: ScanResult) -> None:
+def check_static_pip_audit(result: ScanResult, profile: dict | None = None) -> None:
     """Run pip-audit for known vulnerabilities in dependencies."""
     _p("\n📦 Static: pip-audit (dependency vulnerabilities)...")
     result.total += 1
@@ -219,6 +219,14 @@ def check_static_pip_audit(result: ScanResult) -> None:
         result.passed += 1
         return
 
+    # Build set of accepted CVE IDs from profile
+    accepted_cves: set[str] = set()
+    if profile:
+        for entry in profile.get("accepted_risks", []):
+            cve = entry.get("cve", "")
+            if cve:
+                accepted_cves.add(cve)
+
     try:
         report = json.loads(stdout)
         vulns = report.get("dependencies", [])
@@ -231,21 +239,37 @@ def check_static_pip_audit(result: ScanResult) -> None:
         _p("  ✅ No known vulnerabilities")
         return
 
-    for pkg in vuln_pkgs[:3]:
+    reported = 0
+    for pkg in vuln_pkgs:
         name = pkg.get("name", "?")
         version = pkg.get("version", "?")
-        for vuln in pkg.get("vulns", [])[:1]:
+        for vuln in pkg.get("vulns", []):
             vuln_id = vuln.get("id", "?")
+            if vuln_id in accepted_cves:
+                _p(f"  ℹ️  Accepted risk: {name}=={version} ({vuln_id})")
+                continue
             desc = vuln.get("description", "")[:100]
             fix = vuln.get("fix_versions", [])
             _fail(result, Finding(
-                severity="HIGH", category="Static Analysis - Dependencies",
+                severity="HIGH",
+                category="Static Analysis - Dependencies",
                 title=f"Vulnerable dependency: {name}=={version} ({vuln_id})",
                 detail=desc,
                 remediation=f"Upgrade to: {', '.join(fix)}" if fix else "Check for updates.",
             ), f"{name}=={version}: {vuln_id}")
-    if len(vuln_pkgs) > 3:
-        _p(f"  ... and {len(vuln_pkgs) - 3} more vulnerable packages")
+            reported += 1
+            if reported >= 3:
+                break
+        if reported >= 3:
+            break
+    if reported == 0:
+        result.passed += 1
+        _p("  ✅ All vulnerabilities are accepted risks")
+        return
+    remaining = sum(1 for p in vuln_pkgs for v in p.get("vulns", [])
+                    if v.get("id", "?") not in accepted_cves) - reported
+    if remaining > 0:
+        _p(f"  ... and {remaining} more vulnerable packages")
 
 
 def check_static_secrets(result: ScanResult, file_list: list[str] | None = None) -> None:
@@ -332,7 +356,7 @@ def run_static_analysis(result: ScanResult, profile: dict, file_list: list[str] 
     _p(f"{'─'*60}")
     check_static_ruff(result, profile)
     check_static_bandit(result, profile)
-    check_static_pip_audit(result)
+    check_static_pip_audit(result, profile)
     check_static_secrets(result, file_list=file_list)
     _p(f"{'─'*60}")
     static_findings = [f for f in result.findings if f.category.startswith("Static Analysis")]

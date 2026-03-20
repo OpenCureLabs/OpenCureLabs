@@ -23,6 +23,11 @@ pyensembl>=2.3
 mhcflurry>=2.1
 rdkit>=2024.3
 
+# ── LangGraph / LangChain (coordinator agent) ───────────────────────────────
+langchain-core>=0.3
+langchain-openai>=0.3
+langgraph>=1.0
+
 # ── Reviewer Dependencies ───────────────────────────────────────────────────
 anthropic>=0.25
 openai>=1.20
@@ -36,6 +41,9 @@ commitizen>=4.0
 # ── Dashboard ───────────────────────────────────────────────────────────────
 fastapi>=0.110
 uvicorn>=0.29
+
+# ── Vast.ai burst compute ──────────────────────────────────────────────────
+vastai>=0.5
 
 # ── Security Scanning (optional — used by security/security_scan.py) ────────
 ruff>=0.4

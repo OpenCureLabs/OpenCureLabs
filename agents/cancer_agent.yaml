@@ -2,6 +2,9 @@
 #
 # Processes cancer genomics data to identify somatic mutations,
 # predict neoantigens, and model tumor-immune microenvironments.
+#
+# Backed by NAT specialist_agent registration in nat_specialists.py
+# Coordinator YAML entry: cancer_agent (_type: specialist_agent)
 
 agent:
   name: cancer_agent

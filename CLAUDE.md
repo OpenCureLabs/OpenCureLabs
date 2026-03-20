@@ -64,6 +64,17 @@ Architecture spec: see LABCLAW.md.
 
 6. **All agent activity logs** to `logs/` directory and Discord webhook.
 
+7. **Never use `git commit --no-verify`** — pre-commit hooks enforce security
+   scanning and documentation checks. If a commit is blocked by the security
+   scanner:
+   - Read the report in `security/reports/` to understand the finding.
+   - Fix the issue if possible (ruff auto-fix, update baseline for false
+     positives, upgrade vulnerable dependency).
+   - If the issue cannot be fixed (e.g. upstream CVE with no patch), notify the
+     user with the finding details and ask for guidance.
+   - **Never bypass the hook.** The security gate exists to prevent secrets,
+     vulnerabilities, and lint regressions from entering the repository.
+
 ---
 
 ## Agent Roles

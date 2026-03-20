@@ -1,5 +1,12 @@
 # coordinator/labclaw_workflow.yaml
-# OpenCure Labs — NeMo AgentIQ coordinator workflow configuration
+# OpenCure Labs — Hierarchical multi-agent coordinator workflow
+#
+# Architecture:
+#   Coordinator (Gemini 2.5 Flash Lite)
+#     ├── Cancer Agent        → neoantigen, structure_prediction, sequencing_qc
+#     ├── Rare Disease Agent  → variant_pathogenicity, sequencing_qc
+#     ├── Drug Response Agent → qsar, molecular_docking, structure_prediction
+#     └── Utility tools       → register_source, report_generator
 #
 # Run with: nat run --config_file coordinator/labclaw_workflow.yaml --input "your task"
 
@@ -12,6 +19,7 @@ llms:
     temperature: 0.0
 
 functions:
+  # ── Individual skills (referenced by specialist agents) ──────────────────
   neoantigen_prediction:
     _type: labclaw_skill
     skill_name: neoantigen_prediction
@@ -44,35 +52,89 @@ functions:
     _type: labclaw_skill
     skill_name: report_generator
 
+  grok_research:
+    _type: labclaw_skill
+    skill_name: grok_research
+
+  # ── Specialist agents (each a ReAct agent with a skill subset) ───────────
+  cancer_agent:
+    _type: specialist_agent
+    llm_name: coordinator_llm
+    specialty_domain: tumor_immunology
+    system_prompt: >
+      You are a specialist agent for tumor immunology and cancer genomics.
+      Your tools include neoantigen prediction, protein structure prediction, and sequencing QC.
+      When given a task:
+      1. Assess whether sequencing QC is needed first
+      2. Run the appropriate analysis pipeline
+      3. Return structured results with confidence scores.
+      Always use your tools — never fabricate scientific results.
+    tool_names:
+      - neoantigen_prediction
+      - structure_prediction
+      - sequencing_qc
+
+  rare_disease_agent:
+    _type: specialist_agent
+    llm_name: coordinator_llm
+    specialty_domain: variant_analysis
+    system_prompt: >
+      You are a specialist agent for rare disease variant analysis.
+      Your tools include variant pathogenicity assessment and sequencing QC.
+      When given a task:
+      1. Run sequencing QC if raw data is provided
+      2. Assess variant pathogenicity against ClinVar/OMIM
+      3. Rank candidate genes by pathogenicity score.
+      Always use your tools — never fabricate scientific results.
+    tool_names:
+      - variant_pathogenicity
+      - sequencing_qc
+
+  drug_response_agent:
+    _type: specialist_agent
+    llm_name: coordinator_llm
+    specialty_domain: drug_response
+    system_prompt: >
+      You are a specialist agent for drug response prediction.
+      Your tools include QSAR modeling, molecular docking, and structure prediction.
+      When given a task:
+      1. Predict or retrieve the target protein structure
+      2. Run molecular docking or QSAR as appropriate
+      3. Report binding affinities, predicted activity, and confidence.
+      Always use your tools — never fabricate scientific results.
+    tool_names:
+      - qsar
+      - molecular_docking
+      - structure_prediction
+
+# ── Hierarchical Coordinator Workflow ──────────────────────────────────────
 workflow:
-  _type: labclaw_react
+  _type: hierarchical_coordinator
   llm_name: coordinator_llm
-  description: "LabClaw scientific coordinator — routes tasks to domain-specific skills"
-  tool_names:
-    - neoantigen_prediction
-    - structure_prediction
-    - molecular_docking
-    - qsar
-    - variant_pathogenicity
-    - sequencing_qc
+  description: "LabClaw hierarchical coordinator — routes tasks to domain-specialist agents"
+  specialist_names:
+    - cancer_agent
+    - rare_disease_agent
+    - drug_response_agent
+  utility_tool_names:
     - register_discovered_source
     - report_generator
+    - grok_research
   verbose: true
-  parse_agent_response_max_retries: 3
 
-# ── LabClaw runtime settings (read by agentiq_labclaw, not by NAT) ───────────
-# guardrails:
-#   output_validation: true
-#   novelty_filter: true
-#   safety_check: true
-#
-# publishers:
-#   github:
-#     enabled: true
-#     repo: https://github.com/OpenCureLabs/OpenCureLabs.git
-#   discord:
-#     enabled: true
-#     webhook_url: ${DISCORD_WEBHOOK_URL_AGENT_LOGS}
-#   pdf:
-#     enabled: true
-#     output_dir: /root/opencurelabs/reports/
+# ── LabClaw runtime settings (read by agentiq_labclaw orchestrator) ──────────
+guardrails:
+  output_validation: true
+  novelty_filter: true
+  safety_check: true
+
+publishers:
+  github:
+    enabled: true
+    repo: https://github.com/OpenCureLabs/OpenCureLabs.git
+  discord:
+    enabled: true
+    webhook_url: ${DISCORD_WEBHOOK_URL_AGENT_LOGS}
+  pdf:
+    enabled: true
+    output_dir: /root/opencurelabs/reports/
