@@ -4,7 +4,7 @@ import json
 import logging
 from pathlib import Path
 
-import requests
+from agentiq_labclaw.connectors._http import resilient_session
 
 logger = logging.getLogger("labclaw.connectors.tcga")
 
@@ -17,6 +17,7 @@ class TCGAConnector:
 
     def __init__(self, timeout: int = 30):
         self.timeout = timeout
+        self._session = resilient_session(timeout=timeout)
 
     def query_cases(
         self,
@@ -41,7 +42,7 @@ class TCGAConnector:
             "format": "JSON",
         }
 
-        resp = requests.get(
+        resp = self._session.get(
             f"{self.GDC_BASE}/files",
             params=params,
             timeout=self.timeout,
@@ -61,7 +62,7 @@ class TCGAConnector:
 
         downloaded = []
         for fid in file_ids:
-            resp = requests.get(
+            resp = self._session.get(
                 f"{self.GDC_BASE}/data/{fid}",
                 timeout=120,
                 stream=True,
@@ -89,7 +90,7 @@ class TCGAConnector:
         logger.info("Querying GEO accession: %s", accession)
 
         # Use NCBI E-utilities esearch → esummary
-        search_resp = requests.get(
+        search_resp = self._session.get(
             f"{self.GEO_BASE}/esearch.fcgi",
             params={"db": "gds", "term": accession, "retmode": "json"},
             timeout=self.timeout,
@@ -102,7 +103,7 @@ class TCGAConnector:
             logger.warning("No GEO results for %s", accession)
             return {}
 
-        summary_resp = requests.get(
+        summary_resp = self._session.get(
             f"{self.GEO_BASE}/esummary.fcgi",
             params={"db": "gds", "id": ",".join(id_list), "retmode": "json"},
             timeout=self.timeout,

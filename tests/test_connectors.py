@@ -13,16 +13,23 @@ from agentiq_labclaw.connectors.chembl import ChEMBLConnector
 from agentiq_labclaw.connectors.clinvar import ClinVarConnector
 
 
+def _mock_session(connector):
+    """Replace the connector's _session with a MagicMock and return its .get mock."""
+    mock = MagicMock()
+    connector._session = mock
+    return mock.get
+
+
 # ── TCGA Connector ───────────────────────────────────────────────────────────
 
 
 class TestTCGAConnector:
     def setup_method(self):
         self.conn = TCGAConnector(timeout=5)
+        self.mock_get = _mock_session(self.conn)
 
-    @patch("agentiq_labclaw.connectors.tcga.requests.get")
-    def test_query_cases(self, mock_get):
-        mock_get.return_value = MagicMock(
+    def test_query_cases(self):
+        self.mock_get.return_value = MagicMock(
             status_code=200,
             json=lambda: {
                 "data": {
@@ -33,15 +40,13 @@ class TestTCGAConnector:
                 }
             },
         )
-        mock_get.return_value.raise_for_status = MagicMock()
+        self.mock_get.return_value.raise_for_status = MagicMock()
         results = self.conn.query_cases("TCGA-BRCA", size=2)
         assert len(results) == 2
         assert results[0]["file_id"] == "abc-123"
-        mock_get.assert_called_once()
+        self.mock_get.assert_called_once()
 
-    @patch("agentiq_labclaw.connectors.tcga.requests.get")
-    def test_query_geo(self, mock_get):
-        # Two calls: esearch then esummary
+    def test_query_geo(self):
         search_resp = MagicMock(
             status_code=200,
             json=lambda: {"esearchresult": {"idlist": ["200012345"]}},
@@ -60,17 +65,17 @@ class TestTCGAConnector:
                 }
             },
         )
-        mock_get.side_effect = [search_resp, summary_resp]
+        self.mock_get.side_effect = [search_resp, summary_resp]
         result = self.conn.query_geo("GSE12345")
         assert result["title"] == "Test GSE"
 
-    @patch("agentiq_labclaw.connectors.tcga.requests.get")
-    def test_download_files(self, mock_get, tmp_path):
-        mock_get.return_value = MagicMock(
+    def test_download_files(self, tmp_path):
+        self.mock_get.return_value = MagicMock(
             status_code=200,
             iter_content=lambda chunk_size: [b"file data"],
             headers={"Content-Disposition": 'attachment; filename="test.tsv"'},
         )
+        self.mock_get.return_value.raise_for_status = MagicMock()
         paths = self.conn.download_files(["abc-123"], str(tmp_path))
         assert len(paths) == 1
 
@@ -81,10 +86,10 @@ class TestTCGAConnector:
 class TestChEMBLConnector:
     def setup_method(self):
         self.conn = ChEMBLConnector(timeout=5)
+        self.mock_get = _mock_session(self.conn)
 
-    @patch("agentiq_labclaw.connectors.chembl.requests.get")
-    def test_search_compound(self, mock_get):
-        mock_get.return_value = MagicMock(
+    def test_search_compound(self):
+        self.mock_get.return_value = MagicMock(
             status_code=200,
             json=lambda: {
                 "molecules": [
@@ -98,13 +103,13 @@ class TestChEMBLConnector:
                 ]
             },
         )
+        self.mock_get.return_value.raise_for_status = MagicMock()
         results = self.conn.search_compound("CC(=O)Oc1ccccc1C(O)=O", similarity=90)
         assert len(results) >= 1
         assert results[0]["chembl_id"] == "CHEMBL25"
 
-    @patch("agentiq_labclaw.connectors.chembl.requests.get")
-    def test_get_bioactivities(self, mock_get):
-        mock_get.return_value = MagicMock(
+    def test_get_bioactivities(self):
+        self.mock_get.return_value = MagicMock(
             status_code=200,
             json=lambda: {
                 "activities": [
@@ -121,13 +126,13 @@ class TestChEMBLConnector:
                 ]
             },
         )
+        self.mock_get.return_value.raise_for_status = MagicMock()
         results = self.conn.get_bioactivities("CHEMBL25")
         assert len(results) == 1
         assert results[0]["type"] == "IC50"
 
-    @patch("agentiq_labclaw.connectors.chembl.requests.get")
-    def test_get_target_info(self, mock_get):
-        mock_get.return_value = MagicMock(
+    def test_get_target_info(self):
+        self.mock_get.return_value = MagicMock(
             status_code=200,
             json=lambda: {
                 "target_chembl_id": "CHEMBL220",
@@ -137,6 +142,7 @@ class TestChEMBLConnector:
                 "target_components": [{"accession": "P35354"}],
             },
         )
+        self.mock_get.return_value.raise_for_status = MagicMock()
         result = self.conn.get_target_info("CHEMBL220")
         assert result is not None
         assert result["pref_name"] == "Cyclooxygenase-2"
@@ -148,9 +154,9 @@ class TestChEMBLConnector:
 class TestClinVarConnector:
     def setup_method(self):
         self.conn = ClinVarConnector(timeout=5)
+        self.mock_get = _mock_session(self.conn)
 
-    @patch("agentiq_labclaw.connectors.clinvar.requests.get")
-    def test_lookup_variant(self, mock_get):
+    def test_lookup_variant(self):
         search_resp = MagicMock(
             status_code=200,
             json=lambda: {"esearchresult": {"idlist": ["12345"]}},
@@ -170,13 +176,12 @@ class TestClinVarConnector:
                 }
             },
         )
-        mock_get.side_effect = [search_resp, summary_resp]
+        self.mock_get.side_effect = [search_resp, summary_resp]
         result = self.conn.lookup_variant("TP53 c.743G>A")
         assert result is not None
         assert "TP53" in result["title"]
 
-    @patch("agentiq_labclaw.connectors.clinvar.requests.get")
-    def test_search_gene(self, mock_get):
+    def test_search_gene(self):
         search_resp = MagicMock(
             status_code=200,
             json=lambda: {"esearchresult": {"idlist": ["111", "222"]}},
@@ -190,12 +195,11 @@ class TestClinVarConnector:
                 }
             },
         )
-        mock_get.side_effect = [search_resp, summary_resp]
+        self.mock_get.side_effect = [search_resp, summary_resp]
         results = self.conn.search_gene("BRCA1")
         assert len(results) == 2
 
-    @patch("agentiq_labclaw.connectors.clinvar.requests.get")
-    def test_lookup_omim(self, mock_get):
+    def test_lookup_omim(self):
         search_resp = MagicMock(
             status_code=200,
             json=lambda: {"esearchresult": {"idlist": ["C0006142"]}},
@@ -213,6 +217,7 @@ class TestClinVarConnector:
                 }
             },
         )
+        mock_get = self.mock_get
         mock_get.side_effect = [search_resp, summary_resp]
         results = self.conn.lookup_omim("BRCA1")
         assert len(results) >= 1

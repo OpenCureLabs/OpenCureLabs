@@ -32,8 +32,8 @@ class TestOrchestratorConfig:
 
         config = _load_yaml_config()
         assert isinstance(config, dict)
-        assert "guardrails" in config
-        assert "publishers" in config
+        # guardrails/publishers are now defaults in orchestrator.py, not in YAML
+        assert "llms" in config or "workflow" in config
 
     def test_guardrails_enabled(self):
         from agentiq_labclaw.orchestrator import _guardrails_enabled

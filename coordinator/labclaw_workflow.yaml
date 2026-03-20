@@ -56,10 +56,11 @@ functions:
     _type: labclaw_skill
     skill_name: grok_research
 
-  # ── Specialist agents (each a ReAct agent with a skill subset) ───────────
+  # ── Specialist agents (each a ReAct agent with a curated skill subset) ───────────
   cancer_agent:
     _type: specialist_agent
     llm_name: coordinator_llm
+    description: "Specialist agent for tumor immunology and cancer genomics"
     specialty_domain: tumor_immunology
     system_prompt: >
       You are a specialist agent for tumor immunology and cancer genomics.
@@ -77,6 +78,7 @@ functions:
   rare_disease_agent:
     _type: specialist_agent
     llm_name: coordinator_llm
+    description: "Specialist agent for rare disease variant analysis"
     specialty_domain: variant_analysis
     system_prompt: >
       You are a specialist agent for rare disease variant analysis.
@@ -93,6 +95,7 @@ functions:
   drug_response_agent:
     _type: specialist_agent
     llm_name: coordinator_llm
+    description: "Specialist agent for drug response prediction"
     specialty_domain: drug_response
     system_prompt: >
       You are a specialist agent for drug response prediction.
@@ -122,19 +125,22 @@ workflow:
     - grok_research
   verbose: true
 
-# ── LabClaw runtime settings (read by agentiq_labclaw orchestrator) ──────────
-guardrails:
-  output_validation: true
-  novelty_filter: true
-  safety_check: true
-
-publishers:
-  github:
-    enabled: true
-    repo: https://github.com/OpenCureLabs/OpenCureLabs.git
-  discord:
-    enabled: true
-    webhook_url: ${DISCORD_WEBHOOK_URL_AGENT_LOGS}
-  pdf:
-    enabled: true
-    output_dir: /root/opencurelabs/reports/
+# ── LabClaw runtime settings (NOT parsed by NAT — loaded by orchestrator.py) ──
+# These are stored in a separate config read by agentiq_labclaw.orchestrator at runtime.
+# See packages/agentiq_labclaw/agentiq_labclaw/orchestrator.py for usage.
+#
+# guardrails:
+#   output_validation: true
+#   novelty_filter: true
+#   safety_check: true
+#
+# publishers:
+#   github:
+#     enabled: true
+#     repo: https://github.com/OpenCureLabs/OpenCureLabs.git
+#   discord:
+#     enabled: true
+#     webhook_url: ${DISCORD_WEBHOOK_URL_AGENT_LOGS}
+#   pdf:
+#     enabled: true
+#     output_dir: /root/opencurelabs/reports/

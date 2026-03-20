@@ -19,6 +19,19 @@ from pydantic import BaseModel
 
 logger = logging.getLogger("labclaw.orchestrator")
 
+# Default guardrails/publishers — used when not overridden by env or config
+GUARDRAILS_DEFAULTS: dict = {
+    "output_validation": True,
+    "novelty_filter": True,
+    "safety_check": True,
+}
+
+PUBLISHER_DEFAULTS: dict = {
+    "github": {"enabled": True},
+    "discord": {"enabled": True},
+    "pdf": {"enabled": True},
+}
+
 
 def _load_yaml_config() -> dict:
     """Load LabClaw runtime settings from coordinator YAML (guardrails/publishers sections)."""
@@ -46,17 +59,17 @@ def _get_config() -> dict:
 
 
 def _guardrails_enabled(name: str) -> bool:
-    """Check if a guardrail is enabled in config."""
+    """Check if a guardrail is enabled in config (falls back to defaults)."""
     config = _get_config()
-    guardrails = config.get("guardrails", {})
-    return guardrails.get(name, False)
+    guardrails = config.get("guardrails", GUARDRAILS_DEFAULTS)
+    return guardrails.get(name, GUARDRAILS_DEFAULTS.get(name, False))
 
 
 def _publisher_enabled(name: str) -> bool:
-    """Check if a publisher is enabled in config."""
+    """Check if a publisher is enabled in config (falls back to defaults)."""
     config = _get_config()
-    publishers = config.get("publishers", {})
-    pub_config = publishers.get(name, {})
+    publishers = config.get("publishers", PUBLISHER_DEFAULTS)
+    pub_config = publishers.get(name, PUBLISHER_DEFAULTS.get(name, {}))
     if isinstance(pub_config, dict):
         return pub_config.get("enabled", False)
     return bool(pub_config)

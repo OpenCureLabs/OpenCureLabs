@@ -92,29 +92,26 @@ class TestWorkflowYAML:
         assert "rare_disease_agent" in workflow["specialist_names"]
         assert "drug_response_agent" in workflow["specialist_names"]
 
-    def test_guardrails_enabled(self):
+    def test_guardrails_defaults(self):
+        """Guardrails are configured in orchestrator.py defaults, not in NAT YAML."""
+        from agentiq_labclaw.orchestrator import GUARDRAILS_DEFAULTS
+
+        assert GUARDRAILS_DEFAULTS["output_validation"] is True
+        assert GUARDRAILS_DEFAULTS["novelty_filter"] is True
+        assert GUARDRAILS_DEFAULTS["safety_check"] is True
+
+    def test_specialist_agents_have_descriptions(self):
+        """All specialist agents must have a description field for NAT compatibility."""
         import yaml
 
         yaml_path = os.path.join(os.path.dirname(__file__), "..", "coordinator", "labclaw_workflow.yaml")
         with open(yaml_path) as f:
             config = yaml.safe_load(f)
 
-        guardrails = config.get("guardrails", {})
-        assert guardrails.get("output_validation") is True
-        assert guardrails.get("novelty_filter") is True
-        assert guardrails.get("safety_check") is True
-
-    def test_publishers_enabled(self):
-        import yaml
-
-        yaml_path = os.path.join(os.path.dirname(__file__), "..", "coordinator", "labclaw_workflow.yaml")
-        with open(yaml_path) as f:
-            config = yaml.safe_load(f)
-
-        publishers = config.get("publishers", {})
-        assert publishers["github"]["enabled"] is True
-        assert publishers["discord"]["enabled"] is True
-        assert publishers["pdf"]["enabled"] is True
+        for agent_name in ["cancer_agent", "rare_disease_agent", "drug_response_agent"]:
+            agent = config["functions"][agent_name]
+            assert "description" in agent, f"{agent_name} missing description"
+            assert len(agent["description"]) > 0
 
 
 class TestDomainSystemPrompts:

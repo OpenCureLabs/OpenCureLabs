@@ -2,7 +2,7 @@
 
 import logging
 
-import requests
+from agentiq_labclaw.connectors._http import resilient_session
 
 logger = logging.getLogger("labclaw.connectors.clinvar")
 
@@ -15,13 +15,14 @@ class ClinVarConnector:
 
     def __init__(self, timeout: int = 30):
         self.timeout = timeout
+        self._session = resilient_session(timeout=timeout)
 
     def lookup_variant(self, variant_id: str) -> dict | None:
         """Look up a variant in ClinVar by ID (e.g. '12345') or HGVS notation."""
         logger.info("Looking up variant in ClinVar: %s", variant_id)
 
         # esearch to find the ClinVar UID
-        search_resp = requests.get(
+        search_resp = self._session.get(
             f"{self.EUTILS_BASE}/esearch.fcgi",
             params={"db": "clinvar", "term": variant_id, "retmode": "json"},
             timeout=self.timeout,
@@ -34,7 +35,7 @@ class ClinVarConnector:
             return None
 
         # esummary for the first match
-        summary_resp = requests.get(
+        summary_resp = self._session.get(
             f"{self.EUTILS_BASE}/esummary.fcgi",
             params={"db": "clinvar", "id": id_list[0], "retmode": "json"},
             timeout=self.timeout,
@@ -64,7 +65,7 @@ class ClinVarConnector:
         logger.info("Searching ClinVar for gene: %s", gene_symbol)
 
         term = f"{gene_symbol}[gene] AND (pathogenic[clinsig] OR likely_pathogenic[clinsig])"
-        search_resp = requests.get(
+        search_resp = self._session.get(
             f"{self.EUTILS_BASE}/esearch.fcgi",
             params={"db": "clinvar", "term": term, "retmax": limit, "retmode": "json"},
             timeout=self.timeout,
@@ -76,7 +77,7 @@ class ClinVarConnector:
             return []
 
         # Batch fetch summaries
-        summary_resp = requests.get(
+        summary_resp = self._session.get(
             f"{self.EUTILS_BASE}/esummary.fcgi",
             params={"db": "clinvar", "id": ",".join(id_list), "retmode": "json"},
             timeout=self.timeout,
@@ -108,7 +109,7 @@ class ClinVarConnector:
         logger.info("Looking up OMIM/MedGen associations for: %s", gene_symbol)
 
         # Use MedGen database to find OMIM-linked gene-disease associations
-        search_resp = requests.get(
+        search_resp = self._session.get(
             f"{self.EUTILS_BASE}/esearch.fcgi",
             params={"db": "medgen", "term": f"{gene_symbol}[gene]", "retmax": 20, "retmode": "json"},
             timeout=self.timeout,
@@ -119,7 +120,7 @@ class ClinVarConnector:
         if not id_list:
             return []
 
-        summary_resp = requests.get(
+        summary_resp = self._session.get(
             f"{self.EUTILS_BASE}/esummary.fcgi",
             params={"db": "medgen", "id": ",".join(id_list), "retmode": "json"},
             timeout=self.timeout,

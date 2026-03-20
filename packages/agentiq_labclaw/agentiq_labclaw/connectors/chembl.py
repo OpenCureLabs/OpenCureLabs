@@ -2,7 +2,7 @@
 
 import logging
 
-import requests
+from agentiq_labclaw.connectors._http import resilient_session
 
 logger = logging.getLogger("labclaw.connectors.chembl")
 
@@ -15,12 +15,13 @@ class ChEMBLConnector:
     def __init__(self, timeout: int = 30):
         self.timeout = timeout
         self._headers = {"Accept": "application/json"}
+        self._session = resilient_session(timeout=timeout)
 
     def search_compound(self, smiles: str, similarity: int = 70) -> list[dict]:
         """Search ChEMBL for compounds by SMILES similarity."""
         logger.info("Searching ChEMBL for compound: %s (similarity>=%d%%)", smiles[:50], similarity)
 
-        resp = requests.get(
+        resp = self._session.get(
             f"{self.BASE_URL}/similarity/{smiles}/{similarity}.json",
             headers=self._headers,
             timeout=self.timeout,
@@ -56,7 +57,7 @@ class ChEMBLConnector:
         if target:
             params["target_chembl_id"] = target
 
-        resp = requests.get(
+        resp = self._session.get(
             f"{self.BASE_URL}/activity.json",
             params=params,
             headers=self._headers,
@@ -86,7 +87,7 @@ class ChEMBLConnector:
         """Get target protein information from ChEMBL."""
         logger.info("Fetching target info: %s", target_chembl_id)
 
-        resp = requests.get(
+        resp = self._session.get(
             f"{self.BASE_URL}/target/{target_chembl_id}.json",
             headers=self._headers,
             timeout=self.timeout,

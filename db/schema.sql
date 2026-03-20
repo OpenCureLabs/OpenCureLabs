@@ -49,3 +49,15 @@ CREATE TABLE IF NOT EXISTS experiment_results (
   novel BOOLEAN DEFAULT FALSE,
   timestamp TIMESTAMP DEFAULT NOW()
 );
+
+-- Performance indexes for common query patterns
+CREATE INDEX IF NOT EXISTS idx_agent_runs_status ON agent_runs(status);
+CREATE INDEX IF NOT EXISTS idx_agent_runs_started_at ON agent_runs(started_at);
+CREATE INDEX IF NOT EXISTS idx_pipeline_runs_status ON pipeline_runs(status);
+CREATE INDEX IF NOT EXISTS idx_pipeline_runs_started_at ON pipeline_runs(started_at);
+CREATE INDEX IF NOT EXISTS idx_experiment_results_novel ON experiment_results(novel);
+CREATE INDEX IF NOT EXISTS idx_experiment_results_pipeline_run_id ON experiment_results(pipeline_run_id);
+CREATE INDEX IF NOT EXISTS idx_experiment_results_timestamp ON experiment_results(timestamp);
+CREATE INDEX IF NOT EXISTS idx_critique_log_run_id ON critique_log(run_id);
+CREATE INDEX IF NOT EXISTS idx_critique_log_timestamp ON critique_log(timestamp);
+CREATE INDEX IF NOT EXISTS idx_discovered_sources_validated ON discovered_sources(validated);
