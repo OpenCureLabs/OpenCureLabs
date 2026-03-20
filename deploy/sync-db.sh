@@ -11,20 +11,21 @@
 # ─────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
-DROPLET_IP="${DROPLET_IP:?Set DROPLET_IP environment variable (e.g., export DROPLET_IP=1.2.3.4)}"
+DROPLET="${DROPLET_SSH:-opencure-do}"
 LOCAL_PORT="${LOCAL_PG_PORT:-5433}"
 REMOTE_USER="${REMOTE_USER:-opencure}"
 REMOTE_DB="opencurelabs"
+REMOTE_PW="${REMOTE_PG_PASSWORD:-opencure_dashboard_2026}"
 TABLES=(agent_runs pipeline_runs experiment_results critique_log discovered_sources)
 
-echo "🔄 Syncing local DB (port ${LOCAL_PORT}) → ${DROPLET_IP}"
+echo "🔄 Syncing local DB (port ${LOCAL_PORT}) → ${DROPLET}"
 
 for table in "${TABLES[@]}"; do
   echo "  → ${table}..."
   pg_dump -p "${LOCAL_PORT}" --data-only --table="${table}" "${REMOTE_DB}" 2>/dev/null \
-    | ssh "root@${DROPLET_IP}" \
-        "su - ${REMOTE_USER} -c 'psql -h localhost -U ${REMOTE_USER} ${REMOTE_DB}'" \
+    | ssh "${DROPLET}" \
+        "su - ${REMOTE_USER} -c 'PGPASSWORD=${REMOTE_PW} psql -h 127.0.0.1 -U ${REMOTE_USER} ${REMOTE_DB}'" \
     2>/dev/null
 done
 
-echo "✅ Sync complete — ${#TABLES[@]} tables pushed to ${DROPLET_IP}"
+echo "✅ Sync complete — ${#TABLES[@]} tables pushed to ${DROPLET}"

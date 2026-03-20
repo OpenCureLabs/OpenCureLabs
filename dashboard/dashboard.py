@@ -406,7 +406,7 @@ def render_dashboard(stats, runs, findings, critiques, sources, activity=None):
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<!-- WebSocket handles live updates — no meta-refresh needed -->
+<script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
 <title>OpenCure Labs — Dashboard</title>
 <style>
   * {{ margin: 0; padding: 0; box-sizing: border-box; }}
@@ -503,6 +503,40 @@ def render_dashboard(stats, runs, findings, critiques, sources, activity=None):
   .activity-ts {{ color: #484f58; font-family: monospace; font-size: 12px; width: 70px; flex-shrink: 0; }}
   .activity-icon {{ font-size: 14px; width: 20px; text-align: center; flex-shrink: 0; }}
   .activity-text {{ color: #c9d1d9; }}
+  /* ── D3 Chart Styles ── */
+  .charts-row {{
+    display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 24px;
+  }}
+  @media (max-width: 900px) {{ .charts-row {{ grid-template-columns: 1fr; }} }}
+  .chart-card {{
+    background: #161b22; border: 1px solid #21262d; border-radius: 8px;
+    padding: 16px; min-height: 280px; position: relative;
+  }}
+  .chart-card h3 {{
+    color: #8b949e; font-size: 13px; text-transform: uppercase;
+    letter-spacing: 0.5px; margin-bottom: 12px; font-weight: 600;
+  }}
+  .chart-card svg {{ display: block; margin: 0 auto; }}
+  .d3-tooltip {{
+    position: fixed; pointer-events: none; z-index: 1000;
+    background: #1c2128ee; border: 1px solid #30363d; border-radius: 6px;
+    padding: 8px 12px; font-size: 12px; color: #c9d1d9;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.4); opacity: 0; transition: opacity 0.15s;
+    max-width: 260px;
+  }}
+  .d3-tooltip.visible {{ opacity: 1; }}
+  .chart-legend {{
+    display: flex; gap: 16px; justify-content: center;
+    flex-wrap: wrap; margin-top: 8px; font-size: 11px; color: #8b949e;
+  }}
+  .chart-legend span {{ display: flex; align-items: center; gap: 4px; }}
+  .legend-dot {{
+    width: 10px; height: 10px; border-radius: 50%; display: inline-block;
+  }}
+  .chart-empty {{
+    display: flex; align-items: center; justify-content: center;
+    height: 200px; color: #484f58; font-style: italic; font-size: 14px;
+  }}
 </style>
 </head>
 <body>
@@ -522,6 +556,18 @@ def render_dashboard(stats, runs, findings, critiques, sources, activity=None):
   {stat_card("Novel Findings", stats["novel_count"], "#57F287")}
   {stat_card("Critiques", stats["critique_log"], "#FEE75C")}
   {stat_card("Sources", stats["discovered_sources"], "#c0caf5")}
+</div>
+
+<!-- Charts Row 1: Agent Donut + Results by Type -->
+<div class="charts-row">
+  <div class="chart-card">
+    <h3>Agent Activity</h3>
+    <div id="donut-chart"></div>
+  </div>
+  <div class="chart-card">
+    <h3>Results by Type</h3>
+    <div id="results-chart"></div>
+  </div>
 </div>
 
 <div class="section">
@@ -549,6 +595,19 @@ def render_dashboard(stats, runs, findings, critiques, sources, activity=None):
   </table>
 </div>
 
+<!-- Charts Row 2: Pipeline Timeline + Critique Radar -->
+<div class="charts-row">
+  <div class="chart-card">
+    <h3>Pipeline Timeline</h3>
+    <div id="timeline-chart"></div>
+  </div>
+  <div class="chart-card">
+    <h3>Critique Scores</h3>
+    <div id="radar-chart"></div>
+    <div class="chart-legend" id="radar-legend"></div>
+  </div>
+</div>
+
 <div class="section">
   <h2>📋 Critiques</h2>
   <div class="toolbar">
@@ -567,6 +626,15 @@ def render_dashboard(stats, runs, findings, critiques, sources, activity=None):
     <thead><tr><th>ID</th><th>Valid</th><th>Domain</th><th>Found By</th><th>URL</th><th>Date</th></tr></thead>
     <tbody>{source_rows or no_sources}</tbody>
   </table>
+</div>
+
+<!-- Chart Row 3: Score Trend Line (full width) -->
+<div class="charts-row" style="grid-template-columns:1fr">
+  <div class="chart-card">
+    <h3>Score Trends Over Time</h3>
+    <div id="trend-chart"></div>
+    <div class="chart-legend" id="trend-legend"></div>
+  </div>
 </div>
 
 <div class="section">
@@ -624,6 +692,249 @@ function filterFindings() {{
     row.style.display = (filter === 'novel') === isNovel ? '' : 'none';
   }});
 }}
+
+// ── D3 Charts ──
+const COLORS = {{
+  blue: '#7aa2f7', green: '#57F287', yellow: '#FEE75C', red: '#ED4245',
+  purple: '#bb9af7', indigo: '#5865F2', cyan: '#7dcfff', orange: '#ff9e64',
+  bg: '#161b22', border: '#21262d', text: '#8b949e', faint: '#484f58'
+}};
+
+const tooltip = d3.select('body').append('div').attr('class', 'd3-tooltip');
+function showTip(e, html) {{
+  tooltip.html(html).classed('visible', true)
+    .style('left', (e.clientX + 12) + 'px').style('top', (e.clientY - 10) + 'px');
+}}
+function hideTip() {{ tooltip.classed('visible', false); }}
+
+// ── 1. Agent Activity Donut ──
+function drawDonut(data) {{
+  const el = document.getElementById('donut-chart');
+  el.innerHTML = '';
+  if (!data.length) {{ el.innerHTML = '<div class="chart-empty">No agent runs yet</div>'; return; }}
+  const counts = d3.rollup(data, v => v.length, d => d.status);
+  const entries = Array.from(counts, ([k, v]) => ({{ status: k, count: v }}));
+  const statusColors = {{ completed: COLORS.green, running: COLORS.yellow, failed: COLORS.red, unknown: COLORS.indigo }};
+  const w = 240, h = 240, r = Math.min(w, h) / 2 - 10;
+  const svg = d3.select(el).append('svg').attr('width', w).attr('height', h)
+    .append('g').attr('transform', `translate(${{w/2}},${{h/2}})`);
+  const pie = d3.pie().value(d => d.count).sort(null);
+  const arc = d3.arc().innerRadius(r * 0.55).outerRadius(r);
+  const total = d3.sum(entries, d => d.count);
+  svg.selectAll('path').data(pie(entries)).join('path')
+    .attr('d', arc)
+    .attr('fill', d => statusColors[d.data.status] || COLORS.indigo)
+    .attr('stroke', COLORS.bg).attr('stroke-width', 2)
+    .on('mouseover', (e, d) => showTip(e, `<strong>${{d.data.status}}</strong><br>${{d.data.count}} runs (${{Math.round(d.data.count/total*100)}}%)`))
+    .on('mousemove', (e) => showTip(e, tooltip.html()))
+    .on('mouseout', hideTip)
+    .transition().duration(600).attrTween('d', function(d) {{
+      const i = d3.interpolate({{ startAngle: 0, endAngle: 0 }}, d);
+      return t => arc(i(t));
+    }});
+  svg.append('text').attr('text-anchor', 'middle').attr('dy', '-0.1em')
+    .attr('fill', COLORS.blue).attr('font-size', '28px').attr('font-weight', '700').text(total);
+  svg.append('text').attr('text-anchor', 'middle').attr('dy', '1.3em')
+    .attr('fill', COLORS.text).attr('font-size', '11px').text('total runs');
+  // legend
+  const leg = d3.select(el).append('div').attr('class', 'chart-legend');
+  entries.forEach(e => {{
+    leg.append('span').html(`<span class="legend-dot" style="background:${{statusColors[e.status] || COLORS.indigo}}"></span>${{e.status}} (${{e.count}})`);
+  }});
+}}
+
+// ── 2. Results by Type (horizontal bars) ──
+function drawResultsBars(data) {{
+  const el = document.getElementById('results-chart');
+  el.innerHTML = '';
+  if (!data.length) {{ el.innerHTML = '<div class="chart-empty">No results yet</div>'; return; }}
+  const groups = d3.rollups(data, v => ({{
+    novel: v.filter(d => d.novel).length,
+    replication: v.filter(d => !d.novel).length,
+    total: v.length
+  }}), d => d.type).map(([k, v]) => ({{ type: k, ...v }})).sort((a, b) => b.total - a.total).slice(0, 8);
+  const m = {{ top: 8, right: 16, bottom: 24, left: 100 }};
+  const w = 360, h = Math.max(180, groups.length * 32 + m.top + m.bottom);
+  const innerW = w - m.left - m.right, innerH = h - m.top - m.bottom;
+  const svg = d3.select(el).append('svg').attr('width', w).attr('height', h)
+    .append('g').attr('transform', `translate(${{m.left}},${{m.top}})`);
+  const y = d3.scaleBand().domain(groups.map(d => d.type)).range([0, innerH]).padding(0.25);
+  const x = d3.scaleLinear().domain([0, d3.max(groups, d => d.total)]).range([0, innerW]);
+  // novel bars
+  svg.selectAll('.bar-novel').data(groups).join('rect').attr('class', 'bar-novel')
+    .attr('y', d => y(d.type)).attr('height', y.bandwidth())
+    .attr('x', 0).attr('fill', COLORS.green).attr('rx', 3)
+    .on('mouseover', (e, d) => showTip(e, `<strong>${{d.type}}</strong><br>Novel: ${{d.novel}}<br>Replication: ${{d.replication}}`))
+    .on('mousemove', (e) => showTip(e, tooltip.html()))
+    .on('mouseout', hideTip)
+    .transition().duration(500).attr('width', d => x(d.novel));
+  // replication bars (stacked)
+  svg.selectAll('.bar-rep').data(groups).join('rect').attr('class', 'bar-rep')
+    .attr('y', d => y(d.type)).attr('height', y.bandwidth())
+    .attr('fill', COLORS.indigo).attr('rx', 3)
+    .on('mouseover', (e, d) => showTip(e, `<strong>${{d.type}}</strong><br>Novel: ${{d.novel}}<br>Replication: ${{d.replication}}`))
+    .on('mousemove', (e) => showTip(e, tooltip.html()))
+    .on('mouseout', hideTip)
+    .transition().duration(500).attr('x', d => x(d.novel)).attr('width', d => x(d.replication));
+  // labels
+  svg.append('g').call(d3.axisLeft(y).tickSize(0)).select('.domain').remove();
+  svg.selectAll('.tick text').attr('fill', COLORS.text).attr('font-size', '11px');
+  svg.selectAll('.count-label').data(groups).join('text').attr('class', 'count-label')
+    .attr('x', d => x(d.total) + 4).attr('y', d => y(d.type) + y.bandwidth() / 2)
+    .attr('dy', '0.35em').attr('fill', COLORS.faint).attr('font-size', '11px').text(d => d.total);
+  // legend
+  const leg = d3.select(el).append('div').attr('class', 'chart-legend');
+  leg.append('span').html(`<span class="legend-dot" style="background:${{COLORS.green}}"></span>Novel`);
+  leg.append('span').html(`<span class="legend-dot" style="background:${{COLORS.indigo}}"></span>Replication`);
+}}
+
+// ── 3. Pipeline Timeline ──
+function drawTimeline(data) {{
+  const el = document.getElementById('timeline-chart');
+  el.innerHTML = '';
+  const runs = data.filter(d => d.started !== '—');
+  if (!runs.length) {{ el.innerHTML = '<div class="chart-empty">No pipeline data yet</div>'; return; }}
+  runs.forEach(d => {{ d._start = new Date(d.started); d._dur = parseInt(d.duration) || 30; }});
+  runs.sort((a, b) => a._start - b._start);
+  const agents = [...new Set(runs.map(d => d.agent))];
+  const agentColor = d3.scaleOrdinal().domain(agents).range([COLORS.blue, COLORS.green, COLORS.purple, COLORS.yellow, COLORS.cyan, COLORS.orange, COLORS.red, COLORS.indigo]);
+  const m = {{ top: 8, right: 16, bottom: 28, left: 110 }};
+  const w = 360, h = Math.max(160, agents.length * 28 + m.top + m.bottom);
+  const innerW = w - m.left - m.right, innerH = h - m.top - m.bottom;
+  const svg = d3.select(el).append('svg').attr('width', w).attr('height', h)
+    .append('g').attr('transform', `translate(${{m.left}},${{m.top}})`);
+  const extent = d3.extent(runs, d => d._start);
+  const xMax = new Date(extent[1].getTime() + d3.max(runs, d => d._dur) * 1000);
+  const x = d3.scaleTime().domain([extent[0], xMax]).range([0, innerW]);
+  const y = d3.scaleBand().domain(agents).range([0, innerH]).padding(0.3);
+  svg.selectAll('.tl-bar').data(runs).join('rect').attr('class', 'tl-bar')
+    .attr('y', d => y(d.agent)).attr('height', y.bandwidth())
+    .attr('x', d => x(d._start)).attr('rx', 3)
+    .attr('fill', d => agentColor(d.agent)).attr('opacity', 0.8)
+    .on('mouseover', (e, d) => showTip(e, `<strong>${{d.agent}}</strong><br>${{d.started}}<br>Duration: ${{d.duration}}<br>Status: ${{d.status}}`))
+    .on('mousemove', (e) => showTip(e, tooltip.html()))
+    .on('mouseout', hideTip)
+    .transition().duration(500).attr('width', d => Math.max(3, x(new Date(d._start.getTime() + d._dur * 1000)) - x(d._start)));
+  svg.append('g').attr('transform', `translate(0,${{innerH}})`).call(d3.axisBottom(x).ticks(4).tickFormat(d3.timeFormat('%m/%d %H:%M'))).select('.domain').remove();
+  svg.selectAll('.tick text').attr('fill', COLORS.faint).attr('font-size', '10px');
+  svg.selectAll('.tick line').attr('stroke', COLORS.border);
+  svg.append('g').call(d3.axisLeft(y).tickSize(0)).select('.domain').remove();
+  svg.selectAll('.tick text').attr('fill', COLORS.text).attr('font-size', '11px');
+}}
+
+// ── 4. Critique Radar Chart ──
+function drawRadar(data) {{
+  const el = document.getElementById('radar-chart');
+  const legendEl = document.getElementById('radar-legend');
+  el.innerHTML = ''; legendEl.innerHTML = '';
+  const scored = data.filter(d => d.scores && Object.keys(d.scores).length >= 2);
+  if (!scored.length) {{ el.innerHTML = '<div class="chart-empty">No scored critiques yet</div>'; return; }}
+  const dims = ['scientific_logic', 'statistical_validity', 'interpretive_accuracy', 'reproducibility'];
+  const dimLabels = ['Logic', 'Statistics', 'Interpretation', 'Reproducibility'];
+  const w = 260, h = 260, cx = w / 2, cy = h / 2, maxR = 100;
+  const svg = d3.select(el).append('svg').attr('width', w).attr('height', h);
+  const g = svg.append('g').attr('transform', `translate(${{cx}},${{cy}})`);
+  const angleSlice = (Math.PI * 2) / dims.length;
+  // Grid circles
+  [2, 4, 6, 8, 10].forEach(lev => {{
+    const r = (lev / 10) * maxR;
+    g.append('circle').attr('r', r).attr('fill', 'none').attr('stroke', COLORS.border).attr('stroke-dasharray', lev === 10 ? 'none' : '2,3');
+    if (lev % 4 === 0 || lev === 10) g.append('text').attr('x', 4).attr('y', -r).attr('fill', COLORS.faint).attr('font-size', '9px').text(lev);
+  }});
+  // Axes
+  dims.forEach((d, i) => {{
+    const a = angleSlice * i - Math.PI / 2;
+    g.append('line').attr('x1', 0).attr('y1', 0)
+      .attr('x2', maxR * Math.cos(a)).attr('y2', maxR * Math.sin(a))
+      .attr('stroke', COLORS.border);
+    g.append('text').attr('x', (maxR + 14) * Math.cos(a)).attr('y', (maxR + 14) * Math.sin(a))
+      .attr('text-anchor', 'middle').attr('dominant-baseline', 'middle')
+      .attr('fill', COLORS.text).attr('font-size', '10px').text(dimLabels[i]);
+  }});
+  // Plot up to 5 most recent critiques
+  const reviewerColors = [COLORS.blue, COLORS.green, COLORS.yellow, COLORS.purple, COLORS.cyan];
+  const recent = scored.slice(0, 5);
+  recent.forEach((crit, ci) => {{
+    const pts = dims.map((d, i) => {{
+      const val = crit.scores[d] || 0;
+      const a = angleSlice * i - Math.PI / 2;
+      return [((val / 10) * maxR) * Math.cos(a), ((val / 10) * maxR) * Math.sin(a)];
+    }});
+    const color = reviewerColors[ci % reviewerColors.length];
+    g.append('polygon')
+      .attr('points', pts.map(p => p.join(',')).join(' '))
+      .attr('fill', color).attr('fill-opacity', 0.15)
+      .attr('stroke', color).attr('stroke-width', 1.5);
+    pts.forEach((p, pi) => {{
+      g.append('circle').attr('cx', p[0]).attr('cy', p[1]).attr('r', 3).attr('fill', color)
+        .on('mouseover', (e) => showTip(e, `<strong>${{crit.reviewer}}</strong><br>${{dimLabels[pi]}}: ${{crit.scores[dims[pi]] || 0}}/10`))
+        .on('mouseout', hideTip);
+    }});
+    // legend
+    d3.select(legendEl).append('span')
+      .html(`<span class="legend-dot" style="background:${{color}}"></span>${{crit.reviewer}} (#${{crit.id}})`);
+  }});
+}}
+
+// ── 5. Score Trend Line ──
+function drawTrend(data) {{
+  const el = document.getElementById('trend-chart');
+  const legendEl = document.getElementById('trend-legend');
+  el.innerHTML = ''; legendEl.innerHTML = '';
+  const dims = ['scientific_logic', 'statistical_validity', 'interpretive_accuracy', 'reproducibility'];
+  const dimLabels = ['Logic', 'Statistics', 'Interpretation', 'Reproducibility'];
+  const dimColors = [COLORS.blue, COLORS.green, COLORS.yellow, COLORS.purple];
+  const scored = data.filter(d => d.scores && Object.keys(d.scores).length >= 2 && d.timestamp !== '—');
+  if (scored.length < 2) {{ el.innerHTML = '<div class="chart-empty">Need 2+ scored critiques for trends</div>'; return; }}
+  scored.forEach(d => {{ d._ts = new Date(d.timestamp); }});
+  scored.sort((a, b) => a._ts - b._ts);
+  const m = {{ top: 12, right: 24, bottom: 28, left: 36 }};
+  const w = el.parentElement.clientWidth - 32 || 700;
+  const h = 220;
+  const innerW = w - m.left - m.right, innerH = h - m.top - m.bottom;
+  const svg = d3.select(el).append('svg').attr('width', w).attr('height', h)
+    .append('g').attr('transform', `translate(${{m.left}},${{m.top}})`);
+  const x = d3.scaleTime().domain(d3.extent(scored, d => d._ts)).range([0, innerW]);
+  const y = d3.scaleLinear().domain([0, 10]).range([innerH, 0]);
+  svg.append('g').attr('transform', `translate(0,${{innerH}})`).call(d3.axisBottom(x).ticks(5).tickFormat(d3.timeFormat('%m/%d'))).select('.domain').remove();
+  svg.selectAll('.tick text').attr('fill', COLORS.faint).attr('font-size', '10px');
+  svg.selectAll('.tick line').attr('stroke', COLORS.border);
+  svg.append('g').call(d3.axisLeft(y).ticks(5).tickSize(-innerW)).select('.domain').remove();
+  svg.selectAll('.tick text').attr('fill', COLORS.faint).attr('font-size', '10px');
+  svg.selectAll('.tick line').attr('stroke', COLORS.border).attr('stroke-dasharray', '2,3');
+  dims.forEach((dim, di) => {{
+    const pts = scored.filter(d => d.scores[dim] != null).map(d => ({{ x: d._ts, y: d.scores[dim] }}));
+    if (pts.length < 2) return;
+    const line = d3.line().x(d => x(d.x)).y(d => y(d.y)).curve(d3.curveMonotoneX);
+    svg.append('path').datum(pts).attr('fill', 'none')
+      .attr('stroke', dimColors[di]).attr('stroke-width', 2).attr('d', line);
+    svg.selectAll(`.dot-${{di}}`).data(pts).join('circle').attr('class', `dot-${{di}}`)
+      .attr('cx', d => x(d.x)).attr('cy', d => y(d.y)).attr('r', 3.5).attr('fill', dimColors[di])
+      .on('mouseover', (e, d) => showTip(e, `<strong>${{dimLabels[di]}}</strong><br>${{d.y}}/10<br>${{d3.timeFormat('%Y-%m-%d %H:%M')(d.x)}}`))
+      .on('mouseout', hideTip);
+    d3.select(legendEl).append('span')
+      .html(`<span class="legend-dot" style="background:${{dimColors[di]}}"></span>${{dimLabels[di]}}`);
+  }});
+}}
+
+// ── Fetch data and render charts ──
+async function initCharts() {{
+  try {{
+    const [runs, findings, critiques] = await Promise.all([
+      fetch('/api/runs').then(r => r.json()),
+      fetch('/api/findings').then(r => r.json()),
+      fetch('/api/critiques').then(r => r.json())
+    ]);
+    drawDonut(runs);
+    drawResultsBars(findings);
+    drawTimeline(runs);
+    drawRadar(critiques);
+    drawTrend(critiques);
+  }} catch (err) {{
+    console.error('Chart init error:', err);
+  }}
+}}
+initCharts();
 </script>
 
 </body>
