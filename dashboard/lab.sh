@@ -13,6 +13,8 @@ SESSION="opencurelabs"
 LOGFILE="$PROJECT/logs/agent.log"
 ZELLIJ_CFG="$PROJECT/dashboard/zellij"
 PG_PORT=5433
+MIN_ROWS=40
+MIN_COLS=140
 
 # ── Dependency check ─────────────────────────────────────────────────────────
 if ! command -v zellij &>/dev/null; then
@@ -63,6 +65,21 @@ if [[ $WARNINGS -gt 0 ]]; then
     echo "               Run 'bash scripts/setup.sh' for full setup."
     echo ""
     sleep 2
+fi
+
+# ── Terminal size sanity check ──────────────────────────────────────────────
+if tty -s; then
+    read -r TERM_ROWS TERM_COLS < <(stty size 2>/dev/null || echo "0 0")
+    TERM_ROWS=${TERM_ROWS:-0}
+    TERM_COLS=${TERM_COLS:-0}
+    if (( TERM_ROWS > 0 && TERM_COLS > 0 )) && (( TERM_ROWS < MIN_ROWS || TERM_COLS < MIN_COLS )); then
+        echo "[OpenCure Labs] ⚠️  Terminal grid is only ${TERM_COLS}x${TERM_ROWS}."
+        echo "               Zellij will fill the tty, but it may still look small."
+        echo "               Recommended minimum: ${MIN_COLS}x${MIN_ROWS}."
+        echo "               Try maximizing the terminal, reducing font size, or opening a larger terminal window."
+        echo ""
+        sleep 2
+    fi
 fi
 
 # ── Ensure log file exists ───────────────────────────────────────────────────
