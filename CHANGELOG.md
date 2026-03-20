@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - CI pipeline with tests, ruff, and bandit
 - Commitizen conventional commits enforcement
 
+## v0.7.0 (2026-03-20)
+
+### Feat
+
+- add 88 tests (71% coverage), connection pooling, pin nvidia-nat
+
 ## v0.6.1 (2026-03-20)
 
 ### Fix
