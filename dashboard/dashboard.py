@@ -57,7 +57,7 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET"], a
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
-@app.get("/logo.png")
+@app.get("/logo-v2.png")
 async def serve_logo():
     logo_path = os.path.join(PROJECT_ROOT, "OpenCureLabs.png")
     if os.path.exists(logo_path):
@@ -301,24 +301,24 @@ def render_dashboard(stats, runs, findings, critiques, sources, activity=None):
         </div>"""
 
     def status_badge(status):
-        colors = {"completed": "#57F287", "running": "#FEE75C", "failed": "#ED4245", "unknown": "#5865F2", "blocked": "#ED4245", "published": "#57F287"}
+        colors = {"completed": "#3fb950", "running": "#FEE75C", "failed": "#ED4245", "unknown": "#5865F2", "blocked": "#ED4245", "published": "#3fb950"}
         c = colors.get(status, "#5865F2")
         icon = {"blocked": "🚫 ", "published": "✅ ", "running": "⏳ "}.get(status, "")
         return f'<span class="badge" style="background:{c}20;color:{c};border:1px solid {c}40">{icon}{status}</span>'
 
     def novel_badge(is_novel):
         if is_novel:
-            return '<span class="badge" style="background:#57F28720;color:#57F287;border:1px solid #57F28740">🆕 NOVEL</span>'
+            return '<span class="badge" style="background:#3fb95020;color:#3fb950;border:1px solid #3fb95040">🆕 NOVEL</span>'
         return '<span class="badge" style="background:#5865F220;color:#5865F2;border:1px solid #5865F240">📊 replication</span>'
 
     def rec_badge(rec):
-        colors = {"publish": "#57F287", "revise": "#FEE75C", "reject": "#ED4245"}
+        colors = {"publish": "#3fb950", "revise": "#FEE75C", "reject": "#ED4245"}
         c = colors.get(rec, "#5865F2")
         return f'<span class="badge" style="background:{c}20;color:{c};border:1px solid {c}40">{rec}</span>'
 
     def score_bar(score, max_score=10):
         pct = int((score / max_score) * 100)
-        c = "#57F287" if score >= 7 else "#FEE75C" if score >= 4 else "#ED4245"
+        c = "#3fb950" if score >= 7 else "#FEE75C" if score >= 4 else "#ED4245"
         return f'<div class="score-bar"><div class="score-fill" style="width:{pct}%;background:{c}"></div></div><span class="score-num">{score}/{max_score}</span>'
 
     # Build runs table rows
@@ -371,7 +371,7 @@ def render_dashboard(stats, runs, findings, critiques, sources, activity=None):
     # Build sources rows
     source_rows = ""
     for s in sources:
-        v_badge = '<span class="badge" style="background:#57F28720;color:#57F287">✓</span>' if s["validated"] else '<span class="badge" style="background:#FEE75C20;color:#FEE75C">○</span>'
+        v_badge = '<span class="badge" style="background:#3fb95020;color:#3fb950">✓</span>' if s["validated"] else '<span class="badge" style="background:#FEE75C20;color:#FEE75C">○</span>'
         url_display = s["url"][:60] + "…" if len(s["url"]) > 60 else s["url"]
         source_rows += f"""
         <tr>
@@ -488,7 +488,7 @@ def render_dashboard(stats, runs, findings, critiques, sources, activity=None):
     width: 8px; height: 8px; border-radius: 50%; display: inline-block;
     margin-right: 4px; background: #484f58;
   }}
-  .ws-dot.connected {{ background: #57F287; }}
+  .ws-dot.connected {{ background: #3fb950; }}
   @keyframes pulse {{ 0%, 100% {{ opacity: 1; }} 50% {{ opacity: 0.4; }} }}
   .stat-sub.running {{ color: #FEE75C !important; animation: pulse 2s ease-in-out infinite; }}
   .activity-log {{
@@ -542,7 +542,7 @@ def render_dashboard(stats, runs, findings, critiques, sources, activity=None):
 <body>
 
 <div class="header">
-  <img src="/logo.png" alt="OpenCure Labs" class="header-logo">
+  <img src="/logo-v2.png" alt="OpenCure Labs" class="header-logo">
   <h1>OpenCure Labs</h1>
   <a href="https://discord.com/channels/1484240467477659941/1484241124104081680" target="_blank" class="discord-link" title="Discord Server">💬 Discord</a>
   <span class="ts">Dashboard · {now}</span>
@@ -553,7 +553,7 @@ def render_dashboard(stats, runs, findings, critiques, sources, activity=None):
   {stat_card("Agent Runs", stats["agent_runs"], "#7aa2f7", f'{stats["running_agents"]} running')}
   {stat_card("Pipeline Runs", stats["pipeline_runs"], "#bb9af7")}
   {stat_card("Results", stats["experiment_results"], "#5865F2")}
-  {stat_card("Novel Findings", stats["novel_count"], "#57F287")}
+  {stat_card("Novel Findings", stats["novel_count"], "#3fb950")}
   {stat_card("Critiques", stats["critique_log"], "#FEE75C")}
   {stat_card("Sources", stats["discovered_sources"], "#c0caf5")}
 </div>
@@ -695,7 +695,7 @@ function filterFindings() {{
 
 // ── D3 Charts ──
 const COLORS = {{
-  blue: '#7aa2f7', green: '#57F287', yellow: '#FEE75C', red: '#ED4245',
+  blue: '#7aa2f7', green: '#3fb950', yellow: '#FEE75C', red: '#ED4245',
   purple: '#bb9af7', indigo: '#5865F2', cyan: '#7dcfff', orange: '#ff9e64',
   bg: '#161b22', border: '#21262d', text: '#8b949e', faint: '#484f58'
 }};
