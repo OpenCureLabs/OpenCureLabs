@@ -196,6 +196,47 @@ The coordinator will:
 
 ---
 
+## Manual Pipeline Mode
+
+If you want to run pipelines **without the LLM coordinator** (no Gemini API
+needed), use the CLI scripts in `pipelines/` directly:
+
+```bash
+source .venv/bin/activate
+
+# Neoantigen prediction
+python pipelines/run_pipeline.py neoantigen \
+  --vcf data/sample.vcf \
+  --hla "HLA-A*02:01,HLA-B*07:02"
+
+# Variant discovery
+python pipelines/run_pipeline.py variant_discovery \
+  --variant "chr17:7674220:C>T" --gene TP53
+
+# Drug screening
+python pipelines/run_pipeline.py drug_screen \
+  --smiles "CC(=O)Oc1ccccc1C(O)=O" --receptor data/target.pdb
+```
+
+These scripts call the same LabClaw skills as the coordinator but skip the LLM
+routing step. Results are still logged to PostgreSQL and go through the
+post-execution orchestrator (guardrails, critique, publishing).
+
+**When to use manual mode:**
+- Debugging a specific skill without LLM overhead
+- Running batch jobs where the task is already known
+- Environments where the Gemini API is unavailable
+
+**Eval mode** runs predefined benchmark cases with known expected outcomes:
+
+```bash
+python pipelines/eval_mode.py                     # Run all benchmarks
+python pipelines/eval_mode.py --suite neoantigen   # Run specific suite
+python pipelines/eval_mode.py --verbose            # Detailed output
+```
+
+---
+
 ## Optional: Grok Researcher Agent
 
 Grok requires [Bun](https://bun.sh) and grok-cli:
