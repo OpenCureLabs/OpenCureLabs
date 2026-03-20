@@ -50,17 +50,54 @@ async def labclaw_skill_function(config: LabClawSkillConfig, builder: Builder):
     skill_instance = skill_cls()
 
     async def _run_skill(input_json: str) -> str:
-        input_data = skill_instance.input_schema.model_validate_json(input_json)
+        # Normalize LLM parameter names to match Pydantic schema fields
+        data = json.loads(input_json)
+        schema_fields = set(skill_instance.input_schema.model_fields.keys())
+        normalized = {}
+        for key, val in data.items():
+            if key in schema_fields:
+                normalized[key] = val
+            else:
+                # Try common LLM naming variations: vcf_file→vcf_path, patient_id→sample_id
+                for field_name in schema_fields:
+                    if field_name not in normalized and (
+                        key.replace("file", "path") == field_name
+                        or key.replace("patient", "sample") == field_name
+                        or key.replace("_", "") == field_name.replace("_", "")
+                    ):
+                        normalized[field_name] = val
+                        break
+                else:
+                    normalized[key] = val  # pass through unknown fields for Pydantic to validate
+
+        input_data = skill_instance.input_schema.model_validate(normalized)
         result = skill_instance.execute(input_data)
 
         # Post-execution orchestration: guardrails → reviewer → publisher
         try:
             from agentiq_labclaw.orchestrator import post_execute
 
+            # Create an agent run in DB so safety check passes
+            run_id = None
+            try:
+                from agentiq_labclaw.db.agent_runs import start_run, complete_run
+
+                run_id = start_run(agent_name=config.skill_name)
+            except Exception as e:
+                logger.debug("Could not create agent_run for orchestration: %s", e)
+
             enriched = await post_execute(
                 skill_name=config.skill_name,
                 result=result,
+                run_id=run_id,
             )
+
+            if run_id is not None:
+                try:
+                    complete_run(run_id, status="completed")
+                except Exception:
+                    pass
+
             return json.dumps(enriched, default=str, indent=2)
         except Exception as e:
             logger.warning("Post-execution orchestration error (returning raw result): %s", e)
@@ -68,9 +105,24 @@ async def labclaw_skill_function(config: LabClawSkillConfig, builder: Builder):
                 return result.model_dump_json(indent=2)
             return json.dumps(result, default=str)
 
+    # Build a description that includes the input schema so the LLM knows exact parameter names
+    base_desc = skill_instance.description or f"LabClaw skill: {config.skill_name}"
+    schema_fields = skill_instance.input_schema.model_json_schema().get("properties", {})
+    if schema_fields:
+        param_lines = []
+        for name, info in schema_fields.items():
+            ftype = info.get("type", "string")
+            if "items" in info:
+                ftype = f"array of {info['items'].get('type', 'string')}"
+            param_lines.append(f"  - {name} ({ftype})")
+        schema_hint = "Input JSON parameters:\n" + "\n".join(param_lines)
+        full_desc = f"{base_desc}\n\n{schema_hint}"
+    else:
+        full_desc = base_desc
+
     yield FunctionInfo.from_fn(
         _run_skill,
-        description=skill_instance.description or f"LabClaw skill: {config.skill_name}",
+        description=full_desc,
     )
 
 
