@@ -3,14 +3,19 @@ NAT plugin registration — bridges LabClaw skills into NeMo Agent Toolkit.
 
 Each LabClaw skill is exposed as a NAT function type called `labclaw_skill`
 with a `skill_name` parameter that selects which skill to run.
+
+Also registers `labclaw_react` — a ReAct-style coordinator agent workflow
+that uses LangGraph to route tasks through LabClaw skills.
 """
 
 import json
 import logging
+from typing import List
 
 from nat.builder.builder import Builder
 from nat.builder.function_info import FunctionInfo
 from nat.cli.register_workflow import register_function
+from nat.data_models.agent import AgentBaseConfig
 from nat.data_models.function import FunctionBaseConfig
 from pydantic import BaseModel, Field
 
@@ -27,8 +32,17 @@ class LabClawSkillConfig(FunctionBaseConfig, name="labclaw_skill"):
 
 @register_function(config_type=LabClawSkillConfig)
 async def labclaw_skill_function(config: LabClawSkillConfig, builder: Builder):
-    # Import all skills to ensure they're registered
-    import agentiq_labclaw.skills  # noqa: F401
+    # Eagerly import all skill modules to trigger @labclaw_skill registration
+    from agentiq_labclaw.skills import (  # noqa: F401
+        docking,
+        neoantigen,
+        qsar,
+        register_source,
+        report_generator,
+        sequencing_qc,
+        structure,
+        variant_pathogenicity,
+    )
 
     skill_cls = get_skill(config.skill_name)
     skill_instance = skill_cls()
@@ -43,4 +57,69 @@ async def labclaw_skill_function(config: LabClawSkillConfig, builder: Builder):
     yield FunctionInfo.from_fn(
         _run_skill,
         description=skill_instance.description or f"LabClaw skill: {config.skill_name}",
+    )
+
+
+# ── LabClaw ReAct Coordinator Workflow ──────────────────────────────────────
+
+
+class LabClawReactConfig(AgentBaseConfig, name="labclaw_react"):
+    """ReAct agent workflow for LabClaw — routes tasks through scientific skills."""
+
+    tool_names: List[str] = Field(
+        default_factory=list,
+        description="Names of registered NAT functions to use as tools",
+    )
+    parse_agent_response_max_retries: int = Field(
+        default=3,
+        description="Max retries for parsing the LLM's structured response",
+    )
+
+
+@register_function(config_type=LabClawReactConfig)
+async def labclaw_react_workflow(config: LabClawReactConfig, builder: Builder):
+    """Build a LangGraph ReAct agent that coordinates LabClaw skills."""
+    from langchain_core.messages import HumanMessage
+    from langchain_core.tools import StructuredTool
+    from langchain_openai import ChatOpenAI
+    from langgraph.prebuilt import create_react_agent
+
+    # Build LangChain LLM directly from NAT config (nvidia-nat-langchain not installed)
+    llm_config = builder.get_llm_config(config.llm_name)
+    llm = ChatOpenAI(
+        base_url=llm_config.base_url,
+        model=llm_config.model_name,
+        api_key=llm_config.api_key.get_secret_value() if llm_config.api_key else None,
+        temperature=getattr(llm_config, "temperature", 0.0),
+    )
+
+    # Build LangChain tools from NAT functions
+    nat_functions = await builder.get_functions(config.tool_names)
+    tools = []
+    for i, fn in enumerate(nat_functions):
+        tool_name = config.tool_names[i]
+        nat_fn = fn  # capture for closure
+
+        async def _tool_fn(input_json: str, _fn=nat_fn) -> str:
+            return await _fn.ainvoke(input_json)
+
+        tool = StructuredTool.from_function(
+            coroutine=_tool_fn,
+            name=tool_name,
+            description=f"LabClaw skill: {tool_name}",
+        )
+        tools.append(tool)
+
+    agent = create_react_agent(model=llm, tools=tools)
+
+    async def _run(input_text: str) -> str:
+        result = await agent.ainvoke({"messages": [HumanMessage(content=input_text)]})
+        messages = result.get("messages", [])
+        if messages:
+            return messages[-1].content
+        return "No response generated."
+
+    yield FunctionInfo.from_fn(
+        _run,
+        description=config.description if hasattr(config, "description") and config.description else "LabClaw ReAct coordinator agent",
     )

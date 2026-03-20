@@ -143,7 +143,7 @@ llms:
   coordinator_llm:
     _type: openai
     base_url: https://generativelanguage.googleapis.com/v1beta/openai/
-    model_name: gemini-2.0-flash-lite
+    model_name: gemini-2.5-flash-lite
     api_key: ${GENAI_API_KEY}
     temperature: 0.0
 
@@ -166,7 +166,7 @@ functions:
     skill_name: register_source   # called by Grok when it finds new data
 
 workflow:
-  _type: react_agent
+  _type: labclaw_react
   llm_name: coordinator_llm
   tool_names:
     - neoantigen_prediction
@@ -243,7 +243,7 @@ Blocks publishing if:
 LabClaw communicates with specialist agents and reviewer agents via the NeMo tool registry — everything is a function call, not a network request.
 
 ```
-Coordinator (NeMo react_agent)
+Coordinator (NeMo labclaw_react)
     │
     ├── calls labclaw_skill("neoantigen_prediction", input)
     │       └── runs NeoantigenSkill.run()
