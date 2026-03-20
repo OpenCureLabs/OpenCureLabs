@@ -24,7 +24,7 @@ if [[ -n "$(git -C "$PROJECT" status --porcelain 2>/dev/null)" ]]; then
     echo "       Staging and committing..."
     git -C "$PROJECT" add -A
     # Respect .gitignore — won't commit .env
-    git -C "$PROJECT" commit -m "chore: auto-save on shutdown" --no-verify 2>/dev/null || true
+    git -C "$PROJECT" commit -m "chore: auto-save on shutdown" 2>/dev/null || true
     echo "       Committed."
 else
     echo "       Working tree clean — nothing to commit."

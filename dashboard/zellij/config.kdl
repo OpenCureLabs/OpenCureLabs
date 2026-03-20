@@ -30,14 +30,29 @@ session_serialization false
 copy_on_select true
 
 // Keybindings
-// Zellij uses modes instead of tmux's Ctrl+b prefix.
-// Normal mode: the default mode when using panes.
-// Locked mode: all keys pass through to the running program.
 //
-// Custom OpenCure Labs shortcuts are bound under a shared mode
-// to match the tmux "Ctrl+b then key" feel.
+//  Alt+1/2/3  — jump to Lab / Agents / Monitor tab
+//  Alt+n      — next tab       Alt+p  — previous tab
+//  Alt+←/→    — move focus left/right between panes
+//  Alt+↑/↓    — move focus up/down between panes
+//  Alt+q      — clean shutdown (auto-commit, push, kill session)
+//  Alt+f      — findings popup
+//  Alt+r      — run research task (floating pane with prompt)
+//  Ctrl+p n   — new pane (if you actually need one)
+//
 keybinds {
     shared_except "locked" {
+        // ── Tab switching ────────────────────────────────────────────────
+        // Alt+n — next tab (overrides default NewPane)
+        bind "Alt n" { GoToNextTab; }
+        // Alt+p — previous tab
+        bind "Alt p" { GoToPreviousTab; }
+        // Alt+1/2/3 — jump directly to tab
+        bind "Alt 1" { GoToTab 1; }
+        bind "Alt 2" { GoToTab 2; }
+        bind "Alt 3" { GoToTab 3; }
+
+        // ── OpenCure Labs commands ───────────────────────────────────────
         // Alt+q — clean quit via stop.sh (auto-commit, push, kill session)
         bind "Alt q" {
             Run "bash" "-c" "bash /root/opencurelabs/dashboard/stop.sh" {
@@ -48,6 +63,13 @@ keybinds {
         bind "Alt f" {
             Run "bash" "-c" "cd /root/opencurelabs && source .venv/bin/activate && python3 dashboard/findings.py --all 2>/dev/null || echo 'Dashboard unavailable'; echo; echo 'Press Enter to close'; read" {
                 in_place true
+            }
+            ToggleFloatingPanes;
+        }
+        // Alt+r — run research task (prompts for input in floating pane)
+        bind "Alt r" {
+            Run "bash" "-c" "cd /root/opencurelabs && source .venv/bin/activate && echo '── Run Research Task ──' && echo && read -rp 'Task: ' task && echo && nat run --config_file coordinator/labclaw_workflow.yaml --input \"$task\" 2>&1 | tee -a logs/agent.log; echo; echo 'Press Enter to close'; read" {
+                direction "Down"
             }
             ToggleFloatingPanes;
         }
