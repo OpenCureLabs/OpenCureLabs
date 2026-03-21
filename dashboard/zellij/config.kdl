@@ -37,7 +37,9 @@ copy_on_select true
 //  Alt+↑/↓    — move focus up/down between panes
 //  Alt+q      — clean shutdown (auto-commit, push, kill session)
 //  Alt+f      — findings popup
-//  Alt+s      — start research task (floating pane with prompt)
+//  Alt+s      — start research task (interactive menu in floating pane)
+//  Alt+w      — close the focused pane
+//  Alt+x      — toggle floating panes (hide/show)
 //  Ctrl+p n   — new pane (if you actually need one)
 //
 keybinds {
@@ -75,5 +77,9 @@ keybinds {
                 close_on_exit true
             }
         }
+        // Alt+w — close the currently focused pane
+        bind "Alt w" { CloseFocus; }
+        // Alt+x — toggle floating panes (hide/show without killing)
+        bind "Alt x" { ToggleFloatingPanes; }
     }
 }
