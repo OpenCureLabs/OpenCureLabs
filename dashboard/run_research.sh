@@ -255,6 +255,7 @@ if $HAS_GUM; then
         "💊 Drug Discovery — Screen molecules, predict effectiveness" \
         "🧬 Rare Disease — Analyze genetic variants for diagnosis" \
         "⌨️  Custom Task — Type your own research question" \
+        "🚀 Genesis Mode — Run EVERY task across ALL domains (12 runs, full send)" \
     ) || { echo "Cancelled."; read -r; exit 0; }
 
     echo ""
@@ -284,6 +285,128 @@ if $HAS_GUM; then
                 read -r
                 exit 0
             fi
+            ;;
+        *"Genesis"*)
+            # ── Genesis Mode ─────────────────────────────────────────────
+            # Run EVERY task across ALL domains: 12 runs, full agents, Vast.ai
+            ALL_TASKS=()
+            ALL_LABELS=()
+            ALL_DOMAINS=()
+            for t in "${CANCER_TASKS[@]}"; do
+                ALL_TASKS+=("${t#*|}")
+                ALL_LABELS+=("${t%%|*}")
+                ALL_DOMAINS+=("Cancer")
+            done
+            for t in "${DRUG_TASKS[@]}"; do
+                ALL_TASKS+=("${t#*|}")
+                ALL_LABELS+=("${t%%|*}")
+                ALL_DOMAINS+=("Drug Discovery")
+            done
+            for t in "${RARE_TASKS[@]}"; do
+                ALL_TASKS+=("${t#*|}")
+                ALL_LABELS+=("${t%%|*}")
+                ALL_DOMAINS+=("Rare Disease")
+            done
+
+            TOTAL=${#ALL_TASKS[@]}
+
+            echo ""
+            printf '%s\n' \
+                "" \
+                "  🚀  G E N E S I S   M O D E" \
+                "" \
+                "  $TOTAL tasks across 3 domains" \
+                "  3 agents — full parallelism" \
+                "  Vast.ai cloud GPU burst — enabled" \
+                "  Public databases — TCGA, ClinVar, ChEMBL" \
+                "" \
+                "  ┌─ Cancer (5 tasks) ──────────────────────┐" \
+                "  │  Tumor Mutations · Neoantigens · Immune  │" \
+                "  │  Landscape · Data QC · Protein Shape     │" \
+                "  ├─ Drug Discovery (4 tasks) ───────────────┤" \
+                "  │  Train Predictor · Screen Candidates      │" \
+                "  │  Optimize Lead · Target Shape             │" \
+                "  ├─ Rare Disease (3 tasks) ──────────────────┤" \
+                "  │  Variant Danger · New Mutations · Data QC │" \
+                "  └───────────────────────────────────────────┘" \
+                "" \
+            | gum style \
+                --border double \
+                --border-foreground 214 \
+                --foreground 214 \
+                --bold \
+                --padding "0 1" \
+                --margin "0 0"
+
+            echo ""
+            gum confirm "Launch Genesis Mode? ($TOTAL sequential runs)" \
+                --affirmative "🚀 SEND IT" --negative "Cancel" \
+                || { echo "Cancelled."; read -r; exit 0; }
+
+            # ── Genesis Run Loop ─────────────────────────────────────────
+            echo ""
+            gum style --foreground 214 --bold "🚀 Genesis Mode activated — $TOTAL tasks queued"
+            echo ""
+
+            GENESIS_FAILED=0
+            GENESIS_OK=0
+            GENESIS_START=$(date +%s)
+
+            for i in $(seq 0 $((TOTAL - 1))); do
+                TASK_NUM=$((i + 1))
+                RAW_LABEL="${ALL_LABELS[$i]}"
+                LABEL="${RAW_LABEL%% ~*}"
+                DOMAIN_NAME="${ALL_DOMAINS[$i]}"
+                GENESIS_TASK="${ALL_TASKS[$i]}"
+
+                # Append Genesis options
+                GENESIS_TASK="$GENESIS_TASK Use public databases (TCGA/ClinVar/ChEMBL) for data sourcing. Deploy 3 parallel agents. Use Vast.ai cloud GPU for compute."
+
+                echo ""
+                gum style --foreground 46 --bold \
+                    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+                gum style --foreground 214 --bold \
+                    "  [$TASK_NUM/$TOTAL] $DOMAIN_NAME → $LABEL"
+                gum style --foreground 46 --bold \
+                    "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+                echo ""
+
+                if nat run --config_file "$CONFIG" --input "$GENESIS_TASK" 2>&1 | tee -a "$LOG"; then
+                    GENESIS_OK=$((GENESIS_OK + 1))
+                    gum style --foreground 46 "  ✅ [$TASK_NUM/$TOTAL] $LABEL — complete"
+                else
+                    GENESIS_FAILED=$((GENESIS_FAILED + 1))
+                    gum style --foreground 196 "  ❌ [$TASK_NUM/$TOTAL] $LABEL — failed"
+                fi
+            done
+
+            # ── Genesis Summary ──────────────────────────────────────────
+            GENESIS_END=$(date +%s)
+            GENESIS_ELAPSED=$(( GENESIS_END - GENESIS_START ))
+            GENESIS_MIN=$(( GENESIS_ELAPSED / 60 ))
+            GENESIS_SEC=$(( GENESIS_ELAPSED % 60 ))
+
+            echo ""
+            printf '%s\n' \
+                "" \
+                "  🚀 GENESIS COMPLETE" \
+                "" \
+                "  ✅ Passed:  $GENESIS_OK / $TOTAL" \
+                "  ❌ Failed:  $GENESIS_FAILED / $TOTAL" \
+                "  ⏱  Time:    ${GENESIS_MIN}m ${GENESIS_SEC}s" \
+                "" \
+            | gum style \
+                --border double \
+                --border-foreground "$( [[ $GENESIS_FAILED -eq 0 ]] && echo 46 || echo 196 )" \
+                --foreground "$( [[ $GENESIS_FAILED -eq 0 ]] && echo 46 || echo 214 )" \
+                --bold \
+                --padding "0 2" \
+                --margin "0 0"
+
+            echo ""
+            echo -e "${DIM}Press Enter to close${RESET}"
+            read -r
+            exit 0
             ;;
     esac
 
@@ -480,7 +603,7 @@ echo ""
 echo -e "${BOLD}What do you want to research?${RESET}"
 echo ""
 
-DOMAINS=("Cancer — Find mutations, predict immune targets" "Drug Discovery — Screen molecules, predict effectiveness" "Rare Disease — Analyze genetic variants for diagnosis" "Custom Task — Type your own question")
+DOMAINS=("Cancer — Find mutations, predict immune targets" "Drug Discovery — Screen molecules, predict effectiveness" "Rare Disease — Analyze genetic variants for diagnosis" "Custom Task — Type your own question" "Genesis Mode — Run EVERY task across ALL domains (12 runs)")
 select domain in "${DOMAINS[@]}"; do
     case "$REPLY" in
         1) ITEMS=("${CANCER_TASKS[@]}"); break ;;
@@ -496,6 +619,86 @@ select domain in "${DOMAINS[@]}"; do
             fi
             ITEMS=()
             break
+            ;;
+        5)
+            # ── Genesis Mode (Fallback) ──────────────────────────────
+            ALL_TASKS=()
+            ALL_LABELS=()
+            ALL_DOMAINS=()
+            for t in "${CANCER_TASKS[@]}"; do
+                ALL_TASKS+=("${t#*|}")
+                raw="${t%%|*}"; ALL_LABELS+=("${raw%% ~*}")
+                ALL_DOMAINS+=("Cancer")
+            done
+            for t in "${DRUG_TASKS[@]}"; do
+                ALL_TASKS+=("${t#*|}")
+                raw="${t%%|*}"; ALL_LABELS+=("${raw%% ~*}")
+                ALL_DOMAINS+=("Drug Discovery")
+            done
+            for t in "${RARE_TASKS[@]}"; do
+                ALL_TASKS+=("${t#*|}")
+                raw="${t%%|*}"; ALL_LABELS+=("${raw%% ~*}")
+                ALL_DOMAINS+=("Rare Disease")
+            done
+            TOTAL=${#ALL_TASKS[@]}
+
+            echo ""
+            echo -e "${YELLOW}══════════════════════════════════════════════════${RESET}"
+            echo -e "${YELLOW}  🚀 G E N E S I S   M O D E${RESET}"
+            echo -e "${YELLOW}══════════════════════════════════════════════════${RESET}"
+            echo -e "  $TOTAL tasks · 3 domains · 3 agents · Vast.ai burst"
+            echo ""
+            read -rp "Launch Genesis Mode? [y/N] " genesis_confirm
+            case "$genesis_confirm" in
+                [yY]*)
+                    GENESIS_FAILED=0
+                    GENESIS_OK=0
+                    GENESIS_START=$(date +%s)
+
+                    for i in $(seq 0 $((TOTAL - 1))); do
+                        TASK_NUM=$((i + 1))
+                        LABEL="${ALL_LABELS[$i]}"
+                        DOMAIN_NAME="${ALL_DOMAINS[$i]}"
+                        GENESIS_TASK="${ALL_TASKS[$i]} Use public databases (TCGA/ClinVar/ChEMBL) for data sourcing. Deploy 3 parallel agents. Use Vast.ai cloud GPU for compute."
+
+                        echo ""
+                        echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+                        echo -e "${YELLOW}  [$TASK_NUM/$TOTAL] $DOMAIN_NAME → $LABEL${RESET}"
+                        echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
+                        echo ""
+
+                        if nat run --config_file "$CONFIG" --input "$GENESIS_TASK" 2>&1 | tee -a "$LOG"; then
+                            GENESIS_OK=$((GENESIS_OK + 1))
+                            echo -e "${GREEN}  ✅ [$TASK_NUM/$TOTAL] $LABEL — complete${RESET}"
+                        else
+                            GENESIS_FAILED=$((GENESIS_FAILED + 1))
+                            echo -e "${RED}  ❌ [$TASK_NUM/$TOTAL] $LABEL — failed${RESET}"
+                        fi
+                    done
+
+                    GENESIS_END=$(date +%s)
+                    GENESIS_ELAPSED=$(( GENESIS_END - GENESIS_START ))
+                    GENESIS_MIN=$(( GENESIS_ELAPSED / 60 ))
+                    GENESIS_SEC=$(( GENESIS_ELAPSED % 60 ))
+
+                    echo ""
+                    echo -e "${YELLOW}══════════════════════════════════════════════════${RESET}"
+                    echo -e "${YELLOW}  🚀 GENESIS COMPLETE${RESET}"
+                    echo -e "  ✅ Passed:  $GENESIS_OK / $TOTAL"
+                    echo -e "  ❌ Failed:  $GENESIS_FAILED / $TOTAL"
+                    echo -e "  ⏱  Time:    ${GENESIS_MIN}m ${GENESIS_SEC}s"
+                    echo -e "${YELLOW}══════════════════════════════════════════════════${RESET}"
+                    echo ""
+                    echo -e "${DIM}Press Enter to close${RESET}"
+                    read -r
+                    exit 0
+                    ;;
+                *)
+                    echo "Cancelled."
+                    read -r
+                    exit 0
+                    ;;
+            esac
             ;;
         *) echo "Invalid choice. Try again." ;;
     esac
