@@ -111,12 +111,38 @@ def get_total_spend():
         return 0.0
 
 
+def get_account_balance():
+    """Query real-time account credit from the Vast.ai API."""
+    api_key = os.environ.get("VAST_AI_KEY", "")
+    if not api_key:
+        return 0.0
+    try:
+        resp = requests.get(
+            f"{VAST_API}/users/current/",
+            headers={"Authorization": f"Bearer {api_key}"},
+            timeout=10,
+        )
+        resp.raise_for_status()
+        return float(resp.json().get("credit", 0))
+    except Exception as e:
+        logger.warning("Could not fetch Vast.ai account balance: %s", e)
+        return 0.0
+
+
 def check_budget(estimated_cost_hr=1.0):
     """Check if we're within budget. Returns (ok, remaining, budget)."""
-    budget = float(os.environ.get("VAST_AI_BUDGET", "0"))
-    if budget <= 0:
-        # No budget set — unlimited (but warn)
-        logger.warning("VAST_AI_BUDGET not set — no spending limit!")
+    env_budget = float(os.environ.get("VAST_AI_BUDGET", "0"))
+
+    # Use API balance as default; VAST_AI_BUDGET acts as optional cap
+    api_balance = get_account_balance()
+    if env_budget > 0 and api_balance > 0:
+        budget = min(env_budget, api_balance)
+    elif env_budget > 0:
+        budget = env_budget
+    elif api_balance > 0:
+        budget = api_balance
+    else:
+        logger.warning("No Vast.ai budget or account balance available!")
         return True, float("inf"), 0
 
     spent = get_total_spend()

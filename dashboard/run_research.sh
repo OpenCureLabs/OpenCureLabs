@@ -29,6 +29,17 @@ if [[ -f "$PROJECT_DIR/.env" ]]; then
     set +a
 fi
 
+# ── Vast.ai balance helper ────────────────────────────────────────────────────
+get_vast_balance() {
+    # Query real account credit from Vast.ai API
+    local key="${VAST_AI_KEY:-}"
+    [[ -z "$key" ]] && echo "0" && return
+    curl -sf -H "Authorization: Bearer $key" \
+        "https://console.vast.ai/api/v0/users/current/" 2>/dev/null \
+    | python3 -c "import json,sys; print(json.loads(sys.stdin.read()).get('credit',0))" 2>/dev/null \
+    || echo "0"
+}
+
 # ── Colors (for fallback mode) ───────────────────────────────────────────────
 CYAN='\033[1;96m'   GREEN='\033[1;92m'  YELLOW='\033[1;93m'
 RED='\033[1;91m'    DIM='\033[2m'       BOLD='\033[1m'
@@ -363,20 +374,27 @@ if $HAS_GUM; then
             PARALLEL="${VAST_INSTANCES%%[[:space:]]*}"
             [[ $PARALLEL -eq 1 ]] && MODE_LABEL="sequential" || MODE_LABEL="$PARALLEL parallel"
 
-            # ── Budget display ───────────────────────────────────────────
-            VAST_BUDGET="${VAST_AI_BUDGET:-0}"
+            # ── Budget display (pull from Vast.ai account) ────────────────
+            API_BALANCE=$(get_vast_balance)
+            ENV_CAP="${VAST_AI_BUDGET:-0}"
+            # Use API balance; VAST_AI_BUDGET as optional cap
+            if [[ "$ENV_CAP" != "0" ]] && [[ -n "$ENV_CAP" ]]; then
+                VAST_BUDGET=$(python3 -c "print(min(float('$ENV_CAP'), float('$API_BALANCE')))" 2>/dev/null || echo "$ENV_CAP")
+            else
+                VAST_BUDGET="$API_BALANCE"
+            fi
             echo ""
-            if [[ "$VAST_BUDGET" != "0" ]] && [[ -n "$VAST_BUDGET" ]]; then
+            if python3 -c "exit(0 if float('$VAST_BUDGET') > 0 else 1)" 2>/dev/null; then
                 VAST_SPENT=$(psql -p 5433 -d opencurelabs -t -A -c \
                     "SELECT COALESCE(SUM(total_cost), 0) FROM vast_spend" 2>/dev/null || echo "0")
-                VAST_REMAINING=$(python3 -c "print(f'{max(0, $VAST_BUDGET - $VAST_SPENT):.2f}')" 2>/dev/null || echo "?")
+                VAST_REMAINING=$(python3 -c "print(f'{max(0, float(\"$VAST_BUDGET\") - float(\"$VAST_SPENT\")):.2f}')" 2>/dev/null || echo "?")
                 gum style --foreground 214 \
-                    "  💰 Budget: \$$VAST_REMAINING remaining of \$$VAST_BUDGET (spent: \$$VAST_SPENT)"
+                    "  💰 Vast.ai balance: \$$API_BALANCE — budget: \$$VAST_BUDGET (spent: \$$VAST_SPENT)"
                 gum style --foreground 46 \
                     "  🔄 Continuous mode — loops until budget exhausted"
             else
                 gum style --foreground 196 \
-                    "  ⚠️  No budget cap set (VAST_AI_BUDGET in .env) — will run once"
+                    "  ⚠️  No Vast.ai balance or budget — will run once"
             fi
 
             echo ""
@@ -400,11 +418,11 @@ if $HAS_GUM; then
                 ROUND=$((ROUND + 1))
 
                 # ── Budget check before each round ───────────────────
-                if [[ "$VAST_BUDGET" != "0" ]] && [[ -n "$VAST_BUDGET" ]]; then
+                if python3 -c "exit(0 if float('$VAST_BUDGET') > 0 else 1)" 2>/dev/null; then
                     VAST_SPENT=$(psql -p 5433 -d opencurelabs -t -A -c \
                         "SELECT COALESCE(SUM(total_cost), 0) FROM vast_spend" 2>/dev/null || echo "0")
-                    VAST_REMAINING=$(python3 -c "print(f'{max(0, float($VAST_BUDGET) - float($VAST_SPENT)):.2f}')" 2>/dev/null || echo "0")
-                    if python3 -c "exit(0 if float($VAST_REMAINING) <= 0 else 1)" 2>/dev/null; then
+                    VAST_REMAINING=$(python3 -c "print(f'{max(0, float(\"$VAST_BUDGET\") - float(\"$VAST_SPENT\")):.2f}')" 2>/dev/null || echo "0")
+                    if python3 -c "exit(0 if float('$VAST_REMAINING') <= 0 else 1)" 2>/dev/null; then
                         echo ""
                         gum style --foreground 196 --bold \
                             "  💰 Budget exhausted! Spent: \$$VAST_SPENT / \$$VAST_BUDGET"
@@ -413,7 +431,7 @@ if $HAS_GUM; then
                     gum style --foreground 214 \
                         "  💰 Round $ROUND — \$$VAST_REMAINING remaining of \$$VAST_BUDGET"
                 else
-                    # No budget set — run only one round
+                    # No budget/balance — run only one round
                     if [[ $ROUND -gt 1 ]]; then
                         break
                     fi
@@ -802,14 +820,20 @@ select domain in "${DOMAINS[@]}"; do
             done
             [[ $PARALLEL -eq 1 ]] && MODE_LABEL="sequential" || MODE_LABEL="$PARALLEL parallel"
 
-            VAST_BUDGET="${VAST_AI_BUDGET:-0}"
-            if [[ "$VAST_BUDGET" != "0" ]] && [[ -n "$VAST_BUDGET" ]]; then
+            API_BALANCE=$(get_vast_balance)
+            ENV_CAP="${VAST_AI_BUDGET:-0}"
+            if [[ "$ENV_CAP" != "0" ]] && [[ -n "$ENV_CAP" ]]; then
+                VAST_BUDGET=$(python3 -c "print(min(float('$ENV_CAP'), float('$API_BALANCE')))" 2>/dev/null || echo "$ENV_CAP")
+            else
+                VAST_BUDGET="$API_BALANCE"
+            fi
+            if python3 -c "exit(0 if float('$VAST_BUDGET') > 0 else 1)" 2>/dev/null; then
                 VAST_SPENT=$(psql -p 5433 -d opencurelabs -t -A -c \
                     "SELECT COALESCE(SUM(total_cost), 0) FROM vast_spend" 2>/dev/null || echo "0")
-                echo -e "  💰 Budget: \$$VAST_BUDGET (spent: \$$VAST_SPENT)"
+                echo -e "  💰 Vast.ai balance: \$$API_BALANCE — budget: \$$VAST_BUDGET (spent: \$$VAST_SPENT)"
                 echo -e "  🔄 Continuous — loops until budget exhausted"
             else
-                echo -e "${RED}  ⚠️  No budget cap set (VAST_AI_BUDGET in .env) — will run once${RESET}"
+                echo -e "${RED}  ⚠️  No Vast.ai balance or budget — will run once${RESET}"
             fi
 
             echo ""
@@ -827,11 +851,11 @@ select domain in "${DOMAINS[@]}"; do
                         ROUND=$((ROUND + 1))
 
                         # Budget check before each round
-                        if [[ "$VAST_BUDGET" != "0" ]] && [[ -n "$VAST_BUDGET" ]]; then
+                        if python3 -c "exit(0 if float('$VAST_BUDGET') > 0 else 1)" 2>/dev/null; then
                             VAST_SPENT=$(psql -p 5433 -d opencurelabs -t -A -c \
                                 "SELECT COALESCE(SUM(total_cost), 0) FROM vast_spend" 2>/dev/null || echo "0")
-                            VAST_REMAINING=$(python3 -c "print(f'{max(0, float($VAST_BUDGET) - float($VAST_SPENT)):.2f}')" 2>/dev/null || echo "0")
-                            if python3 -c "exit(0 if float($VAST_REMAINING) <= 0 else 1)" 2>/dev/null; then
+                            VAST_REMAINING=$(python3 -c "print(f'{max(0, float(\"$VAST_BUDGET\") - float(\"$VAST_SPENT\")):.2f}')" 2>/dev/null || echo "0")
+                            if python3 -c "exit(0 if float('$VAST_REMAINING') <= 0 else 1)" 2>/dev/null; then
                                 echo ""
                                 echo -e "${RED}  💰 Budget exhausted! Spent: \$$VAST_SPENT / \$$VAST_BUDGET${RESET}"
                                 break
