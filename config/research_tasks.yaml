@@ -1,0 +1,49 @@
+# ── Research Tasks Configuration ─────────────────────────────────────────────
+# Controls how `task_generator.py` distributes batch work across skills.
+# Edit this file to customize batch runs without changing code.
+#
+# Usage:
+#   python -m agentiq_labclaw.task_generator --count 100 --config config/research_tasks.yaml
+# ─────────────────────────────────────────────────────────────────────────────
+
+# Task distribution weights — how to allocate N tasks across skill types.
+# Weights are relative (0.20 = 20% of total batch).  Add up to ~1.0.
+distribution:
+  neoantigen_prediction: 0.20   # Cancer: somatic variant → neoantigen prediction
+  structure_cancer:      0.08   # Cancer: protein structure prediction (ESMFold)
+  structure_drug:        0.08   # Drug:   target protein structure prediction
+  qsar:                  0.15   # Drug:   QSAR model training (ChEMBL datasets)
+  molecular_docking:     0.15   # Drug:   virtual screening via docking
+  variant_pathogenicity: 0.20   # Rare:   ClinVar/CADD pathogenicity scoring
+  sequencing_qc_cancer:  0.07   # Cancer: sequencing quality control
+  sequencing_qc_rare:    0.07   # Rare:   sequencing quality control
+
+# Custom tasks — specific jobs to include in every batch run.
+# These are added ON TOP of the distribution-based tasks.
+# Uncomment and modify to add your own targets.
+#
+# custom_tasks:
+#   - skill_name: variant_pathogenicity
+#     domain: rare_disease
+#     label: "Priority: CFTR G551D analysis"
+#     priority: 1
+#     estimated_gpu_min: 3
+#     input_data:
+#       variant_id: "chr7:117559590:A>G"
+#       gene: CFTR
+#       hgvs: "p.Gly551Asp"
+#
+#   - skill_name: molecular_docking
+#     domain: drug_discovery
+#     label: "Priority: Erlotinib re-dock EGFR"
+#     priority: 1
+#     estimated_gpu_min: 15
+#     input_data:
+#       ligand_smiles: "C=Cc1cccc(Nc2ncnc3cc(OCCOC)c(OCCOC)cc23)c1"
+#       receptor_pdb: "data/pdb/1M17.pdb"
+#       center_x: 0.0
+#       center_y: 0.0
+#       center_z: 0.0
+#       box_size: 25.0
+#       exhaustiveness: 32
+#       method: gnina

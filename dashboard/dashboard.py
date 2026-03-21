@@ -1171,6 +1171,61 @@ async def api_budget(request: Request):
     return result
 
 
+@app.get("/api/batch")
+@limiter.limit("30/minute")
+async def batch_status(request: Request):
+    """Get batch dispatch status — active batches, pool, and job counts."""
+    result = {"batches": [], "pool": [], "totals": {"pending": 0, "running": 0, "done": 0, "failed": 0}}
+    try:
+        conn = get_conn()
+        cur = conn.cursor()
+        # Active batches
+        cur.execute("""
+            SELECT batch_id,
+                   COUNT(*) FILTER (WHERE status = 'pending')  AS pending,
+                   COUNT(*) FILTER (WHERE status = 'running')  AS running,
+                   COUNT(*) FILTER (WHERE status = 'done')     AS done,
+                   COUNT(*) FILTER (WHERE status = 'failed')   AS failed,
+                   COUNT(*)                                    AS total,
+                   MIN(created_at)                             AS started
+            FROM batch_jobs
+            GROUP BY batch_id
+            ORDER BY MIN(created_at) DESC
+            LIMIT 10
+        """)
+        for r in cur.fetchall():
+            result["batches"].append({
+                "batch_id": r[0], "pending": r[1], "running": r[2],
+                "done": r[3], "failed": r[4], "total": r[5],
+                "started": str(r[6]) if r[6] else None,
+                "progress_pct": round(r[3] / max(r[5], 1) * 100, 1),
+            })
+            result["totals"]["pending"] += r[1]
+            result["totals"]["running"] += r[2]
+            result["totals"]["done"] += r[3]
+            result["totals"]["failed"] += r[4]
+        # Instance pool
+        cur.execute("""
+            SELECT instance_id, ssh_host, gpu_name, cost_per_hr, status, jobs_done,
+                   created_at, ready_at
+            FROM vast_pool
+            WHERE status != 'destroyed'
+            ORDER BY created_at
+        """)
+        for r in cur.fetchall():
+            result["pool"].append({
+                "instance_id": r[0], "ssh_host": r[1], "gpu_name": r[2],
+                "cost_per_hr": r[3], "status": r[4], "jobs_done": r[5],
+                "created_at": str(r[6]) if r[6] else None,
+                "ready_at": str(r[7]) if r[7] else None,
+            })
+        cur.close()
+        put_conn(conn)
+    except Exception:
+        pass
+    return result
+
+
 @app.get("/api/export/findings")
 @limiter.limit("10/minute")
 async def export_findings(

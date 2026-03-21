@@ -25,18 +25,28 @@ class LabClawSkill(ABC):
         """Execute the skill, routing to Vast.ai if configured.
 
         Priority: LABCLAW_COMPUTE env var > decorator default.
-        Falls back to local if vast_ai requested but VAST_AI_KEY is missing.
+        Falls back to local if Vast.ai dispatch fails or key is missing.
         """
         compute = os.environ.get("LABCLAW_COMPUTE") or self.compute
 
         if compute == "vast_ai":
             if not os.environ.get("VAST_AI_KEY"):
                 logger.warning(
-                    "LABCLAW_COMPUTE=vast_ai but VAST_AI_KEY not set — falling back to local for %s",
+                    "[%s] LABCLAW_COMPUTE=vast_ai but VAST_AI_KEY not set — running locally",
                     self.name,
                 )
                 return self.run(input_data)
-            return self._dispatch_to_vast_ai(input_data)
+            try:
+                logger.info("[%s] Dispatching to Vast.ai...", self.name)
+                return self._dispatch_to_vast_ai(input_data)
+            except Exception as e:
+                logger.error(
+                    "[%s] Vast.ai dispatch failed: %s — falling back to local",
+                    self.name, e,
+                )
+                return self.run(input_data)
+
+        logger.info("[%s] Running locally (compute=%s)", self.name, compute)
         return self.run(input_data)
 
     @abstractmethod

@@ -370,9 +370,16 @@ if $HAS_GUM; then
                 "3 — Fast parallel" \
                 "6 — Max throughput" \
                 "12 — All at once" \
+                "100 — Batch mode (Vast.ai pool)" \
             ) || { echo "Cancelled."; read -r; exit 0; }
             PARALLEL="${VAST_INSTANCES%%[[:space:]]*}"
-            [[ $PARALLEL -eq 1 ]] && MODE_LABEL="sequential" || MODE_LABEL="$PARALLEL parallel"
+            if [[ $PARALLEL -eq 100 ]]; then
+                MODE_LABEL="batch (10 instances)"
+                BATCH_MODE=1
+            else
+                BATCH_MODE=0
+                [[ $PARALLEL -eq 1 ]] && MODE_LABEL="sequential" || MODE_LABEL="$PARALLEL parallel"
+            fi
 
             # ── Budget display (pull from Vast.ai account) ────────────────
             API_BALANCE=$(get_vast_balance)
@@ -413,6 +420,46 @@ if $HAS_GUM; then
             ROUND=0
 
             export LABCLAW_COMPUTE=vast_ai
+
+            # ── BATCH MODE: dispatch to Vast.ai instance pool ─────────────
+            if [[ "${BATCH_MODE:-0}" -eq 1 ]]; then
+                BATCH_COUNT=$(gum input \
+                    --header "How many tasks?" \
+                    --placeholder "100" \
+                    --value "100" \
+                    --header.foreground 214 \
+                    --prompt.foreground 46 \
+                ) || BATCH_COUNT=100
+
+                POOL_SIZE=$(gum input \
+                    --header "Instance pool size?" \
+                    --placeholder "10" \
+                    --value "10" \
+                    --header.foreground 214 \
+                    --prompt.foreground 46 \
+                ) || POOL_SIZE=10
+
+                echo ""
+                gum style --foreground 214 --bold \
+                    "  📦 Batch dispatch: $BATCH_COUNT tasks → $POOL_SIZE Vast.ai instances"
+                echo ""
+
+                BATCH_LOG="$PROJECT_DIR/logs/batch-$(date +%Y%m%d-%H%M%S).log"
+                python3 -m agentiq_labclaw.compute.batch_dispatcher \
+                    --count "$BATCH_COUNT" \
+                    --pool-size "$POOL_SIZE" \
+                    --max-cost 0.50 \
+                    --config "$PROJECT_DIR/config/research_tasks.yaml" \
+                    2>&1 | tee "$BATCH_LOG"
+
+                export LABCLAW_COMPUTE=local
+                echo ""
+                gum style --foreground 214 "  📋 Batch log: $BATCH_LOG"
+                echo ""
+                gum style --foreground 242 "Press Enter to close"
+                read -r
+                exit 0
+            fi
 
             while true; do
                 ROUND=$((ROUND + 1))
@@ -810,15 +857,22 @@ select domain in "${DOMAINS[@]}"; do
             echo ""
 
             echo -e "${BOLD}Execution mode:${RESET}"
-            PARALLEL_OPTS=("1 — Sequential" "3 — Fast parallel" "6 — Max throughput" "12 — All at once")
+            PARALLEL_OPTS=("1 — Sequential" "3 — Fast parallel" "6 — Max throughput" "12 — All at once" "100 — Batch mode (Vast.ai pool)")
             select po in "${PARALLEL_OPTS[@]}"; do
                 case "$REPLY" in
                     1) PARALLEL=1; break ;; 2) PARALLEL=3; break ;;
                     3) PARALLEL=6; break ;; 4) PARALLEL=12; break ;;
+                    5) PARALLEL=100; break ;;
                     *) echo "Invalid choice." ;;
                 esac
             done
-            [[ $PARALLEL -eq 1 ]] && MODE_LABEL="sequential" || MODE_LABEL="$PARALLEL parallel"
+            if [[ $PARALLEL -eq 100 ]]; then
+                MODE_LABEL="batch (10 instances)"
+                BATCH_MODE=1
+            else
+                BATCH_MODE=0
+                [[ $PARALLEL -eq 1 ]] && MODE_LABEL="sequential" || MODE_LABEL="$PARALLEL parallel"
+            fi
 
             API_BALANCE=$(get_vast_balance)
             ENV_CAP="${VAST_AI_BUDGET:-0}"
@@ -846,6 +900,35 @@ select domain in "${DOMAINS[@]}"; do
                     ROUND=0
 
                     export LABCLAW_COMPUTE=vast_ai
+
+                    # ── BATCH MODE: dispatch to Vast.ai instance pool ────
+                    if [[ "${BATCH_MODE:-0}" -eq 1 ]]; then
+                        echo ""
+                        read -rp "How many tasks? [100] " BATCH_COUNT
+                        BATCH_COUNT="${BATCH_COUNT:-100}"
+                        read -rp "Instance pool size? [10] " POOL_SIZE
+                        POOL_SIZE="${POOL_SIZE:-10}"
+
+                        echo ""
+                        echo -e "${YELLOW}  📦 Batch dispatch: $BATCH_COUNT tasks → $POOL_SIZE Vast.ai instances${RESET}"
+                        echo ""
+
+                        BATCH_LOG="$PROJECT_DIR/logs/batch-$(date +%Y%m%d-%H%M%S).log"
+                        python3 -m agentiq_labclaw.compute.batch_dispatcher \
+                            --count "$BATCH_COUNT" \
+                            --pool-size "$POOL_SIZE" \
+                            --max-cost 0.50 \
+                            --config "$PROJECT_DIR/config/research_tasks.yaml" \
+                            2>&1 | tee "$BATCH_LOG"
+
+                        export LABCLAW_COMPUTE=local
+                        echo ""
+                        echo -e "${YELLOW}  📋 Batch log: $BATCH_LOG${RESET}"
+                        echo ""
+                        echo -e "${DIM}Press Enter to close${RESET}"
+                        read -r
+                        exit 0
+                    fi
 
                     while true; do
                         ROUND=$((ROUND + 1))

@@ -231,11 +231,26 @@ def _find_cheapest_offer(api_key: str, gpu_required: bool) -> dict:
 def _create_instance(api_key: str, offer_id: int, image: str = "pytorch/pytorch:latest") -> int:
     """Create a Vast.ai instance from an offer. Returns instance ID."""
     headers = {"Authorization": f"Bearer {api_key}"}
+
+    # Install agentiq_labclaw from GitHub on the remote instance.
+    # Uses GITHUB_TOKEN if set (for private repos), else assumes public.
+    gh_token = os.environ.get("GITHUB_TOKEN", "")
+    if gh_token:
+        pip_url = f"git+https://{gh_token}@github.com/OpenCureLabs/OpenCureLabs.git#subdirectory=packages/agentiq_labclaw"
+    else:
+        pip_url = "git+https://github.com/OpenCureLabs/OpenCureLabs.git#subdirectory=packages/agentiq_labclaw"
+
+    onstart_script = (
+        "#!/bin/bash\n"
+        f"pip install '{pip_url}' 2>&1 | tail -5\n"
+        "touch /tmp/labclaw_ready\n"
+    )
+
     payload = {
         "client_id": "opencurelabs",
         "image": image,
         "disk": 20,
-        "onstart": "pip install agentiq-labclaw",
+        "onstart": onstart_script,
     }
 
     resp = requests.put(
@@ -254,6 +269,35 @@ def _create_instance(api_key: str, offer_id: int, image: str = "pytorch/pytorch:
     return instance_id
 
 
+def _wait_for_setup(ssh_host: str, ssh_port: int, timeout: int = 180):
+    """Wait for the onstart script to finish installing agentiq_labclaw."""
+    ssh_key = os.path.expanduser("~/.ssh/xpclabs")
+    ssh_opts = [
+        "ssh", "-o", "StrictHostKeyChecking=no",
+        "-o", "ConnectTimeout=10",
+        "-i", ssh_key,
+        "-p", str(ssh_port),
+        f"root@{ssh_host}",
+    ]
+
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        try:
+            result = subprocess.run(
+                [*ssh_opts, "test -f /tmp/labclaw_ready && echo READY || echo WAIT"],
+                capture_output=True, text=True, timeout=15,
+            )
+            if "READY" in result.stdout:
+                logger.info("Vast.ai instance setup complete")
+                return True
+        except (subprocess.TimeoutExpired, Exception):
+            pass
+        logger.info("Waiting for instance setup to complete...")
+        time.sleep(15)
+
+    raise TimeoutError(f"Instance setup did not complete within {timeout}s")
+
+
 def dispatch(skill, input_data):
     """
     Dispatch a skill execution to Vast.ai for heavy compute.
@@ -261,7 +305,7 @@ def dispatch(skill, input_data):
     1. Check budget
     2. Find cheapest suitable GPU instance
     3. Provision the instance
-    4. Wait for it to be ready
+    4. Wait for it to be ready + onstart to complete
     5. Serialize input, SSH-execute the skill remotely
     6. Retrieve results
     7. Terminate the instance and record spend
@@ -298,7 +342,7 @@ def dispatch(skill, input_data):
     spend_id = _record_spend_start(skill.name, instance_id, gpu_name, cost_hr)
 
     try:
-        # 3. Wait for ready
+        # 3. Wait for instance to be running
         info = instance.wait_until_ready(timeout=300)
         ssh_host = info.get("ssh_host")
         ssh_port = info.get("ssh_port", 22)
@@ -306,42 +350,49 @@ def dispatch(skill, input_data):
         if not ssh_host:
             raise RuntimeError("Instance started but no SSH host available")
 
-        # 4. Serialize input and run remotely
-        input_json = json.dumps(input_data.model_dump(), default=str)
+        # 4. Wait for onstart (pip install from GitHub) to finish
+        _wait_for_setup(ssh_host, ssh_port)
 
-        remote_cmd = (
-            f"python3 -c \""
-            f"import json; "
-            f"from agentiq_labclaw.base import get_skill; "
+        # 5. Serialize input and run remotely via stdin (avoids shell escaping)
+        input_json = json.dumps(input_data.model_dump(), default=str)
+        ssh_key = os.path.expanduser("~/.ssh/xpclabs")
+
+        remote_script = (
+            "import json, sys; "
+            "from agentiq_labclaw.base import get_skill; "
             f"Skill = get_skill('{skill.name}'); "
-            f"s = Skill(); "
-            f"inp = Skill.input_schema.model_validate(json.loads('{input_json}')); "
-            f"result = s.run(inp); "
-            f"print(json.dumps(result.model_dump(), default=str))"
-            f"\""
+            "s = Skill(); "
+            "inp = Skill.input_schema.model_validate(json.loads(sys.stdin.read())); "
+            "result = s.run(inp); "
+            "print(json.dumps(result.model_dump(), default=str))"
         )
 
-        result = subprocess.run(  # noqa: S603
-            [  # noqa: S607
+        result = subprocess.run(
+            [
                 "ssh", "-o", "StrictHostKeyChecking=no",
+                "-o", "ConnectTimeout=10",
+                "-i", ssh_key,
                 "-p", str(ssh_port),
                 f"root@{ssh_host}",
-                remote_cmd,
+                f'python3 -c "{remote_script}"',
             ],
+            input=input_json,
             capture_output=True,
             text=True,
             timeout=600,
         )
 
         if result.returncode != 0:
-            raise RuntimeError(f"Remote execution failed: {result.stderr}")
+            logger.error("Vast.ai remote stderr: %s", result.stderr[:500])
+            raise RuntimeError(f"Remote execution failed: {result.stderr[:300]}")
 
-        # 5. Parse results
+        # 6. Parse results
         output_data = json.loads(result.stdout.strip())
+        logger.info("Vast.ai dispatch succeeded for %s", skill.name)
         return skill.output_schema.model_validate(output_data)
 
     finally:
-        # 6. Always clean up and record spend
+        # 7. Always clean up and record spend
         instance.destroy()
         elapsed_hrs = (time.monotonic() - job_start) / 3600
         total_cost = round(elapsed_hrs * cost_hr, 4)

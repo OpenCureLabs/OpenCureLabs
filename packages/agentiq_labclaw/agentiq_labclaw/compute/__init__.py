@@ -1,1 +1,1 @@
-"""Compute module — Vast.ai dispatcher for burst GPU workloads."""
+"""Compute module — Vast.ai dispatcher, batch queue, and instance pool for GPU workloads."""
