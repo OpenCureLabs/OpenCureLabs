@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - CI pipeline with tests, ruff, and bandit
 - Commitizen conventional commits enforcement
 
+## v0.16.0 (2026-03-21)
+
+### Feat
+
+- Vast.ai instance monitoring + LABCLAW_COMPUTE env var
+
 ## v0.15.0 (2026-03-21)
 
 ### Feat
