@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - CI pipeline with tests, ruff, and bandit
 - Commitizen conventional commits enforcement
 
+## v0.8.0 (2026-03-21)
+
+### Feat
+
+- gum-powered interactive research menu (Alt+S)
+
 ## v0.7.2 (2026-03-21)
 
 ### Fix
