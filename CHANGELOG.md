@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - CI pipeline with tests, ruff, and bandit
 - Commitizen conventional commits enforcement
 
+## v0.17.0 (2026-03-21)
+
+### Feat
+
+- Genesis continuous loop with throughput chooser and .env sourcing
+
 ## v0.16.2 (2026-03-21)
 
 ### Fix
