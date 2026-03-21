@@ -100,4 +100,11 @@ layout {
             }
         }
     }
+
+    // ── Tab 4: Budget ────────────────────────────────────────────────────────
+    tab name="Budget" {
+        pane name="BUDGET MONITOR" command="bash" {
+            args "-c" "cd /root/opencurelabs && source .venv/bin/activate 2>/dev/null; bash dashboard/budget.sh"
+        }
+    }
 }

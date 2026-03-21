@@ -15,6 +15,7 @@ Architecture:
 
 import json
 import logging
+import os
 
 from langchain_core.messages import HumanMessage, SystemMessage
 from langchain_core.tools import StructuredTool
@@ -27,6 +28,57 @@ from nat.data_models.agent import AgentBaseConfig
 from pydantic import Field
 
 logger = logging.getLogger("labclaw.nat_specialists")
+
+# ── LLM cost rate cards (per token) ──────────────────────────────────────────
+# Rates as of March 2026.  Update when pricing changes.
+LLM_RATE_CARDS = {
+    "gemini-2.5-flash-lite-preview-06-17": {"provider": "gemini", "input": 0.075e-6, "output": 0.3e-6},
+    "gemini-2.5-flash-lite": {"provider": "gemini", "input": 0.075e-6, "output": 0.3e-6},
+    "claude-opus-4-0-20250514": {"provider": "claude", "input": 15e-6, "output": 75e-6},
+    "grok-3": {"provider": "grok", "input": 5e-6, "output": 15e-6},
+}
+
+
+def _log_llm_usage(model: str, usage: dict, agent_name: str = ""):
+    """Log LLM token usage and estimated cost to the llm_spend table."""
+    if not usage:
+        return
+    input_tokens = usage.get("prompt_tokens", 0) or usage.get("input_tokens", 0) or 0
+    output_tokens = usage.get("completion_tokens", 0) or usage.get("output_tokens", 0) or 0
+    if input_tokens == 0 and output_tokens == 0:
+        return
+
+    # Look up rate card
+    rates = LLM_RATE_CARDS.get(model, {})
+    provider = rates.get("provider", model.split("-")[0] if model else "unknown")
+    cost = (input_tokens * rates.get("input", 0)) + (output_tokens * rates.get("output", 0))
+
+    try:
+        import psycopg2
+        db_url = os.environ.get("POSTGRES_URL", "dbname=opencurelabs port=5433")
+        conn = psycopg2.connect(db_url)
+        cur = conn.cursor()
+        cur.execute(
+            "CREATE TABLE IF NOT EXISTS llm_spend ("
+            "  id SERIAL PRIMARY KEY, provider TEXT NOT NULL, model TEXT,"
+            "  input_tokens INTEGER DEFAULT 0, output_tokens INTEGER DEFAULT 0,"
+            "  estimated_cost REAL DEFAULT 0, skill_name TEXT, agent_name TEXT,"
+            "  created_at TIMESTAMP DEFAULT NOW())",
+        )
+        cur.execute(
+            "INSERT INTO llm_spend (provider, model, input_tokens, output_tokens, estimated_cost, agent_name)"
+            " VALUES (%s, %s, %s, %s, %s, %s)",
+            (provider, model, input_tokens, output_tokens, cost, agent_name),
+        )
+        conn.commit()
+        cur.close()
+        conn.close()
+        logger.debug(
+            "LLM usage: %s %d in / %d out → $%.6f",
+            provider, input_tokens, output_tokens, cost,
+        )
+    except Exception as e:
+        logger.debug("Could not log LLM usage: %s", e)
 
 # ── Domain system prompts ────────────────────────────────────────────────────
 
@@ -166,6 +218,24 @@ async def specialist_agent(config: SpecialistAgentConfig, builder: Builder):
             messages = result.get("messages", [])
             response = messages[-1].content if messages else "No response generated."
 
+            # Log LLM token usage from all AI messages
+            for msg in messages:
+                if hasattr(msg, "usage_metadata") and msg.usage_metadata:
+                    _log_llm_usage(
+                        model=llm.model_name,
+                        usage=msg.usage_metadata,
+                        agent_name=config.specialty_domain,
+                    )
+                elif hasattr(msg, "response_metadata"):
+                    token_usage = (msg.response_metadata or {}).get("token_usage") or \
+                                  (msg.response_metadata or {}).get("usage", {})
+                    if token_usage:
+                        _log_llm_usage(
+                            model=llm.model_name,
+                            usage=token_usage,
+                            agent_name=config.specialty_domain,
+                        )
+
             if run_id is not None:
                 try:
                     complete_run(run_id, status="completed")
@@ -292,6 +362,24 @@ async def hierarchical_coordinator(config: HierarchicalCoordinatorConfig, builde
             result = await agent.ainvoke({"messages": [HumanMessage(content=input_text)]})
             messages = result.get("messages", [])
             response = messages[-1].content if messages else "No response generated."
+
+            # Log LLM token usage from coordinator's AI messages
+            for msg in messages:
+                if hasattr(msg, "usage_metadata") and msg.usage_metadata:
+                    _log_llm_usage(
+                        model=llm.model_name,
+                        usage=msg.usage_metadata,
+                        agent_name="coordinator",
+                    )
+                elif hasattr(msg, "response_metadata"):
+                    token_usage = (msg.response_metadata or {}).get("token_usage") or \
+                                  (msg.response_metadata or {}).get("usage", {})
+                    if token_usage:
+                        _log_llm_usage(
+                            model=llm.model_name,
+                            usage=token_usage,
+                            agent_name="coordinator",
+                        )
 
             if run_id is not None:
                 try:

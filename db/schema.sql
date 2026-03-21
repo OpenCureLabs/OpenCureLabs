@@ -51,7 +51,21 @@ CREATE TABLE IF NOT EXISTS experiment_results (
   timestamp TIMESTAMP DEFAULT NOW()
 );
 
+CREATE TABLE IF NOT EXISTS llm_spend (
+  id SERIAL PRIMARY KEY,
+  provider TEXT NOT NULL,
+  model TEXT,
+  input_tokens INTEGER DEFAULT 0,
+  output_tokens INTEGER DEFAULT 0,
+  estimated_cost REAL DEFAULT 0,
+  skill_name TEXT,
+  agent_name TEXT,
+  created_at TIMESTAMP DEFAULT NOW()
+);
+
 -- Performance indexes for common query patterns
+CREATE INDEX IF NOT EXISTS idx_llm_spend_provider ON llm_spend(provider);
+CREATE INDEX IF NOT EXISTS idx_llm_spend_created_at ON llm_spend(created_at);
 CREATE INDEX IF NOT EXISTS idx_agent_runs_status ON agent_runs(status);
 CREATE INDEX IF NOT EXISTS idx_agent_runs_started_at ON agent_runs(started_at);
 CREATE INDEX IF NOT EXISTS idx_pipeline_runs_status ON pipeline_runs(status);

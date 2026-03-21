@@ -1114,6 +1114,63 @@ async def api_vast(request: Request):
     return query_vast_instances()
 
 
+@app.get("/api/budget")
+@limiter.limit("30/minute")
+async def api_budget(request: Request):
+    """Aggregated budget view across all AI providers."""
+    result = {"vast": {}, "llm": {}, "total": 0}
+
+    # Vast.ai
+    vast_key = os.environ.get("VAST_AI_KEY", "")
+    if vast_key:
+        try:
+            import requests as _req
+            resp = _req.get(
+                "https://console.vast.ai/api/v0/users/current/",
+                headers={"Authorization": f"Bearer {vast_key}"},
+                timeout=10,
+            )
+            resp.raise_for_status()
+            result["vast"]["balance"] = float(resp.json().get("credit", 0))
+        except Exception:
+            result["vast"]["balance"] = None
+
+    spend_info = query_vast_spend()
+    result["vast"]["spent"] = spend_info["spent"]
+    result["total"] += spend_info["spent"]
+
+    # LLM spend
+    try:
+        conn = get_conn()
+        cur = conn.cursor()
+        if table_exists(cur, "llm_spend"):
+            cur.execute(
+                "SELECT provider, SUM(input_tokens), SUM(output_tokens),"
+                " SUM(estimated_cost), COUNT(*)"
+                " FROM llm_spend GROUP BY provider ORDER BY SUM(estimated_cost) DESC"
+            )
+            providers = []
+            llm_total = 0
+            for provider, in_tok, out_tok, cost, calls in cur.fetchall():
+                providers.append({
+                    "provider": provider,
+                    "input_tokens": int(in_tok or 0),
+                    "output_tokens": int(out_tok or 0),
+                    "cost": round(float(cost or 0), 6),
+                    "calls": int(calls or 0),
+                })
+                llm_total += float(cost or 0)
+            result["llm"] = {"providers": providers, "total": round(llm_total, 6)}
+            result["total"] += llm_total
+        cur.close()
+        put_conn(conn)
+    except Exception:
+        result["llm"] = {"providers": [], "total": 0}
+
+    result["total"] = round(result["total"], 2)
+    return result
+
+
 @app.get("/api/export/findings")
 @limiter.limit("10/minute")
 async def export_findings(
