@@ -17,6 +17,7 @@ import logging
 import os
 from contextlib import asynccontextmanager
 from datetime import datetime
+from pathlib import Path
 
 import psycopg2
 import psycopg2.pool
@@ -1159,9 +1160,14 @@ def main():
     parser = argparse.ArgumentParser(description="OpenCure Labs Dashboard")
     parser.add_argument("--port", type=int, default=8787, help="Port (default: 8787)")
     parser.add_argument("--host", default="0.0.0.0", help="Host (default: 0.0.0.0)")
+    parser.add_argument("--reload", action="store_true", help="Auto-reload on code changes")
     args = parser.parse_args()
     print(f"🧬 OpenCure Labs Dashboard → http://{args.host}:{args.port}")
-    uvicorn.run(app, host=args.host, port=args.port, log_level="warning")
+    if args.reload:
+        uvicorn.run("dashboard:app", host=args.host, port=args.port, log_level="warning",
+                     reload=True, reload_dirs=[str(Path(__file__).parent)])
+    else:
+        uvicorn.run(app, host=args.host, port=args.port, log_level="warning")
 
 
 if __name__ == "__main__":

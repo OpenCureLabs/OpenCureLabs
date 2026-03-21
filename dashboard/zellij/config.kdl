@@ -38,6 +38,7 @@ copy_on_select true
 //  Alt+q      — clean shutdown (auto-commit, push, kill session)
 //  Alt+f      — findings popup
 //  Alt+s      — start research task (interactive menu in floating pane)
+//  Alt+c      — stop running agents without quitting
 //  Alt+w      — close the focused pane
 //  Alt+x      — toggle floating panes (hide/show)
 //  Ctrl+p n   — new pane (if you actually need one)
@@ -65,6 +66,13 @@ keybinds {
         // Alt+f — detailed findings: novel results + critique scores
         bind "Alt f" {
             Run "bash" "-c" "cd /root/opencurelabs && source .venv/bin/activate 2>/dev/null; echo -e '\\033[1;96m── Novel Findings & Critiques ──\\033[0m'; echo; python3 dashboard/findings.py --novel --critiques 2>/dev/null || echo 'No database connection'; echo; echo -e '\\033[2mPress Enter to close\\033[0m'; read" {
+                floating true
+                close_on_exit true
+            }
+        }
+        // Alt+c — stop running agents without quitting
+        bind "Alt c" {
+            Run "bash" "-c" "bash /root/opencurelabs/dashboard/stop_agents.sh" {
                 floating true
                 close_on_exit true
             }
