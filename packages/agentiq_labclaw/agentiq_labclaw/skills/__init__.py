@@ -28,3 +28,12 @@ def __getattr__(name: str):
         mod = _importlib.import_module(_SKILL_MODULES[name])
         return getattr(mod, name)
     raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
+
+
+def register_all():
+    """Eagerly import all skill modules so their @labclaw_skill decorators fire."""
+    for module_path in _SKILL_MODULES.values():
+        try:
+            _importlib.import_module(module_path)
+        except Exception:
+            pass

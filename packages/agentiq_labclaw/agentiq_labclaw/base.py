@@ -94,6 +94,11 @@ _SKILL_REGISTRY: dict[str, type[LabClawSkill]] = {}
 
 def get_skill(name: str) -> type[LabClawSkill]:
     """Get a registered skill by name."""
+    if not _SKILL_REGISTRY:
+        # Skills register via @labclaw_skill when their module is imported.
+        # If the registry is empty, eagerly import all skill modules.
+        from agentiq_labclaw.skills import register_all
+        register_all()
     if name not in _SKILL_REGISTRY:
         raise KeyError(f"Skill '{name}' not found. Available: {list(_SKILL_REGISTRY.keys())}")
     return _SKILL_REGISTRY[name]
