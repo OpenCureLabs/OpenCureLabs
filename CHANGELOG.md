@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - CI pipeline with tests, ruff, and bandit
 - Commitizen conventional commits enforcement
 
+## v0.10.0 (2026-03-21)
+
+### Feat
+
+- **dashboard**: add data mode, agent count, Vast.ai options to research launcher
+
 ## v0.9.0 (2026-03-21)
 
 ### Feat
