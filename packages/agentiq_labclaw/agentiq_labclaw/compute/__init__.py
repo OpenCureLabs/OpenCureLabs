@@ -79,11 +79,17 @@ def build_onstart_script(wheel_url: str | None = None) -> str:
             pip_url = f"git+https://github.com/{repo}.git#subdirectory=packages/agentiq_labclaw"
         install_cmd = f"GIT_CLONE_PROTECTION_ACTIVE=false pip install --no-deps '{pip_url}'"
 
+    # Core deps not present in pytorch/pytorch:latest image
+    core_deps = "pydantic>=2.0 psycopg2-binary>=2.9 requests>=2.28"
+
     return (
         "#!/bin/bash\n"
         "set -e\n"
         "exec > /tmp/labclaw_setup.log 2>&1\n"
         "echo '[labclaw] Starting setup...'\n"
+        f"pip install --quiet {core_deps} && "
+        "echo '[labclaw] deps OK' || "
+        "{ echo '[labclaw] deps FAILED'; exit 1; }\n"
         f"{install_cmd} && "
         "echo '[labclaw] pip install OK' || "
         "{ echo '[labclaw] pip install FAILED'; exit 1; }\n"
