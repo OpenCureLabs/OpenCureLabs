@@ -339,6 +339,32 @@ close_connection()        # closes and clears
 
 ## Compute Layer
 
+### Shared Helpers
+
+**File:** `agentiq_labclaw/compute/__init__.py`
+
+Common utilities used by both the single-instance dispatcher and the batch pool
+manager.
+
+| Function | Parameters | Returns | Description |
+|---|---|---|---|
+| `resolve_wheel_url` | — | `str \| None` | Queries GitHub API for the latest `.whl` release asset. Supports private repos via `GITHUB_TOKEN`. Returns `None` if no wheel found. |
+| `build_onstart_script` | `wheel_url: str \| None` | `str` | Generates the Vast.ai onstart bash script. Uses wheel URL if available, falls back to git clone. |
+| `attach_ssh_key` | `instance_id: int` | `bool` | Reads `~/.ssh/xpclabs.pub` and POSTs it to `/instances/{id}/ssh/`. Required because account-level SSH keys are not automatically authorized on new instances. |
+
+**Environment variables:**
+
+| Variable | Default | Description |
+|---|---|---|
+| `VAST_AI_KEY` | — | Vast.ai API key (required) |
+| `GITHUB_TOKEN` | — | GitHub token for private repo wheel downloads |
+| `GITHUB_REPOSITORY` | `OpenCureLabs/OpenCureLabs` | Repo slug for wheel resolution. Set this if you forked the repo. |
+
+**SSH key requirement:** OpenCure Labs expects an ed25519 key pair at
+`~/.ssh/xpclabs` (private) and `~/.ssh/xpclabs.pub` (public). The public key
+must be registered with your Vast.ai account (`vastai create ssh-key`) before
+provisioning instances.
+
 ### Vast.ai Dispatcher
 
 **File:** `agentiq_labclaw/compute/vast_dispatcher.py`  
@@ -364,8 +390,39 @@ instance = VastInstance(api_key="...", instance_id=12345)
 | Function | Parameters | Returns | Description |
 |---|---|---|---|
 | `_find_cheapest_offer` | `api_key: str`, `gpu_required: bool` | `dict` | Queries `/bundles/` for cheapest available offer |
-| `_create_instance` | `api_key: str`, `offer_id: int`, `image: str = "pytorch/pytorch:latest"` | `int` | Provisions instance via `/asks/{offer_id}/` |
-| `dispatch` | `skill`, `input_data` | output model | Full lifecycle: find → provision → wait → SSH execute → parse → destroy (600s timeout) |
+| `_create_instance` | `api_key: str`, `offer_id: int`, `image: str = "pytorch/pytorch:latest"` | `int` | Provisions instance via `/asks/{offer_id}/`, attaches SSH key automatically |
+| `dispatch` | `skill`, `input_data` | output model | Full lifecycle: find → provision → attach SSH → wait → SSH execute → parse → destroy (600s timeout) |
+
+### Pool Manager (Batch Compute)
+
+**File:** `agentiq_labclaw/compute/pool_manager.py`
+
+Manages a fleet of Vast.ai instances for parallel batch workloads (Genesis
+Mode). Provisions N instances, waits for all to be ready, then dispatches tasks
+across the pool.
+
+#### `PoolManager`
+
+| Method | Parameters | Returns | Description |
+|---|---|---|---|
+| `__init__` | `target_size`, `gpu_required: bool = True`, `max_cost_hr: float = 0.40` | — | Sets fleet parameters |
+| `scale_up` | — | `list[int]` | Resolves wheel URL once, provisions `target_size` instances in parallel, attaches SSH keys |
+| `wait_for_ready` | `min_ready: int = 1`, `timeout: int = 900` | `list[int]` | Polls instances via SSH for `/tmp/labclaw_ready` marker |
+| `get_ready_instances` | — | `list[int]` | Returns instance IDs that passed SSH readiness check |
+| `teardown` | — | `None` | Destroys all provisioned instances |
+
+### Batch Dispatch System
+
+**Files:** `agentiq_labclaw/compute/batch_queue.py`,
+`batch_dispatcher.py`, `worker.py`, `task_generator.py`
+
+End-to-end batch pipeline for Genesis Mode (12+ tasks × 3 domains):
+
+1. **task_generator.py** — Generates domain-specific research tasks
+2. **batch_queue.py** — Thread-safe priority queue with status tracking
+3. **worker.py** — Pulls tasks from queue, dispatches via SSH to pool instances
+4. **batch_dispatcher.py** — Orchestrates: generate tasks → scale pool → dispatch
+   workers → collect results → teardown
 
 ---
 

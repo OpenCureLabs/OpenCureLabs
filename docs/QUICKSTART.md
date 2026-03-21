@@ -272,6 +272,124 @@ by the coordinator (which uses the Gemini API).
 
 ---
 
+## Optional: Vast.ai GPU Burst Compute
+
+If you don't have a local GPU, or need to scale to many parallel jobs (batch
+mode), OpenCure Labs can provision GPU instances on [Vast.ai](https://vast.ai)
+automatically.
+
+### 1. Create a Vast.ai Account
+
+Sign up at [cloud.vast.ai](https://cloud.vast.ai) and add credit ($5–$25
+is enough for testing). Instances cost $0.06–$0.50/hr depending on the GPU.
+
+### 2. Get Your API Key
+
+Go to **Account → API Keys** on the Vast.ai dashboard and copy your key.
+Add it to your `.env` file:
+
+```bash
+VAST_AI_KEY=your_key_here
+```
+
+### 3. Generate an SSH Key
+
+OpenCure Labs uses SSH to connect to Vast.ai instances. Generate a dedicated
+key pair:
+
+```bash
+ssh-keygen -t ed25519 -f ~/.ssh/xpclabs -N "" -C "opencurelabs-agent"
+```
+
+This creates `~/.ssh/xpclabs` (private) and `~/.ssh/xpclabs.pub` (public).
+
+### 4. Register Your SSH Key with Vast.ai
+
+This is a **required step** — without it, instances will provision but OpenCure
+Labs won't be able to SSH in to verify setup or run jobs.
+
+```bash
+# Install the Vast.ai CLI (included in requirements.txt)
+pip install vastai
+
+# Set your API key for the CLI
+vastai set api-key YOUR_KEY_HERE
+
+# Register your SSH public key
+vastai create ssh-key ~/.ssh/xpclabs.pub
+
+# Verify it's registered
+vastai show ssh-keys
+```
+
+You should see your key listed. The SSH key is attached automatically to every
+new instance that OpenCure Labs provisions.
+
+> **Important:** `vastai create ssh-key` registers the key on your *account*.
+> OpenCure Labs also auto-attaches it to each new instance via the API. If you
+> see SSH authentication failures, check that:
+> - `~/.ssh/xpclabs` and `~/.ssh/xpclabs.pub` both exist
+> - `vastai show ssh-keys` lists your key
+> - The key was created *before* provisioning instances
+
+### 5. Create a GitHub Release with the Wheel (Fork-specific)
+
+If you forked the repo, Vast.ai instances install the `agentiq_labclaw` package
+from a pre-built wheel attached to your GitHub Releases — not by cloning the
+entire repo (which is slow).
+
+The CI workflow (`release.yml`) builds and attaches the wheel automatically on
+every release. To bootstrap the first one manually:
+
+```bash
+pip install build
+python -m build packages/agentiq_labclaw/ --outdir dist/
+
+# Create a release on your fork (requires gh CLI)
+gh release create v0.1.0 dist/*.whl --title "v0.1.0" --notes "Initial release"
+```
+
+Set the `GITHUB_REPOSITORY` environment variable if your fork has a different
+name:
+
+```bash
+# In .env
+GITHUB_REPOSITORY=YourOrg/YourFork
+```
+
+For **private forks**, also set `GITHUB_TOKEN` in `.env` so the Vast.ai instance
+can download the wheel via the GitHub API.
+
+### 6. Test It
+
+```bash
+source .venv/bin/activate
+python3 -c "
+from agentiq_labclaw.compute.pool_manager import PoolManager
+pool = PoolManager(target_size=1, gpu_required=True, max_cost_hr=0.35)
+pool.scale_up()
+pool.wait_for_ready(min_ready=1, timeout=300)
+print('Instance ready:', pool.get_ready_instances())
+pool.teardown()
+"
+```
+
+This provisions 1 cheap GPU instance, waits for it to be ready, and tears it
+down. Total cost: a few cents.
+
+### How It Works
+
+1. **Resolve wheel** — Python queries `GET /repos/{owner}/{repo}/releases/latest`
+   to find the `.whl` asset URL (resolved once, shared across all instances)
+2. **Provision** — Creates instances via Vast.ai API with an `onstart` script
+3. **Attach SSH key** — POSTs your public key to each new instance
+4. **Onstart runs** — Downloads and installs the wheel (~seconds, not minutes)
+5. **Ready marker** — `/tmp/labclaw_ready` is created when setup succeeds
+6. **SSH check** — OpenCure Labs polls for the marker via SSH every 10s
+7. **Job dispatch** — Once ready, skills are executed remotely over SSH
+
+---
+
 ## What the Setup Script Does
 
 `scripts/setup.sh` automates the manual steps above:
@@ -315,6 +433,10 @@ session.
 | `.env not found` | `cp .env.example .env && nano .env` |
 | Pre-commit hook blocks commit | Fix findings, or bypass with `git commit --no-verify` |
 | Zellij session exists | `bash dashboard/lab.sh` will reattach automatically |
+| Vast.ai instances timeout (0 ready) | Run `vastai show ssh-keys` — if empty, run `vastai create ssh-key ~/.ssh/xpclabs.pub` |
+| Vast.ai SSH asks for password | Key not attached. Check `~/.ssh/xpclabs.pub` exists and was registered before provisioning |
+| Vast.ai pip install fails | Check `/tmp/labclaw_setup.log` on the instance. Ensure GitHub Release has a `.whl` attached |
+| Vast.ai wheel filename error | Ensure the wheel was built with `python -m build` (produces a valid `name-version-py3-none-any.whl`) |
 
 ---
 
