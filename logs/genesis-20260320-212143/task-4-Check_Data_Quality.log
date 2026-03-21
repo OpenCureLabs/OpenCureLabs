@@ -1,0 +1,41 @@
+2026-03-20 21:21:47 - INFO     - nat.cli.commands.start:192 - Starting NAT from config file: 'coordinator/labclaw_workflow.yaml'
+2026-03-20 21:21:47 - INFO     - labclaw:74 - Registered LabClaw skill: molecular_docking
+2026-03-20 21:21:47 - INFO     - labclaw:74 - Registered LabClaw skill: grok_research
+2026-03-20 21:21:47 - INFO     - labclaw:74 - Registered LabClaw skill: neoantigen_prediction
+2026-03-20 21:21:48 - INFO     - labclaw:74 - Registered LabClaw skill: qsar
+2026-03-20 21:21:48 - INFO     - labclaw:74 - Registered LabClaw skill: register_source
+2026-03-20 21:21:48 - INFO     - labclaw:74 - Registered LabClaw skill: report_generator
+2026-03-20 21:21:48 - INFO     - labclaw:74 - Registered LabClaw skill: sequencing_qc
+2026-03-20 21:21:48 - INFO     - labclaw:74 - Registered LabClaw skill: structure_prediction
+2026-03-20 21:21:48 - INFO     - labclaw:74 - Registered LabClaw skill: variant_pathogenicity
+
+Configuration Summary:
+--------------------
+Workflow Type: hierarchical_coordinator
+Number of Functions: 12
+Number of Function Groups: 0
+Number of LLMs: 1
+Number of Embedders: 0
+Number of Memory: 0
+Number of Object Stores: 0
+Number of Retrievers: 0
+Number of TTC Strategies: 0
+Number of Authentication Providers: 0
+
+2026-03-20 21:21:48 - INFO     - nat.runtime.session:327 - Shared workflow built (entry_function=None)
+2026-03-20 21:21:48 - INFO     - labclaw.db:18 - Connecting to PostgreSQL: postgresql://localhost:5433/opencurelabs
+2026-03-20 21:21:48 - INFO     - labclaw.db.agent_runs:20 - Started agent run 1666 for coordinator
+2026-03-20 21:21:49 - INFO     - httpx:1740 - HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/openai/chat/completions "HTTP/1.1 200 OK"
+2026-03-20 21:21:49 - INFO     - labclaw.db.agent_runs:32 - Completed agent run 1666 with status: completed
+2026-03-20 21:21:49 - INFO     - nat.front_ends.console.console_front_end_plugin:156 - --------------------------------------------------
+[32mWorkflow Result:
+I can help you run sequencing quality control on cancer genomic data. However, I can only delegate tasks to the available specialist agents (cancer_agent, rare_disease_agent, drug_response_agent) and cannot directly manage cloud GPU resources like Vast.ai or initiate parallel agent execution.
+
+Please specify how you would like to proceed. I can:
+
+1.  **Run quality control using `cancer_agent`**: I will pass your request to the `cancer_agent` for processing.
+2.  **Search for relevant public databases**: I can use `grok_research` to search for information on TCGA, ClinVar, and ChEMBL if you'd like to explore those further.
+
+Let me know how you'd like to move forward![39m
+--------------------------------------------------
+[0m[0m

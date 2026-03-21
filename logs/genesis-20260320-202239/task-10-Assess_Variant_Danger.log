@@ -1,0 +1,51 @@
+2026-03-20 20:22:52 - INFO     - nat.cli.commands.start:192 - Starting NAT from config file: 'coordinator/labclaw_workflow.yaml'
+2026-03-20 20:22:52 - INFO     - labclaw:74 - Registered LabClaw skill: molecular_docking
+2026-03-20 20:22:52 - INFO     - labclaw:74 - Registered LabClaw skill: grok_research
+2026-03-20 20:22:52 - INFO     - labclaw:74 - Registered LabClaw skill: neoantigen_prediction
+2026-03-20 20:22:53 - INFO     - labclaw:74 - Registered LabClaw skill: qsar
+2026-03-20 20:22:53 - INFO     - labclaw:74 - Registered LabClaw skill: register_source
+2026-03-20 20:22:53 - INFO     - labclaw:74 - Registered LabClaw skill: report_generator
+2026-03-20 20:22:53 - INFO     - labclaw:74 - Registered LabClaw skill: sequencing_qc
+2026-03-20 20:22:53 - INFO     - labclaw:74 - Registered LabClaw skill: structure_prediction
+2026-03-20 20:22:53 - INFO     - labclaw:74 - Registered LabClaw skill: variant_pathogenicity
+
+Configuration Summary:
+--------------------
+Workflow Type: hierarchical_coordinator
+Number of Functions: 12
+Number of Function Groups: 0
+Number of LLMs: 1
+Number of Embedders: 0
+Number of Memory: 0
+Number of Object Stores: 0
+Number of Retrievers: 0
+Number of TTC Strategies: 0
+Number of Authentication Providers: 0
+
+2026-03-20 20:22:54 - INFO     - nat.runtime.session:327 - Shared workflow built (entry_function=None)
+2026-03-20 20:22:54 - INFO     - labclaw.db:18 - Connecting to PostgreSQL: postgresql://localhost:5433/opencurelabs
+2026-03-20 20:22:54 - INFO     - labclaw.db.agent_runs:20 - Started agent run 483 for coordinator
+2026-03-20 20:22:54 - INFO     - httpx:1740 - HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/openai/chat/completions "HTTP/1.1 200 OK"
+2026-03-20 20:22:54 - INFO     - labclaw.db.agent_runs:20 - Started agent run 489 for variant_analysis
+2026-03-20 20:22:54 - INFO     - labclaw.db.agent_runs:20 - Started agent run 490 for tumor_immunology
+2026-03-20 20:22:54 - INFO     - labclaw.db.agent_runs:20 - Started agent run 491 for drug_response
+2026-03-20 20:22:55 - INFO     - httpx:1740 - HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/openai/chat/completions "HTTP/1.1 200 OK"
+2026-03-20 20:22:55 - INFO     - labclaw.db.agent_runs:32 - Completed agent run 489 with status: completed
+2026-03-20 20:22:55 - INFO     - httpx:1740 - HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/openai/chat/completions "HTTP/1.1 200 OK"
+2026-03-20 20:22:55 - INFO     - labclaw.db.agent_runs:32 - Completed agent run 490 with status: completed
+2026-03-20 20:22:55 - INFO     - httpx:1740 - HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/openai/chat/completions "HTTP/1.1 200 OK"
+2026-03-20 20:22:55 - INFO     - labclaw.db.agent_runs:32 - Completed agent run 491 with status: completed
+2026-03-20 20:22:56 - INFO     - httpx:1740 - HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/openai/chat/completions "HTTP/1.1 200 OK"
+2026-03-20 20:22:56 - INFO     - labclaw.db.agent_runs:32 - Completed agent run 483 with status: completed
+2026-03-20 20:22:56 - INFO     - nat.front_ends.console.console_front_end_plugin:156 - --------------------------------------------------
+[32mWorkflow Result:
+I can help analyze variants for pathogenicity and gene-disease associations. However, I need more specific information regarding the variants you are interested in. Please provide details such as:
+
+*   **Variant information:** This could include gene names, specific mutation details (e.g., rsID, genomic coordinates, or HGVS notation), and the disease or phenotype of interest.
+*   **Data sources:** While you mentioned TCGA, ClinVar, and ChEMBL, please specify if you have a preference or if there are other databases you'd like me to prioritize.
+
+Once I have this information, I can proceed with the analysis, cross-referencing the databases you mentioned, and ranking candidate genes. I will then report the findings, including pathogenicity, gene-disease associations, and confidence levels.
+
+The `rare_disease_agent` and `cancer_agent` are also ready to assist. Please provide the necessary input data in JSON format for them to proceed with the variant pathogenicity analysis.[39m
+--------------------------------------------------
+[0m[0m

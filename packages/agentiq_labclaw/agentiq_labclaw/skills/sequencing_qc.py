@@ -65,23 +65,31 @@ class SequencingQCSkill(LabClawSkill):
 
         REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 
+        # Auto-generate synthetic FASTQ if input files don't exist
+        fastq_paths = list(input_data.fastq_paths)
+        if not all(Path(p).exists() for p in fastq_paths):
+            from agentiq_labclaw.data.fetch import generate_synthetic_fastq
+
+            logger.warning("FASTQ files not found — generating synthetic data for %s", input_data.sample_id)
+            fastq_paths = [str(p) for p in generate_synthetic_fastq(input_data.sample_id)]
+
         # Build fastp command
         json_report = REPORTS_DIR / f"{input_data.sample_id}_fastp.json"
         html_report = REPORTS_DIR / f"{input_data.sample_id}_fastp.html"
 
         cmd = ["fastp", "--json", str(json_report), "--html", str(html_report)]
 
-        if len(input_data.fastq_paths) == 1:
-            cmd += ["--in1", input_data.fastq_paths[0]]
-        elif len(input_data.fastq_paths) >= 2:
-            cmd += ["--in1", input_data.fastq_paths[0], "--in2", input_data.fastq_paths[1]]
+        if len(fastq_paths) == 1:
+            cmd += ["--in1", fastq_paths[0]]
+        elif len(fastq_paths) >= 2:
+            cmd += ["--in1", fastq_paths[0], "--in2", fastq_paths[1]]
         else:
             raise ValueError("At least one FASTQ path is required")
 
         # Discard filtered output (QC-only mode)
         with tempfile.TemporaryDirectory() as tmpdir:
             cmd += ["--out1", f"{tmpdir}/filtered_R1.fq.gz"]
-            if len(input_data.fastq_paths) >= 2:
+            if len(fastq_paths) >= 2:
                 cmd += ["--out2", f"{tmpdir}/filtered_R2.fq.gz"]
 
             result = subprocess.run(  # noqa: S603

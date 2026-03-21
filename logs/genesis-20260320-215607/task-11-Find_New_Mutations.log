@@ -1,0 +1,3 @@
+2026-03-20 21:56:16 - INFO     - nat.cli.commands.start:192 - Starting NAT from config file: 'coordinator/labclaw_workflow.yaml'
+2026-03-20 21:56:16 - INFO     - nat.cli.commands.start:239 - Interrupted by user.
+[0m[0m

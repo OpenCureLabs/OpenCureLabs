@@ -1,0 +1,12 @@
+##fileformat=VCFv4.2
+##source=synthetic_test
+##reference=GRCh38
+##contig=<ID=17,length=83257441>
+##contig=<ID=12,length=133275309>
+##INFO=<ID=DP,Number=1,Type=Integer,Description="Total Depth">
+##INFO=<ID=AF,Number=A,Type=Float,Description="Allele Frequency">
+##FILTER=<ID=PASS,Description="All filters passed">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	TUMOR
+17	7675088	rs28934578	C	T	100	PASS	DP=50;AF=0.3	GT	0/1
+12	25245350	rs121913529	C	A	120	PASS	DP=60;AF=0.4	GT	0/1

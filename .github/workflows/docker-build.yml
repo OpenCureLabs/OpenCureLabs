@@ -1,0 +1,48 @@
+name: Build & Push GPU Image
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "docker/**"
+      - "packages/agentiq_labclaw/**"
+  workflow_dispatch:
+
+env:
+  IMAGE: ghcr.io/opencurelabs/labclaw-gpu
+
+jobs:
+  build-push:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - uses: docker/setup-buildx-action@v3
+
+      - name: Compute tags
+        id: meta
+        run: |
+          SHA="${GITHUB_SHA::8}"
+          echo "sha_tag=${{ env.IMAGE }}:$SHA" >> "$GITHUB_OUTPUT"
+          echo "latest_tag=${{ env.IMAGE }}:latest" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: docker/Dockerfile.gpu
+          push: true
+          tags: |
+            ${{ steps.meta.outputs.latest_tag }}
+            ${{ steps.meta.outputs.sha_tag }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

@@ -1,0 +1,12 @@
+2026-03-20 21:56:15 - INFO     - nat.cli.commands.start:192 - Starting NAT from config file: 'coordinator/labclaw_workflow.yaml'
+2026-03-20 21:56:15 - INFO     - labclaw:84 - Registered LabClaw skill: molecular_docking
+2026-03-20 21:56:15 - INFO     - labclaw:84 - Registered LabClaw skill: grok_research
+2026-03-20 21:56:15 - INFO     - labclaw:84 - Registered LabClaw skill: neoantigen_prediction
+2026-03-20 21:56:16 - INFO     - labclaw:84 - Registered LabClaw skill: qsar
+2026-03-20 21:56:16 - INFO     - labclaw:84 - Registered LabClaw skill: register_source
+2026-03-20 21:56:16 - INFO     - labclaw:84 - Registered LabClaw skill: report_generator
+2026-03-20 21:56:16 - INFO     - labclaw:84 - Registered LabClaw skill: sequencing_qc
+2026-03-20 21:56:16 - INFO     - labclaw:84 - Registered LabClaw skill: structure_prediction
+2026-03-20 21:56:16 - INFO     - labclaw:84 - Registered LabClaw skill: variant_pathogenicity
+2026-03-20 21:56:16 - INFO     - nat.cli.commands.start:239 - Interrupted by user.
+[0m[0m

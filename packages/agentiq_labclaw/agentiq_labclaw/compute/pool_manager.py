@@ -30,6 +30,7 @@ logger = logging.getLogger("labclaw.compute.pool_manager")
 
 VAST_API = "https://console.vast.ai/api/v0"
 SSH_KEY_PATH = os.path.expanduser("~/.ssh/xpclabs")
+DEFAULT_IMAGE = os.environ.get("LABCLAW_DOCKER_IMAGE", "ghcr.io/opencurelabs/labclaw-gpu:latest")
 
 
 # ── Data classes ─────────────────────────────────────────────────────────────
@@ -273,10 +274,12 @@ class PoolManager:
         target_size: int = 10,
         gpu_required: bool = True,
         max_cost_hr: float = 0.50,
+        image: str | None = None,
     ):
         self.target_size = target_size
         self.gpu_required = gpu_required
         self.max_cost_hr = max_cost_hr
+        self.image = image or DEFAULT_IMAGE
         self.instances: dict[int, PoolInstance] = {}
 
         # Reload any existing pool from DB
@@ -367,7 +370,7 @@ class PoolManager:
             futures = {}
             for i in range(needed):
                 offer = offers[i % len(offers)]
-                fut = executor.submit(_provision_one, offer["id"], onstart=onstart)
+                fut = executor.submit(_provision_one, offer["id"], image=self.image, onstart=onstart)
                 futures[fut] = offer
 
             for fut in as_completed(futures):
@@ -502,7 +505,8 @@ class PoolManager:
         - Scale up if pending > 2 × active
         - Scale down if active > pending + 2 (keep a small buffer)
         """
-        avg_cost = sum(i.cost_per_hr for i in self.instances.values() if i.status != "destroyed") / max(self.active_count, 1)
+        active_instances = [i for i in self.instances.values() if i.status != "destroyed"]
+        avg_cost = sum(i.cost_per_hr for i in active_instances) / max(self.active_count, 1)
         budget_allows = int(budget_remaining / max(avg_cost, 0.10))  # how many instances can we afford for 1 hour
 
         ideal = min(pending_jobs, self.target_size, budget_allows)

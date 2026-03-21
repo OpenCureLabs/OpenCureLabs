@@ -332,7 +332,44 @@ new instance that OpenCure Labs provisions.
 > - `vastai show ssh-keys` lists your key
 > - The key was created *before* provisioning instances
 
-### 5. Create a GitHub Release with the Wheel (Fork-specific)
+### 5. Docker Image for Vast.ai Instances
+
+Vast.ai instances use a custom Docker image with all bioinformatics tools
+pre-installed (RDKit, gnina, MHCflurry, fastp, pyensembl data, etc.). This
+eliminates multi-minute setup delays and dependency failures.
+
+**Default image:**
+`ghcr.io/opencurelabs/labclaw-gpu:latest`
+
+The image is built automatically by CI when `docker/**` or
+`packages/agentiq_labclaw/**` change on the `main` branch.
+
+**To use a custom image** (e.g. from your fork):
+
+```bash
+# Build locally
+cd docker/
+bash build-push.sh
+
+# Or just build without pushing
+BUILD_ONLY=1 bash build-push.sh
+```
+
+Set the `LABCLAW_DOCKER_IMAGE` environment variable in `.env` to override:
+
+```bash
+LABCLAW_DOCKER_IMAGE=ghcr.io/yourorg/labclaw-gpu:latest
+```
+
+Or pass `--image` to the batch dispatcher:
+
+```bash
+python -m agentiq_labclaw.compute.batch_dispatcher \
+  --count 20 --pool-size 4 \
+  --image ghcr.io/yourorg/labclaw-gpu:latest
+```
+
+### 6. Create a GitHub Release with the Wheel (Fork-specific)
 
 If you forked the repo, Vast.ai instances install the `agentiq_labclaw` package
 from a pre-built wheel attached to your GitHub Releases — not by cloning the
@@ -381,12 +418,29 @@ down. Total cost: a few cents.
 
 1. **Resolve wheel** — Python queries `GET /repos/{owner}/{repo}/releases/latest`
    to find the `.whl` asset URL (resolved once, shared across all instances)
-2. **Provision** — Creates instances via Vast.ai API with an `onstart` script
+2. **Provision** — Creates instances via Vast.ai API with the custom Docker
+   image (`labclaw-gpu`) and an `onstart` script
 3. **Attach SSH key** — POSTs your public key to each new instance
-4. **Onstart runs** — Downloads and installs the wheel (~seconds, not minutes)
+4. **Onstart runs** — Downloads and installs the wheel (~seconds — all other
+   deps are pre-installed in the Docker image)
 5. **Ready marker** — `/tmp/labclaw_ready` is created when setup succeeds
 6. **SSH check** — OpenCure Labs polls for the marker via SSH every 10s
 7. **Job dispatch** — Once ready, skills are executed remotely over SSH
+
+### Auto-Download Data
+
+Skills automatically download missing input data from public APIs:
+
+| Skill | Data Source | What it Downloads |
+|---|---|---|
+| **Molecular Docking** | RCSB PDB | Receptor PDB file by ID (e.g. `1M17.pdb`) |
+| **QSAR** | ChEMBL REST API | Bioactivity CSV for a target (e.g. `CHEMBL203`) |
+| **Neoantigen** | Bundled VCF | Falls back to synthetic VCF from the wheel |
+| **Sequencing QC** | Generated | Creates synthetic FASTQ pairs on-the-fly |
+| **Structure** | UniProt | Resolves protein sequences by gene name |
+
+Downloaded data is cached in `/tmp/labclaw_data/` and reused across runs.
+No manual data preparation is needed to run Genesis Mode or batch dispatch.
 
 ---
 

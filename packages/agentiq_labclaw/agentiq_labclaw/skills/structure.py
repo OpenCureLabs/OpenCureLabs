@@ -1,6 +1,7 @@
 """Protein structure prediction skill — ESMFold / AlphaFold integration."""
 
 import logging
+import time
 from pathlib import Path
 
 import requests
@@ -13,6 +14,7 @@ logger = logging.getLogger("labclaw.skills.structure")
 REPORTS_DIR = Path("/root/opencurelabs/reports/structures")
 ESMFOLD_API = "https://api.esmatlas.com/foldSequence/v1/pdb/"
 ALPHAFOLD_API = "https://alphafold.ebi.ac.uk/api"
+UNIPROT_API = "https://rest.uniprot.org/uniprotkb/search"
 
 
 class StructureInput(BaseModel):
@@ -52,9 +54,64 @@ class StructurePredictionSkill(LabClawSkill):
 
         REPORTS_DIR.mkdir(parents=True, exist_ok=True)
 
-        if input_data.method == "alphafold":
-            return self._run_alphafold(input_data)
-        return self._run_esmfold(input_data)
+        # Auto-resolve placeholder sequences from UniProt
+        seq = input_data.sequence.strip().upper()
+        if not seq or "PLACEHOLDER" in seq:
+            seq = self._fetch_uniprot_sequence(input_data.protein_id)
+            if not seq:
+                raise ValueError(f"Could not resolve sequence for {input_data.protein_id}")
+
+        # Replace sequence with resolved one
+        resolved = input_data.model_copy(update={"sequence": seq})
+
+        if resolved.method == "alphafold":
+            return self._run_alphafold(resolved)
+        return self._run_esmfold_with_fallback(resolved)
+
+    @staticmethod
+    def _fetch_uniprot_sequence(protein_id: str) -> str | None:
+        """Look up protein sequence from UniProt by gene name or accession."""
+        try:
+            resp = requests.get(
+                UNIPROT_API,
+                params={
+                    "query": f"(gene:{protein_id}) AND (organism_id:9606)",
+                    "format": "json",
+                    "size": "1",
+                    "fields": "sequence",
+                },
+                timeout=30,
+            )
+            resp.raise_for_status()
+            results = resp.json().get("results", [])
+            if results:
+                seq = results[0].get("sequence", {}).get("value")
+                if seq:
+                    logger.info("Resolved %s sequence from UniProt (%d aa)", protein_id, len(seq))
+                    return seq
+        except Exception as exc:
+            logger.warning("UniProt lookup failed for %s: %s", protein_id, exc)
+        return None
+
+    def _run_esmfold_with_fallback(self, input_data: StructureInput) -> StructureOutput:
+        """Try ESMFold with retry, then fall back to AlphaFold DB lookup."""
+        for attempt in range(3):
+            try:
+                return self._run_esmfold(input_data)
+            except requests.HTTPError as exc:
+                if exc.response is not None and exc.response.status_code == 429:
+                    wait = 2 ** attempt * 5
+                    logger.warning("ESMFold rate-limited, retrying in %ds …", wait)
+                    time.sleep(wait)
+                    continue
+                logger.warning("ESMFold HTTP error: %s — falling back to AlphaFold", exc)
+                break
+            except (requests.ConnectionError, requests.Timeout) as exc:
+                logger.warning("ESMFold connection error: %s — falling back to AlphaFold", exc)
+                break
+
+        logger.info("Falling back to AlphaFold DB for %s", input_data.protein_id)
+        return self._run_alphafold(input_data)
 
     def _run_esmfold(self, input_data: StructureInput) -> StructureOutput:
         """Submit sequence to ESMFold API and parse pLDDT from B-factor column."""

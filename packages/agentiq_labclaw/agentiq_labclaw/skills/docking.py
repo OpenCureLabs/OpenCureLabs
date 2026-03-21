@@ -110,6 +110,15 @@ class MolecularDockingSkill(LabClawSkill):
                 f"{'apt install autodock-vina' if binary == 'vina' else 'conda install -c conda-forge gnina'}"
             )
 
+        # Auto-download PDB from RCSB if the file doesn't exist locally
+        receptor_path = input_data.receptor_pdb
+        if not Path(receptor_path).exists():
+            from agentiq_labclaw.data.fetch import fetch_pdb
+
+            pdb_id = Path(receptor_path).stem.upper()
+            receptor_path = str(fetch_pdb(pdb_id))
+            logger.info("Auto-downloaded receptor PDB: %s → %s", pdb_id, receptor_path)
+
         with tempfile.TemporaryDirectory() as tmpdir:
             tmp = Path(tmpdir)
 
@@ -119,7 +128,7 @@ class MolecularDockingSkill(LabClawSkill):
 
             # 2. Prepare receptor
             receptor_pdbqt = str(tmp / "receptor.pdbqt")
-            _pdb_to_pdbqt(input_data.receptor_pdb, receptor_pdbqt)
+            _pdb_to_pdbqt(receptor_path, receptor_pdbqt)
 
             # 3-4. Run docking
             out_pdbqt = str(tmp / "out.pdbqt")

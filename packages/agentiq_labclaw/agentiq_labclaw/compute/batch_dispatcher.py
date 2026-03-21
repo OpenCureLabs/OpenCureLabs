@@ -34,6 +34,7 @@ def run_batch(
     domain: str | None = None,
     config_path: str | None = None,
     seed: int | None = None,
+    image: str | None = None,
     progress_callback=None,
 ) -> dict:
     """Run a full batch dispatch cycle.
@@ -54,6 +55,7 @@ def run_batch(
         domain:            Optional domain filter ("cancer", "drug_discovery", "rare_disease").
         config_path:       Path to research_tasks.yaml for custom task config.
         seed:              Random seed for task generation reproducibility.
+        image:             Docker image for Vast.ai instances (default: labclaw-gpu).
         progress_callback: Optional callable(status_dict) called every 10s for live updates.
 
     Returns:
@@ -87,6 +89,7 @@ def run_batch(
         target_size=pool_size,
         gpu_required=True,
         max_cost_hr=max_cost_hr,
+        image=image,
     )
 
     try:
@@ -272,6 +275,7 @@ def main():
     parser.add_argument("--max-cost", type=float, default=0.50, help="Max $/hr per instance (default: 0.50)")
     parser.add_argument("--domain", choices=["cancer", "drug_discovery", "rare_disease"])
     parser.add_argument("--config", help="Path to research_tasks.yaml")
+    parser.add_argument("--image", help="Docker image for Vast.ai instances (default: labclaw-gpu)")
     parser.add_argument("--seed", type=int, help="Random seed for task generation")
     parser.add_argument("--dry-run", action="store_true", help="Generate tasks only, don't dispatch")
     args = parser.parse_args()
@@ -314,6 +318,7 @@ def main():
         domain=args.domain,
         config_path=args.config,
         seed=args.seed,
+        image=args.image,
     )
 
     # Print final summary

@@ -39,6 +39,9 @@ labclaw_skills = "agentiq_labclaw.nat_plugin"
 [tool.setuptools.packages.find]
 include = ["agentiq_labclaw*"]
 
+[tool.setuptools.package-data]
+agentiq_labclaw = ["bundled_data/*.vcf"]
+
 [tool.ruff]
 target-version = "py311"
 line-length = 120

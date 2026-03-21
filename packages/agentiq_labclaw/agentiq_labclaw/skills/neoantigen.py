@@ -407,7 +407,13 @@ class NeoantigenSkill(LabClawSkill):
         # 1. Parse VCF
         vcf_path = input_data.vcf_path
         if not Path(vcf_path).exists():
-            raise FileNotFoundError(f"VCF file not found: {vcf_path}")
+            from agentiq_labclaw.data.fetch import fetch_vcf_synthetic
+
+            logger.warning("VCF not found: %s — falling back to synthetic VCF", vcf_path)
+            vcf_path = str(fetch_vcf_synthetic(
+                gene=input_data.sample_id.split("_")[0],
+                tumor=input_data.tumor_type,
+            ))
 
         variants = _parse_vcf_variants(vcf_path)
         if not variants:

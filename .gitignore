@@ -18,3 +18,4 @@ security/security_scan.py.bak
 deploy/
 docs/DEPLOYMENT.md
 .wiki/
+build/

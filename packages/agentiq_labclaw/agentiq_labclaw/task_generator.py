@@ -18,7 +18,7 @@ from __future__ import annotations
 import itertools
 import logging
 import random
-from dataclasses import dataclass, field, asdict
+from dataclasses import asdict, dataclass
 from pathlib import Path
 from typing import Any
 
@@ -149,7 +149,6 @@ def _neoantigen_tasks(count: int) -> list[BatchTask]:
 
 def _structure_tasks(count: int, domain: str = "cancer") -> list[BatchTask]:
     """Generate structure prediction tasks for cancer or drug target proteins."""
-    # Use placeholder sequences (real runs will fetch from UniProt)
     sources = CANCER_GENES if domain == "cancer" else DRUG_TARGETS
     tasks = []
     for i, src in enumerate(itertools.cycle(sources)):
@@ -165,7 +164,7 @@ def _structure_tasks(count: int, domain: str = "cancer") -> list[BatchTask]:
             skill_name="structure_prediction",
             input_data={
                 "protein_id": pid,
-                "sequence": "PLACEHOLDER_FETCH_FROM_UNIPROT",
+                "sequence": "AUTO_RESOLVE",
                 "method": "esmfold",
             },
             domain=domain,
@@ -186,7 +185,7 @@ def _qsar_tasks(count: int) -> list[BatchTask]:
         tasks.append(BatchTask(
             skill_name="qsar",
             input_data={
-                "dataset_path": f"data/chembl/{ds['name']}.csv",
+                "dataset_path": f"data/chembl/{ds['target']}.csv",
                 "target_column": ds["target_col"],
                 "smiles_column": "smiles",
                 "model_type": model,

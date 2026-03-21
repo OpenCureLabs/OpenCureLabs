@@ -1,0 +1,41 @@
+2026-03-20 21:23:37 - INFO     - nat.cli.commands.start:192 - Starting NAT from config file: 'coordinator/labclaw_workflow.yaml'
+2026-03-20 21:23:37 - INFO     - labclaw:74 - Registered LabClaw skill: molecular_docking
+2026-03-20 21:23:37 - INFO     - labclaw:74 - Registered LabClaw skill: grok_research
+2026-03-20 21:23:37 - INFO     - labclaw:74 - Registered LabClaw skill: neoantigen_prediction
+2026-03-20 21:23:39 - INFO     - labclaw:74 - Registered LabClaw skill: qsar
+2026-03-20 21:23:39 - INFO     - labclaw:74 - Registered LabClaw skill: register_source
+2026-03-20 21:23:39 - INFO     - labclaw:74 - Registered LabClaw skill: report_generator
+2026-03-20 21:23:39 - INFO     - labclaw:74 - Registered LabClaw skill: sequencing_qc
+2026-03-20 21:23:39 - INFO     - labclaw:74 - Registered LabClaw skill: structure_prediction
+2026-03-20 21:23:39 - INFO     - labclaw:74 - Registered LabClaw skill: variant_pathogenicity
+
+Configuration Summary:
+--------------------
+Workflow Type: hierarchical_coordinator
+Number of Functions: 12
+Number of Function Groups: 0
+Number of LLMs: 1
+Number of Embedders: 0
+Number of Memory: 0
+Number of Object Stores: 0
+Number of Retrievers: 0
+Number of TTC Strategies: 0
+Number of Authentication Providers: 0
+
+2026-03-20 21:23:39 - INFO     - nat.runtime.session:327 - Shared workflow built (entry_function=None)
+2026-03-20 21:23:39 - INFO     - labclaw.db:18 - Connecting to PostgreSQL: postgresql://localhost:5433/opencurelabs
+2026-03-20 21:23:39 - INFO     - labclaw.db.agent_runs:20 - Started agent run 1844 for coordinator
+2026-03-20 21:23:40 - INFO     - httpx:1740 - HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/openai/chat/completions "HTTP/1.1 200 OK"
+2026-03-20 21:23:40 - INFO     - labclaw.db.agent_runs:32 - Completed agent run 1844 with status: completed
+2026-03-20 21:23:40 - INFO     - nat.front_ends.console.console_front_end_plugin:156 - --------------------------------------------------
+[32mWorkflow Result:
+I can help you with virtual screening via molecular docking. However, I do not have the capability to directly deploy agents to Vast.ai cloud GPU or manage parallel agent execution. My current tools allow me to delegate specific research tasks to specialized agents.
+
+To proceed with your request, please clarify how you'd like to utilize the available agents:
+
+1.  **Specify the research domain for each of the 3 parallel agents.** For example, would you like one agent to focus on receptor structure preparation, another on ligand conformer generation, and a third on docking and ranking?
+2.  **Indicate which agent should handle data sourcing from TCGA, ClinVar, and ChEMBL.**
+
+Once these details are clarified, I can initiate the tasks with the appropriate agents.[39m
+--------------------------------------------------
+[0m[0m

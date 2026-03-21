@@ -79,7 +79,8 @@ def build_onstart_script(wheel_url: str | None = None) -> str:
             pip_url = f"git+https://github.com/{repo}.git#subdirectory=packages/agentiq_labclaw"
         install_cmd = f"GIT_CLONE_PROTECTION_ACTIVE=false pip install --no-deps '{pip_url}'"
 
-    # Core deps not present in pytorch/pytorch:latest image
+    # Core deps — only needed when running on base pytorch image (not labclaw-gpu)
+    # The custom Docker image already has these pre-installed.
     core_deps = "pydantic>=2.0 psycopg2-binary>=2.9 requests>=2.28"
 
     return (
@@ -87,8 +88,10 @@ def build_onstart_script(wheel_url: str | None = None) -> str:
         "set -e\n"
         "exec > /tmp/labclaw_setup.log 2>&1\n"
         "echo '[labclaw] Starting setup...'\n"
-        f"pip install --quiet {core_deps} && "
-        "echo '[labclaw] deps OK' || "
+        "# Install core deps only if not already present (custom image skips this)\n"
+        "python -c 'import pydantic; import psycopg2; import requests' 2>/dev/null || "
+        f"{{ pip install --quiet {core_deps} && "
+        "echo '[labclaw] deps OK'; } || "
         "{ echo '[labclaw] deps FAILED'; exit 1; }\n"
         f"{install_cmd} && "
         "echo '[labclaw] pip install OK' || "

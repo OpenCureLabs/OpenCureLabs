@@ -85,7 +85,21 @@ class QSARSkill(LabClawSkill):
         return self._train(input_data)
 
     def _train(self, input_data: QSARInput) -> QSAROutput:
-        df = pd.read_csv(input_data.dataset_path)
+        dataset_path = input_data.dataset_path
+
+        # Auto-download from ChEMBL if local CSV doesn't exist
+        if not Path(dataset_path).exists():
+            from agentiq_labclaw.data.fetch import fetch_chembl_csv
+
+            # Extract ChEMBL target ID from filename convention: data/chembl/EGFR_IC50.csv
+            stem = Path(dataset_path).stem  # e.g. "EGFR_IC50"
+            logger.warning("Dataset not found: %s — fetching from ChEMBL", dataset_path)
+            dataset_path = str(fetch_chembl_csv(
+                target_chembl_id=stem,
+                target_col=input_data.target_column,
+            ))
+
+        df = pd.read_csv(dataset_path)
 
         # Compute descriptors
         desc_names = [name for name, _ in _DESCRIPTOR_FNS]

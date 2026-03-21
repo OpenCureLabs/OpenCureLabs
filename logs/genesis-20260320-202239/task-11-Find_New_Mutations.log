@@ -1,0 +1,52 @@
+2026-03-20 20:22:52 - INFO     - nat.cli.commands.start:192 - Starting NAT from config file: 'coordinator/labclaw_workflow.yaml'
+2026-03-20 20:22:52 - INFO     - labclaw:74 - Registered LabClaw skill: molecular_docking
+2026-03-20 20:22:52 - INFO     - labclaw:74 - Registered LabClaw skill: grok_research
+2026-03-20 20:22:52 - INFO     - labclaw:74 - Registered LabClaw skill: neoantigen_prediction
+2026-03-20 20:22:53 - INFO     - labclaw:74 - Registered LabClaw skill: qsar
+2026-03-20 20:22:53 - INFO     - labclaw:74 - Registered LabClaw skill: register_source
+2026-03-20 20:22:53 - INFO     - labclaw:74 - Registered LabClaw skill: report_generator
+2026-03-20 20:22:53 - INFO     - labclaw:74 - Registered LabClaw skill: sequencing_qc
+2026-03-20 20:22:53 - INFO     - labclaw:74 - Registered LabClaw skill: structure_prediction
+2026-03-20 20:22:53 - INFO     - labclaw:74 - Registered LabClaw skill: variant_pathogenicity
+
+Configuration Summary:
+--------------------
+Workflow Type: hierarchical_coordinator
+Number of Functions: 12
+Number of Function Groups: 0
+Number of LLMs: 1
+Number of Embedders: 0
+Number of Memory: 0
+Number of Object Stores: 0
+Number of Retrievers: 0
+Number of TTC Strategies: 0
+Number of Authentication Providers: 0
+
+2026-03-20 20:22:54 - INFO     - nat.runtime.session:327 - Shared workflow built (entry_function=None)
+2026-03-20 20:22:54 - INFO     - labclaw.db:18 - Connecting to PostgreSQL: postgresql://localhost:5433/opencurelabs
+2026-03-20 20:22:54 - INFO     - labclaw.db.agent_runs:20 - Started agent run 484 for coordinator
+2026-03-20 20:22:55 - INFO     - httpx:1740 - HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/openai/chat/completions "HTTP/1.1 200 OK"
+2026-03-20 20:22:55 - INFO     - labclaw.db.agent_runs:20 - Started agent run 492 for variant_analysis
+2026-03-20 20:22:55 - INFO     - labclaw.db.agent_runs:20 - Started agent run 493 for tumor_immunology
+2026-03-20 20:22:55 - INFO     - labclaw.db.agent_runs:20 - Started agent run 494 for drug_response
+2026-03-20 20:22:55 - INFO     - httpx:1740 - HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/openai/chat/completions "HTTP/1.1 200 OK"
+2026-03-20 20:22:55 - INFO     - labclaw.db.agent_runs:32 - Completed agent run 494 with status: completed
+2026-03-20 20:22:55 - INFO     - httpx:1740 - HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/openai/chat/completions "HTTP/1.1 200 OK"
+2026-03-20 20:22:55 - INFO     - labclaw.db.agent_runs:32 - Completed agent run 492 with status: completed
+2026-03-20 20:22:56 - INFO     - httpx:1740 - HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/openai/chat/completions "HTTP/1.1 200 OK"
+2026-03-20 20:22:56 - INFO     - labclaw.db.agent_runs:32 - Completed agent run 493 with status: completed
+2026-03-20 20:22:57 - INFO     - httpx:1740 - HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/openai/chat/completions "HTTP/1.1 200 OK"
+2026-03-20 20:22:57 - INFO     - labclaw.db.agent_runs:32 - Completed agent run 484 with status: completed
+2026-03-20 20:22:57 - INFO     - nat.front_ends.console.console_front_end_plugin:156 - --------------------------------------------------
+[32mWorkflow Result:
+The agents can help identify and score de novo variants in trios, but they have some limitations regarding parallel processing and GPU usage.
+
+The `rare_disease_agent` can perform pathogenicity scoring if you provide the variant data in a suitable format, but it cannot run trio variant calling, inheritance filtering, or deploy parallel agents.
+
+The `cancer_agent` can assist with the analysis but requires more specific information on input data format, trio relationships, variant calling parameters, and pathogenicity scoring methods.
+
+The `drug_response_agent` can handle trio variant calling, inheritance filtering, and pathogenicity scoring using public databases, but it also cannot deploy parallel agents or use Vast.ai cloud GPUs.
+
+Please clarify how you would like to proceed, considering these limitations.[39m
+--------------------------------------------------
+[0m[0m
