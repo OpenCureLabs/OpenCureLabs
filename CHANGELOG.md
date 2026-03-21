@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - CI pipeline with tests, ruff, and bandit
 - Commitizen conventional commits enforcement
 
+## v0.19.0 (2026-03-21)
+
+### Feat
+
+- Budget tab — live AI spend tracking across all providers
+
 ## v0.18.0 (2026-03-21)
 
 ### Feat
