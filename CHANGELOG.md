@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - CI pipeline with tests, ruff, and bandit
 - Commitizen conventional commits enforcement
 
+## v0.21.1 (2026-03-21)
+
+### Fix
+
+- fully lazy imports in qsar.py, UniProt reviewed filter, AlphaFold loop break
+
 ## v0.21.0 (2026-03-21)
 
 ### Feat
