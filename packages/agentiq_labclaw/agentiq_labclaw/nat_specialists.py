@@ -13,6 +13,7 @@ Architecture:
     └── Utility tools       → register_source, report_generator (coordinator-level)
 """
 
+import json
 import logging
 
 from langchain_core.messages import HumanMessage, SystemMessage
@@ -74,6 +75,42 @@ class SpecialistAgentConfig(AgentBaseConfig, name="specialist_agent"):
     )
 
 
+def _make_schema_tool_fn(nat_fn):
+    """Factory to create a tool function that accepts schema kwargs and serializes to JSON."""
+
+    async def _tool_fn(**kwargs) -> str:
+        return await nat_fn.ainvoke(json.dumps(kwargs, default=str))
+
+    return _tool_fn
+
+
+def _get_skill_schema(tool_name: str):
+    """Try to get a skill's input schema and description from the registry."""
+    # Ensure all skill modules are imported so the registry is populated
+    try:
+        from agentiq_labclaw.skills import (  # noqa: F401
+            docking,
+            grok_research,
+            neoantigen,
+            qsar,
+            register_source,
+            report_generator,
+            sequencing_qc,
+            structure,
+            variant_pathogenicity,
+        )
+    except ImportError:
+        pass
+
+    try:
+        from agentiq_labclaw.base import get_skill
+
+        skill_cls = get_skill(tool_name)
+        return skill_cls.input_schema, skill_cls.description
+    except (KeyError, ImportError):
+        return None, None
+
+
 @register_function(config_type=SpecialistAgentConfig)
 async def specialist_agent(config: SpecialistAgentConfig, builder: Builder):
     """Build a domain-specific ReAct agent scoped to a skill subset."""
@@ -92,14 +129,25 @@ async def specialist_agent(config: SpecialistAgentConfig, builder: Builder):
         tool_name = config.tool_names[i]
         nat_fn = fn
 
-        async def _tool_fn(input_json: str, _fn=nat_fn) -> str:
-            return await _fn.ainvoke(input_json)
+        # Try to get the Pydantic input schema so the LLM sees exact field names/types
+        skill_schema, skill_desc = _get_skill_schema(tool_name)
 
-        tool = StructuredTool.from_function(
-            coroutine=_tool_fn,
-            name=tool_name,
-            description=f"{config.specialty_domain} skill: {tool_name}",
-        )
+        if skill_schema is not None:
+            tool = StructuredTool.from_function(
+                coroutine=_make_schema_tool_fn(nat_fn),
+                name=tool_name,
+                description=skill_desc or f"{config.specialty_domain} skill: {tool_name}",
+                args_schema=skill_schema,
+            )
+        else:
+            async def _tool_fn(input_json: str, _fn=nat_fn) -> str:
+                return await _fn.ainvoke(input_json)
+
+            tool = StructuredTool.from_function(
+                coroutine=_tool_fn,
+                name=tool_name,
+                description=f"{config.specialty_domain} skill: {tool_name}",
+            )
         tools.append(tool)
 
     system_msg = config.system_prompt or f"You are the {config.specialty_domain} specialist agent."
@@ -192,16 +240,38 @@ async def hierarchical_coordinator(config: HierarchicalCoordinatorConfig, builde
     for i, fn in enumerate(nat_functions):
         tool_name = all_tool_names[i]
         nat_fn = fn
+        is_specialist = tool_name in config.specialist_names
 
-        async def _tool_fn(input_text: str, _fn=nat_fn) -> str:
-            return await _fn.ainvoke(input_text)
+        if is_specialist:
+            # Specialist agents take free-text task descriptions
+            async def _tool_fn(input_text: str, _fn=nat_fn) -> str:
+                return await _fn.ainvoke(input_text)
 
-        tool = StructuredTool.from_function(
-            coroutine=_tool_fn,
-            name=tool_name,
-            description=f"Delegate to {tool_name}" if tool_name in config.specialist_names
-            else f"Utility: {tool_name}",
-        )
+            tool = StructuredTool.from_function(
+                coroutine=_tool_fn,
+                name=tool_name,
+                description=f"Delegate to {tool_name}",
+            )
+        else:
+            # Utility tools — try to get skill schema for structured args
+            skill_schema, skill_desc = _get_skill_schema(tool_name)
+
+            if skill_schema is not None:
+                tool = StructuredTool.from_function(
+                    coroutine=_make_schema_tool_fn(nat_fn),
+                    name=tool_name,
+                    description=skill_desc or f"Utility: {tool_name}",
+                    args_schema=skill_schema,
+                )
+            else:
+                async def _tool_fn(input_text: str, _fn=nat_fn) -> str:
+                    return await _fn.ainvoke(input_text)
+
+                tool = StructuredTool.from_function(
+                    coroutine=_tool_fn,
+                    name=tool_name,
+                    description=f"Utility: {tool_name}",
+                )
         tools.append(tool)
 
     agent = create_react_agent(

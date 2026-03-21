@@ -54,21 +54,62 @@ async def labclaw_skill_function(config: LabClawSkillConfig, builder: Builder):
         data = json.loads(input_json)
         schema_fields = set(skill_instance.input_schema.model_fields.keys())
         normalized = {}
+
+        # Common LLM field name aliases → canonical schema field names
+        _FIELD_ALIASES = {
+            "hla": "hla_alleles",
+            "hla_type": "hla_alleles",
+            "hla_types": "hla_alleles",
+            "alleles": "hla_alleles",
+            "tumor": "tumor_type",
+            "cancer_type": "tumor_type",
+            "sample": "sample_id",
+            "patient_id": "sample_id",
+            "patient": "sample_id",
+            "vcf": "vcf_path",
+            "vcf_file": "vcf_path",
+            "protein_sequence": "sequence",
+            "seq": "sequence",
+            "fasta": "sequence",
+            "ligand": "ligand_smiles",
+            "smiles": "ligand_smiles",
+            "receptor": "receptor_pdb",
+            "pdb": "receptor_pdb",
+            "pdb_path": "receptor_pdb",
+            "dataset": "dataset_path",
+            "data_path": "dataset_path",
+            "target": "target_column",
+            "variant": "variant_id",
+            "gene_name": "gene",
+            "gene_symbol": "gene",
+            "fastq": "fastq_paths",
+            "fastq_files": "fastq_paths",
+            "reference": "reference_genome",
+            "genome": "reference_genome",
+        }
+
         for key, val in data.items():
             if key in schema_fields:
                 normalized[key] = val
             else:
-                # Try common LLM naming variations: vcf_file→vcf_path, patient_id→sample_id
-                for field_name in schema_fields:
-                    if field_name not in normalized and (
-                        key.replace("file", "path") == field_name
-                        or key.replace("patient", "sample") == field_name
-                        or key.replace("_", "") == field_name.replace("_", "")
-                    ):
-                        normalized[field_name] = val
-                        break
+                # Check explicit alias map first
+                alias = _FIELD_ALIASES.get(key)
+                if alias and alias in schema_fields and alias not in normalized:
+                    normalized[alias] = val
                 else:
-                    normalized[key] = val  # pass through unknown fields for Pydantic to validate
+                    # Fuzzy fallback: underscore-insensitive, file→path, patient→sample
+                    matched = False
+                    for field_name in schema_fields:
+                        if field_name not in normalized and (
+                            key.replace("file", "path") == field_name
+                            or key.replace("patient", "sample") == field_name
+                            or key.replace("_", "") == field_name.replace("_", "")
+                        ):
+                            normalized[field_name] = val
+                            matched = True
+                            break
+                    if not matched:
+                        normalized[key] = val  # pass through for Pydantic to validate
 
         input_data = skill_instance.input_schema.model_validate(normalized)
         result = skill_instance.execute(input_data)

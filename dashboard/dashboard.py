@@ -351,7 +351,22 @@ def query_vast_instances():
             "cost_per_hour": round(total_cost, 3),
         }
     except Exception:
-        return {"count": 0, "instances": [], "cost_per_hour": 0}
+        return {"count": 0, "instances": [], "cost_per_hour": 0, "spent": 0, "budget": 0}
+
+
+def query_vast_spend():
+    """Get total Vast.ai spend and budget from DB."""
+    budget = float(os.environ.get("VAST_AI_BUDGET", "0"))
+    try:
+        conn = get_conn()
+        cur = conn.cursor()
+        cur.execute("SELECT COALESCE(SUM(total_cost), 0) FROM vast_spend")
+        spent = float(cur.fetchone()[0])
+        cur.close()
+        put_conn(conn)
+        return {"spent": round(spent, 2), "budget": budget, "remaining": round(max(0, budget - spent), 2) if budget else None}
+    except Exception:
+        return {"spent": 0, "budget": budget, "remaining": None}
 
 
 def render_dashboard(stats, runs, findings, critiques, sources, activity=None, vast_info=None):

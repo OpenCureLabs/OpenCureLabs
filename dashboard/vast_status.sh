@@ -19,6 +19,18 @@ if [[ -z "$VAST_KEY" ]]; then
     exit 0
 fi
 
+# Query spend from DB
+VAST_BUDGET="${VAST_AI_BUDGET:-0}"
+VAST_SPENT=$(psql -p 5433 -d opencurelabs -t -A -c \
+    "SELECT COALESCE(SUM(total_cost), 0) FROM vast_spend" 2>/dev/null || echo "0")
+
+if [[ "$VAST_BUDGET" != "0" ]] && [[ -n "$VAST_BUDGET" ]]; then
+    VAST_REMAINING=$(python3 -c "print(f'{max(0, $VAST_BUDGET - $VAST_SPENT):.2f}')" 2>/dev/null || echo "?")
+    echo "  💰 Budget: \$$VAST_REMAINING / \$$VAST_BUDGET (spent: \$$VAST_SPENT)"
+elif [[ "$VAST_SPENT" != "0" ]]; then
+    echo "  💰 Spent: \$$VAST_SPENT (no budget cap)"
+fi
+
 # Query active instances
 RESPONSE=$(curl -sf -H "Authorization: Bearer $VAST_KEY" \
     "https://console.vast.ai/api/v0/instances/" 2>/dev/null) || {
