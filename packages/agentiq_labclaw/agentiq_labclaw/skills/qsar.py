@@ -7,8 +7,6 @@ import joblib
 import numpy as np
 import pandas as pd
 from pydantic import BaseModel
-from rdkit import Chem
-from rdkit.Chem import Descriptors
 from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor
 from sklearn.model_selection import cross_val_score
 
@@ -18,27 +16,27 @@ logger = logging.getLogger("labclaw.skills.qsar")
 
 MODELS_DIR = Path("/root/opencurelabs/reports/qsar_models")
 
-# RDKit descriptor set — a curated subset of ~10 commonly-used descriptors
-_DESCRIPTOR_FNS = [
-    ("MolWt", Descriptors.MolWt),
-    ("LogP", Descriptors.MolLogP),
-    ("TPSA", Descriptors.TPSA),
-    ("NumHDonors", Descriptors.NumHDonors),
-    ("NumHAcceptors", Descriptors.NumHAcceptors),
-    ("NumRotatableBonds", Descriptors.NumRotatableBonds),
-    ("RingCount", Descriptors.RingCount),
-    ("FractionCSP3", Descriptors.FractionCSP3),
-    ("HeavyAtomCount", Descriptors.HeavyAtomCount),
-    ("NumAromaticRings", Descriptors.NumAromaticRings),
+# Descriptor names — functions resolved lazily so module loads without rdkit
+_DESCRIPTOR_NAMES = [
+    "MolWt", "MolLogP", "TPSA", "NumHDonors", "NumHAcceptors",
+    "NumRotatableBonds", "RingCount", "FractionCSP3",
+    "HeavyAtomCount", "NumAromaticRings",
 ]
+
+
+def _get_descriptor_fns():
+    """Lazily resolve RDKit descriptor functions."""
+    from rdkit.Chem import Descriptors
+    return [(name, getattr(Descriptors, name)) for name in _DESCRIPTOR_NAMES]
 
 
 def _compute_descriptors(smiles: str) -> list[float] | None:
     """Compute RDKit molecular descriptors for a SMILES string."""
+    from rdkit import Chem
     mol = Chem.MolFromSmiles(smiles)
     if mol is None:
         return None
-    return [fn(mol) for _, fn in _DESCRIPTOR_FNS]
+    return [fn(mol) for _, fn in _get_descriptor_fns()]
 
 
 class QSARInput(BaseModel):

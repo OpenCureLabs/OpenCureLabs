@@ -90,7 +90,7 @@ class Worker:
                     self.instance_id, job_id, label,
                 )
             except Exception as e:
-                error_msg = str(e)[:500]
+                error_msg = str(e)[:2000]
                 queue.fail_job(job_id, error_msg)
                 self.jobs_failed += 1
                 logger.error(

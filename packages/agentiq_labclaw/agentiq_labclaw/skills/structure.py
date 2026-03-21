@@ -56,8 +56,9 @@ class StructurePredictionSkill(LabClawSkill):
 
         # Auto-resolve placeholder sequences from UniProt
         seq = input_data.sequence.strip().upper()
-        if not seq or "PLACEHOLDER" in seq:
-            seq = self._fetch_uniprot_sequence(input_data.protein_id)
+        accession = None
+        if not seq or "PLACEHOLDER" in seq or seq == "AUTO_RESOLVE":
+            seq, accession = self._fetch_uniprot_sequence(input_data.protein_id)
             if not seq:
                 raise ValueError(f"Could not resolve sequence for {input_data.protein_id}")
 
@@ -65,12 +66,12 @@ class StructurePredictionSkill(LabClawSkill):
         resolved = input_data.model_copy(update={"sequence": seq})
 
         if resolved.method == "alphafold":
-            return self._run_alphafold(resolved)
-        return self._run_esmfold_with_fallback(resolved)
+            return self._run_alphafold(resolved, accession=accession)
+        return self._run_esmfold_with_fallback(resolved, accession=accession)
 
     @staticmethod
-    def _fetch_uniprot_sequence(protein_id: str) -> str | None:
-        """Look up protein sequence from UniProt by gene name or accession."""
+    def _fetch_uniprot_sequence(protein_id: str) -> tuple[str | None, str | None]:
+        """Look up protein sequence and accession from UniProt by gene name."""
         try:
             resp = requests.get(
                 UNIPROT_API,
@@ -78,22 +79,29 @@ class StructurePredictionSkill(LabClawSkill):
                     "query": f"(gene:{protein_id}) AND (organism_id:9606)",
                     "format": "json",
                     "size": "1",
-                    "fields": "sequence",
+                    "fields": "accession,sequence",
                 },
                 timeout=30,
             )
             resp.raise_for_status()
             results = resp.json().get("results", [])
             if results:
-                seq = results[0].get("sequence", {}).get("value")
+                entry = results[0]
+                seq = entry.get("sequence", {}).get("value")
+                accession = entry.get("primaryAccession")
                 if seq:
-                    logger.info("Resolved %s sequence from UniProt (%d aa)", protein_id, len(seq))
-                    return seq
+                    logger.info(
+                        "Resolved %s → %s (%d aa)",
+                        protein_id, accession, len(seq),
+                    )
+                    return seq, accession
         except Exception as exc:
             logger.warning("UniProt lookup failed for %s: %s", protein_id, exc)
-        return None
+        return None, None
 
-    def _run_esmfold_with_fallback(self, input_data: StructureInput) -> StructureOutput:
+    def _run_esmfold_with_fallback(
+        self, input_data: StructureInput, *, accession: str | None = None,
+    ) -> StructureOutput:
         """Try ESMFold with retry, then fall back to AlphaFold DB lookup."""
         for attempt in range(3):
             try:
@@ -111,7 +119,7 @@ class StructurePredictionSkill(LabClawSkill):
                 break
 
         logger.info("Falling back to AlphaFold DB for %s", input_data.protein_id)
-        return self._run_alphafold(input_data)
+        return self._run_alphafold(input_data, accession=accession)
 
     def _run_esmfold(self, input_data: StructureInput) -> StructureOutput:
         """Submit sequence to ESMFold API and parse pLDDT from B-factor column."""
@@ -156,9 +164,16 @@ class StructurePredictionSkill(LabClawSkill):
             critique_required=True,
         )
 
-    def _run_alphafold(self, input_data: StructureInput) -> StructureOutput:
+    def _run_alphafold(
+        self, input_data: StructureInput, *, accession: str | None = None,
+    ) -> StructureOutput:
         """Look up pre-computed AlphaFold structure by UniProt accession."""
-        accession = input_data.protein_id
+        # Resolve gene name → UniProt accession if needed
+        if not accession:
+            _, accession = self._fetch_uniprot_sequence(input_data.protein_id)
+        if not accession:
+            logger.warning("Could not resolve UniProt accession for %s", input_data.protein_id)
+            return self._run_esmfold(input_data)
 
         # Try AlphaFold DB API
         resp = requests.get(
@@ -166,7 +181,7 @@ class StructurePredictionSkill(LabClawSkill):
             timeout=30,
         )
         if resp.status_code == 404:
-            logger.warning("No AlphaFold structure for %s, falling back to ESMFold", accession)
+            logger.warning("No AlphaFold structure for %s (%s)", input_data.protein_id, accession)
             return self._run_esmfold(input_data)
         resp.raise_for_status()
 
