@@ -76,7 +76,7 @@ class StructurePredictionSkill(LabClawSkill):
             resp = requests.get(
                 UNIPROT_API,
                 params={
-                    "query": f"(gene:{protein_id}) AND (organism_id:9606)",
+                    "query": f"(gene:{protein_id}) AND (organism_id:9606) AND (reviewed:true)",
                     "format": "json",
                     "size": "1",
                     "fields": "accession,sequence",
@@ -182,7 +182,10 @@ class StructurePredictionSkill(LabClawSkill):
         )
         if resp.status_code == 404:
             logger.warning("No AlphaFold structure for %s (%s)", input_data.protein_id, accession)
-            return self._run_esmfold(input_data)
+            raise ValueError(
+                f"No structure available for {input_data.protein_id}: "
+                f"ESMFold rejected the sequence and AlphaFold has no entry for {accession}"
+            )
         resp.raise_for_status()
 
         entries = resp.json()

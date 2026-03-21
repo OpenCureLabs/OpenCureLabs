@@ -3,12 +3,7 @@
 import logging
 from pathlib import Path
 
-import joblib
-import numpy as np
-import pandas as pd
 from pydantic import BaseModel
-from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor
-from sklearn.model_selection import cross_val_score
 
 from agentiq_labclaw.base import LabClawSkill, labclaw_skill
 
@@ -83,6 +78,12 @@ class QSARSkill(LabClawSkill):
         return self._train(input_data)
 
     def _train(self, input_data: QSARInput) -> QSAROutput:
+        import joblib
+        import numpy as np
+        import pandas as pd
+        from sklearn.ensemble import GradientBoostingRegressor, RandomForestRegressor
+        from sklearn.model_selection import cross_val_score
+
         dataset_path = input_data.dataset_path
 
         # Auto-download from ChEMBL if local CSV doesn't exist
@@ -100,7 +101,7 @@ class QSARSkill(LabClawSkill):
         df = pd.read_csv(dataset_path)
 
         # Compute descriptors
-        desc_names = [name for name, _ in _DESCRIPTOR_FNS]
+        desc_names = [name for name, _ in _get_descriptor_fns()]
         desc_rows = []
         valid_idx = []
         for i, smi in enumerate(df[input_data.smiles_column]):
@@ -147,6 +148,9 @@ class QSARSkill(LabClawSkill):
         )
 
     def _predict(self, input_data: QSARInput) -> QSAROutput:
+        import joblib
+        import pandas as pd
+
         if not input_data.model_path:
             raise ValueError("model_path is required for predict mode")
 
