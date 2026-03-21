@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - CI pipeline with tests, ruff, and bandit
 - Commitizen conventional commits enforcement
 
+## v0.13.0 (2026-03-21)
+
+### Feat
+
+- **dashboard**: new logo — robot hand + DNA helix
+
 ## v0.12.1 (2026-03-21)
 
 ### Fix
