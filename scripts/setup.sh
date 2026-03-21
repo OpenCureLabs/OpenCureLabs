@@ -145,6 +145,20 @@ else
     fi
 fi
 
+# ── Gum interactive CLI (Charm) ──────────────────────────────────────────────
+if command -v gum &>/dev/null; then
+    ok "Gum already installed ($(gum --version))"
+else
+    info "Installing Gum interactive CLI (Charm)"
+    mkdir -p /etc/apt/keyrings
+    curl -fsSL https://repo.charm.sh/apt/gpg.key | gpg --dearmor -o /etc/apt/keyrings/charm.gpg 2>/dev/null
+    echo "deb [signed-by=/etc/apt/keyrings/charm.gpg] https://repo.charm.sh/apt/ * *" \
+        > /etc/apt/sources.list.d/charm.list
+    apt-get update -qq
+    apt-get install -y -qq gum
+    ok "Gum $(gum --version) installed"
+fi
+
 # ── Python version check ────────────────────────────────────────────────────
 PY_VERSION=$($PYTHON --version 2>&1 | grep -oP '\d+\.\d+')
 if [[ "$(echo -e "$PY_VERSION\n$MIN_PYTHON" | sort -V | head -1)" != "$MIN_PYTHON" ]]; then

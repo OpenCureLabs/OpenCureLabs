@@ -67,10 +67,10 @@ keybinds {
                 close_on_exit true
             }
         }
-        // Alt+s — start research task (floating pane with prompt)
+        // Alt+s — start research task (interactive menu in floating pane)
         // Note: Alt+r is intercepted by terminal emulator, so we use Alt+s
         bind "Alt s" {
-            Run "bash" "-c" "cd /root/opencurelabs && source .venv/bin/activate 2>/dev/null; echo -e '\\033[1;96m── Run Research Task ──\\033[0m'; echo; read -rp 'Task: ' task; if [ -n \"$task\" ]; then echo; echo Running...; nat run --config_file coordinator/labclaw_workflow.yaml --input \"$task\" 2>&1 | tee -a logs/agent.log; fi; echo; echo 'Press Enter to close'; read" {
+            Run "bash" "-c" "bash /root/opencurelabs/dashboard/run_research.sh" {
                 floating true
                 close_on_exit true
             }

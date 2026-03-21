@@ -35,7 +35,7 @@ layout {
         // Row 1: COORDINATOR | GROK
         pane split_direction="vertical" size="33%" {
             pane name="COORDINATOR" focus=true command="bash" {
-                args "-c" "cd /root/opencurelabs && source .venv/bin/activate 2>/dev/null; clear; echo '── COORDINATOR ──'; echo 'Run research pipelines from here.'; echo ''; echo 'Example:'; echo '  nat run --config_file coordinator/labclaw_workflow.yaml --input \"your task\"'; echo ''; echo 'Or press Alt+s to start a guided research task.'; echo ''; exec bash"
+                args "-c" "cd /root/opencurelabs && source .venv/bin/activate 2>/dev/null; clear; echo '── COORDINATOR ──'; echo 'Run research pipelines from here.'; echo ''; echo 'Press Alt+s to open the guided research menu.'; echo ''; echo 'Or run manually:'; echo '  nat run --config_file coordinator/labclaw_workflow.yaml --input \"your task\"'; echo ''; exec bash"
             }
             pane name="GROK" command="bash" {
                 args "-c" "cd /root/opencurelabs/workspace && clear; echo '── GROK ── workspace ready'; exec bash"
