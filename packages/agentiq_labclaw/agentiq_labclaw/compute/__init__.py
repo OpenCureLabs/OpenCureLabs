@@ -10,7 +10,9 @@ import requests
 logger = logging.getLogger("labclaw.compute")
 
 GITHUB_API = "https://api.github.com"
+VAST_API = "https://console.vast.ai/api/v0"
 DEFAULT_REPO = "OpenCureLabs/OpenCureLabs"
+SSH_KEY_PATH = os.path.expanduser("~/.ssh/xpclabs")
 
 
 def resolve_wheel_url() -> str | None:
@@ -88,3 +90,37 @@ def build_onstart_script(wheel_url: str | None = None) -> str:
         "touch /tmp/labclaw_ready\n"
         "echo '[labclaw] Setup complete'\n"
     )
+
+
+def attach_ssh_key(instance_id: int) -> bool:
+    """Attach the local SSH public key to a Vast.ai instance.
+
+    Reads the public key from SSH_KEY_PATH (.pub) and POSTs it to the
+    Vast.ai instance SSH endpoint.  Returns True on success.
+
+    This is required because registering a key on the Vast.ai *account*
+    does not automatically authorize it on new instances.
+    """
+    pub_path = f"{SSH_KEY_PATH}.pub"
+    try:
+        with open(pub_path) as f:
+            pub_key = f.read().strip()
+    except FileNotFoundError:
+        logger.warning("SSH public key not found at %s — skipping attach", pub_path)
+        return False
+
+    api_key = os.environ.get("VAST_AI_KEY", "")
+    try:
+        resp = requests.post(
+            f"{VAST_API}/instances/{instance_id}/ssh/",
+            headers={"Authorization": f"Bearer {api_key}"},
+            json={"ssh_key": pub_key},
+            timeout=15,
+        )
+        if resp.status_code == 200 and resp.json().get("success"):
+            logger.debug("SSH key attached to instance %d", instance_id)
+            return True
+        logger.warning("SSH attach to %d: %s", instance_id, resp.text[:200])
+    except Exception as exc:
+        logger.warning("SSH attach to %d failed: %s", instance_id, exc)
+    return False

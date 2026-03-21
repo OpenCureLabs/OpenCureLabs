@@ -205,6 +205,11 @@ def _provision_one(offer_id: int, image: str = "pytorch/pytorch:latest", onstart
     instance_id = data.get("new_contract")
     if not instance_id:
         raise RuntimeError(f"Failed to provision from offer {offer_id}: {data}")
+
+    # Attach SSH key so we can connect later
+    from agentiq_labclaw.compute import attach_ssh_key
+    attach_ssh_key(instance_id)
+
     return instance_id
 
 

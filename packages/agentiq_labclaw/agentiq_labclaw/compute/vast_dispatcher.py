@@ -256,6 +256,11 @@ def _create_instance(api_key: str, offer_id: int, image: str = "pytorch/pytorch:
     if not instance_id:
         raise RuntimeError(f"Failed to create instance: {data}")
     logger.info("Created Vast.ai instance %d from offer %d", instance_id, offer_id)
+
+    # Attach SSH key so we can connect later
+    from agentiq_labclaw.compute import attach_ssh_key
+    attach_ssh_key(instance_id)
+
     return instance_id
 
 
