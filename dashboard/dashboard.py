@@ -375,6 +375,12 @@ def render_dashboard(stats, runs, findings, critiques, sources, activity=None):
     for c in critiques:
         scores_html = ""
         for dim, score in c["scores"].items():
+            if isinstance(score, dict):
+                score = score.get("score", 0)
+            try:
+                score = float(score)
+            except (TypeError, ValueError):
+                score = 0
             label = dim.replace("_", " ").title()
             scores_html += f'<div class="score-row"><span class="score-label">{label}</span>{score_bar(score)}</div>'
         # Show summary snippet for Grok reviews that have no scored dimensions
