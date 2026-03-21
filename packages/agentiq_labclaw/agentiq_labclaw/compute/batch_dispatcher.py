@@ -101,7 +101,7 @@ def run_batch(
     # ── 4. Wait for at least 1 instance to be ready ──────────────────────
     _log("Waiting for instances to be ready (setup + pip install)...")
     try:
-        pool.wait_for_ready(min_ready=1, timeout=900, progress_fn=_log)
+        pool.wait_for_ready(min_ready=1, timeout=1800, progress_fn=_log)
     except TimeoutError as e:
         _log("No instances became ready: %s — aborting", e)
         pool.teardown()
@@ -121,6 +121,7 @@ def run_batch(
             ssh_port=inst.ssh_port,
             queue=queue,
             pool_manager=pool,
+            batch_id=batch_id,
         )
         workers.append(w)
         t = threading.Thread(
@@ -223,6 +224,7 @@ def _monitor_loop(batch_id, queue, pool, workers, threads, callback=None):
                 ssh_port=inst.ssh_port,
                 queue=queue,
                 pool_manager=pool,
+                batch_id=batch_id,
             )
             workers.append(w)
             t = threading.Thread(

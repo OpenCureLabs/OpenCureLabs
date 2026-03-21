@@ -40,18 +40,31 @@ def _smiles_to_pdbqt(smiles: str, output_path: str) -> str:
     """Convert SMILES to 3D PDBQT using Open Babel (obabel)."""
     sdf_path = output_path.replace(".pdbqt", ".sdf")
 
-    # Generate 3D coordinates
-    subprocess.run(  # noqa: S603
-        ["obabel", "-:", smiles, "-osdf", "-O", sdf_path, "--gen3d"],  # noqa: S607
-        check=True,
+    # Generate 3D coordinates with explicit hydrogens
+    result = subprocess.run(  # noqa: S603
+        ["obabel", "-:", smiles, "-osdf", "-O", sdf_path, "--gen3d", "-h"],  # noqa: S607
         capture_output=True,
+        text=True,
     )
+    if result.returncode != 0 or not Path(sdf_path).exists() or Path(sdf_path).stat().st_size < 10:
+        raise RuntimeError(f"obabel SMILES→SDF failed: {result.stderr}")
+
     # Convert to PDBQT
-    subprocess.run(  # noqa: S603
-        ["obabel", sdf_path, "-opdbqt", "-O", output_path],  # noqa: S607
-        check=True,
+    result = subprocess.run(  # noqa: S603
+        ["obabel", sdf_path, "-opdbqt", "-O", output_path, "-h"],  # noqa: S607
         capture_output=True,
+        text=True,
     )
+    if result.returncode != 0 or not Path(output_path).exists() or Path(output_path).stat().st_size < 10:
+        raise RuntimeError(f"obabel SDF→PDBQT failed: {result.stderr}")
+
+    # Validate PDBQT has actual atom lines
+    content = Path(output_path).read_text()
+    atom_count = sum(1 for line in content.splitlines() if line.startswith(("ATOM", "HETATM")))
+    if atom_count == 0:
+        raise RuntimeError(f"PDBQT has no atoms — obabel produced empty ligand for: {smiles[:60]}")
+    logger.info("Ligand PDBQT: %d atoms from SMILES", atom_count)
+
     return output_path
 
 
@@ -63,6 +76,23 @@ def _pdb_to_pdbqt(pdb_path: str, output_path: str) -> str:
         capture_output=True,
     )
     return output_path
+
+
+def _compute_box_center(pdb_path: str) -> tuple[float, float, float]:
+    """Compute the geometric center of all ATOM/HETATM records in a PDB file."""
+    xs, ys, zs = [], [], []
+    with open(pdb_path) as f:
+        for line in f:
+            if line.startswith(("ATOM", "HETATM")):
+                try:
+                    xs.append(float(line[30:38]))
+                    ys.append(float(line[38:46]))
+                    zs.append(float(line[46:54]))
+                except (ValueError, IndexError):
+                    continue
+    if not xs:
+        return 0.0, 0.0, 0.0
+    return sum(xs) / len(xs), sum(ys) / len(ys), sum(zs) / len(zs)
 
 
 def _parse_vina_output(output_text: str) -> float:
@@ -105,10 +135,14 @@ class MolecularDockingSkill(LabClawSkill):
 
         binary = input_data.method  # "vina" or "gnina"
         if not shutil.which(binary):
-            raise FileNotFoundError(
-                f"{binary} not found in PATH. Install with: "
-                f"{'apt install autodock-vina' if binary == 'vina' else 'conda install -c conda-forge gnina'}"
-            )
+            if binary == "gnina" and shutil.which("vina"):
+                logger.warning("gnina not available — falling back to vina")
+                binary = "vina"
+            else:
+                raise FileNotFoundError(
+                    f"{binary} not found in PATH. Install with: "
+                    f"{'apt install autodock-vina' if binary == 'vina' else 'conda install -c conda-forge gnina'}"
+                )
 
         # Auto-download PDB from RCSB if the file doesn't exist locally
         receptor_path = input_data.receptor_pdb
@@ -130,15 +164,21 @@ class MolecularDockingSkill(LabClawSkill):
             receptor_pdbqt = str(tmp / "receptor.pdbqt")
             _pdb_to_pdbqt(receptor_path, receptor_pdbqt)
 
-            # 3-4. Run docking
+            # 3. Compute box center from receptor if not specified
+            cx, cy, cz = input_data.center_x, input_data.center_y, input_data.center_z
+            if cx == 0.0 and cy == 0.0 and cz == 0.0:
+                cx, cy, cz = _compute_box_center(receptor_path)
+                logger.info("Auto-computed box center: (%.1f, %.1f, %.1f)", cx, cy, cz)
+
+            # 4. Run docking
             out_pdbqt = str(tmp / "out.pdbqt")
             cmd = [
                 binary,
                 "--receptor", receptor_pdbqt,
                 "--ligand", ligand_pdbqt,
-                "--center_x", str(input_data.center_x),
-                "--center_y", str(input_data.center_y),
-                "--center_z", str(input_data.center_z),
+                "--center_x", str(round(cx, 3)),
+                "--center_y", str(round(cy, 3)),
+                "--center_z", str(round(cz, 3)),
                 "--size_x", str(input_data.box_size),
                 "--size_y", str(input_data.box_size),
                 "--size_z", str(input_data.box_size),

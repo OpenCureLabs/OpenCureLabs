@@ -39,12 +39,14 @@ class Worker:
         ssh_port: int = 22,
         queue=None,
         pool_manager=None,
+        batch_id: str | None = None,
     ):
         self.instance_id = instance_id
         self.ssh_host = ssh_host
         self.ssh_port = ssh_port
         self._queue = queue
         self._pool = pool_manager
+        self.batch_id = batch_id
         self.jobs_completed = 0
         self.jobs_failed = 0
         self._stop = threading.Event()
@@ -64,7 +66,7 @@ class Worker:
         )
 
         while not self._stop.is_set():
-            job = queue.claim_job(self.instance_id)
+            job = queue.claim_job(self.instance_id, batch_id=self.batch_id)
             if job is None:
                 logger.info("Worker %d: queue empty, stopping", self.instance_id)
                 break
@@ -111,13 +113,18 @@ class Worker:
         """SSH into the Vast.ai instance and execute a skill."""
         input_json = json.dumps(input_data, default=str)
 
+        # Redirect stdout→stderr during skill execution so library print()
+        # statements don't corrupt the JSON result on stdout.
         remote_script = (
-            "import json, sys; "
+            "import json, sys, os; "
+            "_real_stdout = sys.stdout; "
+            "sys.stdout = sys.stderr; "
             "from agentiq_labclaw.base import get_skill; "
             f"Skill = get_skill('{skill_name}'); "
             "s = Skill(); "
             "inp = Skill.input_schema.model_validate(json.loads(sys.stdin.read())); "
             "result = s.run(inp); "
+            "sys.stdout = _real_stdout; "
             "print(json.dumps(result.model_dump(), default=str))"
         )
 

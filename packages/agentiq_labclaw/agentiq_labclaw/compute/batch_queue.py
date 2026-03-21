@@ -122,33 +122,54 @@ class BatchQueue:
 
     # ── Claim (atomic, lock-free) ────────────────────────────────────────
 
-    def claim_job(self, instance_id: int) -> dict | None:
+    def claim_job(self, instance_id: int, batch_id: str | None = None) -> dict | None:
         """Atomically claim the next pending job for an instance.
 
         Uses FOR UPDATE SKIP LOCKED so multiple workers never conflict.
         Returns job dict or None if queue is empty.
+        If batch_id is provided, only claims jobs from that batch.
         """
         conn = _get_conn()
         try:
             cur = conn.cursor()
-            cur.execute(
-                """
-                UPDATE batch_jobs
-                SET status = 'running',
-                    instance_id = %s,
-                    claimed_at = NOW(),
-                    started_at = NOW()
-                WHERE id = (
-                    SELECT id FROM batch_jobs
-                    WHERE status = 'pending'
-                    ORDER BY priority ASC, id ASC
-                    FOR UPDATE SKIP LOCKED
-                    LIMIT 1
+            if batch_id:
+                cur.execute(
+                    """
+                    UPDATE batch_jobs
+                    SET status = 'running',
+                        instance_id = %s,
+                        claimed_at = NOW(),
+                        started_at = NOW()
+                    WHERE id = (
+                        SELECT id FROM batch_jobs
+                        WHERE status = 'pending' AND batch_id = %s
+                        ORDER BY priority ASC, id ASC
+                        FOR UPDATE SKIP LOCKED
+                        LIMIT 1
+                    )
+                    RETURNING id, batch_id, skill_name, input_data, domain, label
+                    """,
+                    (instance_id, batch_id),
                 )
-                RETURNING id, batch_id, skill_name, input_data, domain, label
-                """,
-                (instance_id,),
-            )
+            else:
+                cur.execute(
+                    """
+                    UPDATE batch_jobs
+                    SET status = 'running',
+                        instance_id = %s,
+                        claimed_at = NOW(),
+                        started_at = NOW()
+                    WHERE id = (
+                        SELECT id FROM batch_jobs
+                        WHERE status = 'pending'
+                        ORDER BY priority ASC, id ASC
+                        FOR UPDATE SKIP LOCKED
+                        LIMIT 1
+                    )
+                    RETURNING id, batch_id, skill_name, input_data, domain, label
+                    """,
+                    (instance_id,),
+                )
             row = cur.fetchone()
             conn.commit()
             cur.close()

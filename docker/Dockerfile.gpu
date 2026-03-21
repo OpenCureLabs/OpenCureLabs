@@ -20,6 +20,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 RUN apt-get update && apt-get install -y --no-install-recommends \
         openbabel \
         fastp \
+        autodock-vina \
         wget \
         curl \
         openssh-client \
@@ -27,9 +28,8 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # ── Conda packages (heavy C++ tools) ────────────────────────────────────────
-# gnina for GPU-accelerated molecular docking, rdkit for cheminformatics
+# rdkit for cheminformatics (SMILES parsing, molecular descriptors)
 RUN conda install -y -c conda-forge \
-        gnina \
         rdkit \
     && conda clean -afy
 
@@ -44,7 +44,10 @@ RUN pip install --no-cache-dir \
         biopython>=1.83 \
         reportlab>=4.1 \
         openai>=1.20 \
-        joblib>=1.3
+        joblib>=1.3 \
+        numpy \
+        pandas \
+        scikit-learn
 
 # ── Pre-fetch model data (baked into image, avoids 10+ min first-run) ───────
 # MHCflurry pan-allele binding prediction models (~200 MB)
@@ -57,7 +60,7 @@ RUN pyensembl install --release 110 --species human
 RUN touch /tmp/labclaw_deps_ready
 
 # ── Verify all tools are available ──────────────────────────────────────────
-RUN python3 -c "import rdkit, mhcflurry, pysam, pyensembl, biopython, reportlab" \
-    && which gnina obabel fastp vina || true
+RUN python3 -c "import rdkit, mhcflurry, pysam, pyensembl, Bio, reportlab, sklearn, joblib" \
+    && which vina obabel fastp
 
 WORKDIR /workspace

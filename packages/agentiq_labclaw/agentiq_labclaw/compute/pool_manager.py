@@ -195,6 +195,13 @@ def _provision_one(offer_id: int, image: str = "pytorch/pytorch:latest", onstart
         "disk": 20,
         "onstart": onstart,
     }
+
+    # Add Docker registry credentials for private images (ghcr.io)
+    image_login = os.environ.get("LABCLAW_IMAGE_LOGIN")
+    if image_login and ":" in image_login:
+        user, token = image_login.split(":", 1)
+        payload["image_login"] = f"-u {user} -p {token} ghcr.io"
+
     resp = requests.put(
         f"{VAST_API}/asks/{offer_id}/",
         headers=_vast_headers(),
@@ -321,6 +328,11 @@ class PoolManager:
                 continue
             try:
                 info = _poll_instance(inst.instance_id)
+                if info is None:
+                    inst.status = "destroyed"
+                    _db_update_status(inst.instance_id, "destroyed")
+                    pruned += 1
+                    continue
                 api_status = info.get("actual_status", "")
                 if api_status in ("", "exited", "offline"):
                     inst.status = "destroyed"
