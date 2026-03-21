@@ -8,9 +8,11 @@ from agentiq_labclaw.db.connection import get_connection
 logger = logging.getLogger("labclaw.db.pipeline_runs")
 
 
-def start_pipeline(pipeline_name: str, input_data: dict | None = None) -> int:
-    """Record the start of a pipeline run. Returns the run ID."""
+def start_pipeline(pipeline_name: str, input_data: dict | None = None) -> int | None:
+    """Record the start of a pipeline run. Returns the run ID, or None if DB unavailable."""
     conn = get_connection()
+    if conn is None:
+        return None
     with conn.cursor() as cur:
         cur.execute(
             "INSERT INTO pipeline_runs (pipeline_name, input_data, status) VALUES (%s, %s, %s) RETURNING id",
@@ -24,6 +26,8 @@ def start_pipeline(pipeline_name: str, input_data: dict | None = None) -> int:
 def complete_pipeline(run_id: int, status: str, output_path: str | None = None):
     """Mark a pipeline run as completed."""
     conn = get_connection()
+    if conn is None:
+        return
     with conn.cursor() as cur:
         cur.execute(
             "UPDATE pipeline_runs SET status = %s, output_path = %s WHERE id = %s",

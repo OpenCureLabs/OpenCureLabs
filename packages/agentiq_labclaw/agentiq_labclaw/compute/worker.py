@@ -23,7 +23,6 @@ import logging
 import os
 import subprocess
 import threading
-import time
 
 logger = logging.getLogger("labclaw.compute.worker")
 
@@ -139,7 +138,7 @@ class Worker:
         )
 
         if result.returncode != 0:
-            stderr = result.stderr[:500] if result.stderr else "no stderr"
+            stderr = result.stderr[:2000] if result.stderr else "no stderr"
             raise RuntimeError(f"Remote execution failed (exit {result.returncode}): {stderr}")
 
         stdout = result.stdout.strip()
