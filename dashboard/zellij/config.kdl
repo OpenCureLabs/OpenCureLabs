@@ -55,7 +55,7 @@ keybinds {
         bind "Alt 3" { GoToTab 3; }
 
         // ── OpenCure Labs commands ───────────────────────────────────────
-        // Alt+q — auto-save then quit Zellij entirely
+        // Alt+q — stop dashboard and quit Zellij
         bind "Alt q" {
             Run "bash" "-c" "bash /root/opencurelabs/dashboard/stop.sh --pre-quit" {
                 close_on_exit true
