@@ -222,7 +222,13 @@ def query_critiques(cur, limit=10):
             for dim in ("scientific_logic", "statistical_validity", "interpretive_accuracy", "reproducibility"):
                 if dim in crit:
                     raw = crit[dim]
-                    scores[dim] = raw["score"] if isinstance(raw, dict) else raw
+                    if isinstance(raw, dict):
+                        scores[dim] = raw.get("score", 0)
+                    else:
+                        try:
+                            scores[dim] = float(raw)
+                        except (TypeError, ValueError):
+                            scores[dim] = 0
             recommendation = crit.get("recommendation", "—")
             # Grok literature reviews use 'summary' instead of scored dimensions
             if "summary" in crit and not scores:
@@ -340,6 +346,12 @@ def render_dashboard(stats, runs, findings, critiques, sources, activity=None):
         return f'<span class="badge" style="background:{c}20;color:{c};border:1px solid {c}40">{rec}</span>'
 
     def score_bar(score, max_score=10):
+        if isinstance(score, dict):
+            score = score.get("score", 0)
+        try:
+            score = float(score)
+        except (TypeError, ValueError):
+            score = 0
         pct = int((score / max_score) * 100)
         c = "#2ea043" if score >= 7 else "#FEE75C" if score >= 4 else "#ED4245"
         return f'<div class="score-bar"><div class="score-fill" style="width:{pct}%;background:{c}"></div></div><span class="score-num">{score}/{max_score}</span>'
