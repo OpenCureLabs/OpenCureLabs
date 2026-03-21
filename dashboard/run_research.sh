@@ -374,8 +374,26 @@ if $HAS_GUM; then
             ) || { echo "Cancelled."; read -r; exit 0; }
             PARALLEL="${VAST_INSTANCES%%[[:space:]]*}"
             if [[ $PARALLEL -eq 100 ]]; then
-                MODE_LABEL="batch (10 instances)"
                 BATCH_MODE=1
+                # Prompt for batch parameters before confirmation
+                BATCH_COUNT=$(gum input \
+                    --header "How many tasks?" \
+                    --placeholder "100" \
+                    --value "100" \
+                    --header.foreground 214 \
+                    --prompt.foreground 46 \
+                ) || BATCH_COUNT=100
+
+                POOL_SIZE=$(gum input \
+                    --header "Instance pool size?" \
+                    --placeholder "10" \
+                    --value "10" \
+                    --header.foreground 214 \
+                    --prompt.foreground 46 \
+                ) || POOL_SIZE=10
+
+                TOTAL="$BATCH_COUNT"
+                MODE_LABEL="batch ($POOL_SIZE instances)"
             else
                 BATCH_MODE=0
                 [[ $PARALLEL -eq 1 ]] && MODE_LABEL="sequential" || MODE_LABEL="$PARALLEL parallel"
@@ -423,22 +441,6 @@ if $HAS_GUM; then
 
             # ── BATCH MODE: dispatch to Vast.ai instance pool ─────────────
             if [[ "${BATCH_MODE:-0}" -eq 1 ]]; then
-                BATCH_COUNT=$(gum input \
-                    --header "How many tasks?" \
-                    --placeholder "100" \
-                    --value "100" \
-                    --header.foreground 214 \
-                    --prompt.foreground 46 \
-                ) || BATCH_COUNT=100
-
-                POOL_SIZE=$(gum input \
-                    --header "Instance pool size?" \
-                    --placeholder "10" \
-                    --value "10" \
-                    --header.foreground 214 \
-                    --prompt.foreground 46 \
-                ) || POOL_SIZE=10
-
                 echo ""
                 gum style --foreground 214 --bold \
                     "  📦 Batch dispatch: $BATCH_COUNT tasks → $POOL_SIZE Vast.ai instances"
@@ -867,8 +869,14 @@ select domain in "${DOMAINS[@]}"; do
                 esac
             done
             if [[ $PARALLEL -eq 100 ]]; then
-                MODE_LABEL="batch (10 instances)"
                 BATCH_MODE=1
+                echo ""
+                read -rp "How many tasks? [100] " BATCH_COUNT
+                BATCH_COUNT="${BATCH_COUNT:-100}"
+                read -rp "Instance pool size? [10] " POOL_SIZE
+                POOL_SIZE="${POOL_SIZE:-10}"
+                TOTAL="$BATCH_COUNT"
+                MODE_LABEL="batch ($POOL_SIZE instances)"
             else
                 BATCH_MODE=0
                 [[ $PARALLEL -eq 1 ]] && MODE_LABEL="sequential" || MODE_LABEL="$PARALLEL parallel"
@@ -903,12 +911,6 @@ select domain in "${DOMAINS[@]}"; do
 
                     # ── BATCH MODE: dispatch to Vast.ai instance pool ────
                     if [[ "${BATCH_MODE:-0}" -eq 1 ]]; then
-                        echo ""
-                        read -rp "How many tasks? [100] " BATCH_COUNT
-                        BATCH_COUNT="${BATCH_COUNT:-100}"
-                        read -rp "Instance pool size? [10] " POOL_SIZE
-                        POOL_SIZE="${POOL_SIZE:-10}"
-
                         echo ""
                         echo -e "${YELLOW}  📦 Batch dispatch: $BATCH_COUNT tasks → $POOL_SIZE Vast.ai instances${RESET}"
                         echo ""
