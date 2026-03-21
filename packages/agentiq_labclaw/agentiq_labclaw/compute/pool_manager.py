@@ -81,23 +81,30 @@ def _db_update_status(instance_id: int, status: str, **kwargs):
     conn = _get_conn()
     try:
         cur = conn.cursor()
-        sets = ["status = %s"]
-        vals = [status]
-        if "ssh_host" in kwargs:
-            sets.append("ssh_host = %s")
-            vals.append(kwargs["ssh_host"])
-        if "ssh_port" in kwargs:
-            sets.append("ssh_port = %s")
-            vals.append(kwargs["ssh_port"])
+        ssh_host = kwargs.get("ssh_host")
+        ssh_port = kwargs.get("ssh_port")
         if status == "ready":
-            sets.append("ready_at = NOW()")
-        if status == "destroyed":
-            sets.append("destroyed_at = NOW()")
-        vals.append(instance_id)
-        cur.execute(
-            f"UPDATE vast_pool SET {', '.join(sets)} WHERE instance_id = %s",
-            vals,
-        )
+            cur.execute(
+                "UPDATE vast_pool SET status = %s, ssh_host = COALESCE(%s, ssh_host), "
+                "ssh_port = COALESCE(%s, ssh_port), ready_at = NOW() WHERE instance_id = %s",
+                (status, ssh_host, ssh_port, instance_id),
+            )
+        elif status == "destroyed":
+            cur.execute(
+                "UPDATE vast_pool SET status = %s, destroyed_at = NOW() WHERE instance_id = %s",
+                (status, instance_id),
+            )
+        elif ssh_host is not None or ssh_port is not None:
+            cur.execute(
+                "UPDATE vast_pool SET status = %s, ssh_host = COALESCE(%s, ssh_host), "
+                "ssh_port = COALESCE(%s, ssh_port) WHERE instance_id = %s",
+                (status, ssh_host, ssh_port, instance_id),
+            )
+        else:
+            cur.execute(
+                "UPDATE vast_pool SET status = %s WHERE instance_id = %s",
+                (status, instance_id),
+            )
         conn.commit()
         cur.close()
     finally:
