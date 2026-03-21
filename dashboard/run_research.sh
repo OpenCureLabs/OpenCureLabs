@@ -8,6 +8,7 @@
 #  Usage:
 #    bash dashboard/run_research.sh                    # Interactive menu
 #    bash dashboard/run_research.sh --task "your task" # CLI bypass (advanced)
+#    bash dashboard/run_research.sh --loop              # Continuous mode
 #
 #  Triggered by Alt+S in the Zellij dashboard.
 # ──────────────────────────────────────────────────────────────────────────────
@@ -206,9 +207,11 @@ collect_details() {
 
 # ── CLI bypass ───────────────────────────────────────────────────────────────
 TASK=""
+LOOP_MODE=false
 while [[ $# -gt 0 ]]; do
     case "$1" in
         --task) TASK="$2"; shift 2 ;;
+        --loop) LOOP_MODE=true; shift ;;
         *) shift ;;
     esac
 done
@@ -401,22 +404,69 @@ if $HAS_GUM; then
         --margin "0 0" \
         --foreground 255
 
+    # ── Run mode ─────────────────────────────────────────────────────────
+    if ! $LOOP_MODE; then
+        echo ""
+        RUN_MODE=$(gum choose \
+            --header "How should this run?" \
+            --header.foreground 39 \
+            --cursor.foreground 46 \
+            --item.foreground 252 \
+            --selected.foreground 46 \
+            --selected.bold \
+            "▶ Run once — Execute and stop" \
+            "🔁 Run continuously — Keep re-running until stopped" \
+        ) || { echo "Cancelled."; read -r; exit 0; }
+
+        case "$RUN_MODE" in
+            *"continuously"*) LOOP_MODE=true ;;
+        esac
+    fi
+
     echo ""
     gum confirm "Launch this research task?" --affirmative "Run" --negative "Cancel" \
         || { echo "Cancelled."; read -r; exit 0; }
 
     # ── Launch ───────────────────────────────────────────────────────────
-    echo ""
-    gum style --foreground 46 --bold "▶ Launching research pipeline..."
-    echo ""
+    RUN_COUNT=0
+    while true; do
+        RUN_COUNT=$((RUN_COUNT + 1))
+        echo ""
+        if $LOOP_MODE; then
+            gum style --foreground 46 --bold "▶ Run #$RUN_COUNT — Launching research pipeline..."
+        else
+            gum style --foreground 46 --bold "▶ Launching research pipeline..."
+        fi
+        echo ""
 
-    nat run --config_file "$CONFIG" --input "$TASK" 2>&1 | tee -a "$LOG"
+        nat run --config_file "$CONFIG" --input "$TASK" 2>&1 | tee -a "$LOG"
 
-    echo ""
-    gum style --foreground 46 "✅ Pipeline complete."
-    echo ""
-    echo -e "${DIM}Press Enter to close${RESET}"
-    read -r
+        echo ""
+        gum style --foreground 46 "✅ Run #$RUN_COUNT complete."
+
+        if ! $LOOP_MODE; then
+            echo ""
+            echo -e "${DIM}Press Enter to close${RESET}"
+            read -r
+            break
+        fi
+
+        # Continuous mode: countdown with abort option
+        echo ""
+        gum style --foreground 214 --bold "🔁 Continuous mode — next run in 10 seconds"
+        gum style --foreground 242 "Press Ctrl+C to stop, or wait to continue..."
+        echo ""
+
+        # Countdown with gum spin
+        if ! gum spin --spinner dot --title "Waiting 10s before next run..." -- sleep 10; then
+            echo ""
+            gum style --foreground 46 "⏹ Stopped after $RUN_COUNT run(s)."
+            echo ""
+            echo -e "${DIM}Press Enter to close${RESET}"
+            read -r
+            break
+        fi
+    done
     exit 0
 fi
 
@@ -544,19 +594,59 @@ echo -e "${GREEN}Task:${RESET} $TASK"
 echo -e "${DIM}🤖 Agents: ${AGENT_NUM:-1}${RESET}"
 [[ "$USE_VAST" == "yes" ]] && echo -e "${DIM}☁️  Compute: Vast.ai${RESET}" || echo -e "${DIM}🖥️  Compute: Local GPU${RESET}"
 echo ""
+# ── Run mode ─────────────────────────────────────────────────────────
+if ! $LOOP_MODE; then
+    echo ""
+    echo -e "${BOLD}How should this run?${RESET}"
+    RUN_OPTS=("Run once" "Run continuously (keep re-running)")
+    select rm in "${RUN_OPTS[@]}"; do
+        case "$REPLY" in
+            1) break ;;
+            2) LOOP_MODE=true; break ;;
+            *) echo "Invalid choice." ;;
+        esac
+    done
+fi
+
+echo ""
 read -rp "Run this task? [Y/n] " confirm
 case "$confirm" in
     [nN]*) echo "Cancelled."; read -r; exit 0 ;;
 esac
 
-echo ""
-echo -e "${GREEN}▶ Launching research pipeline...${RESET}"
-echo ""
+RUN_COUNT=0
+while true; do
+    RUN_COUNT=$((RUN_COUNT + 1))
+    echo ""
+    if $LOOP_MODE; then
+        echo -e "${GREEN}▶ Run #$RUN_COUNT — Launching research pipeline...${RESET}"
+    else
+        echo -e "${GREEN}▶ Launching research pipeline...${RESET}"
+    fi
+    echo ""
 
-nat run --config_file "$CONFIG" --input "$TASK" 2>&1 | tee -a "$LOG"
+    nat run --config_file "$CONFIG" --input "$TASK" 2>&1 | tee -a "$LOG"
 
-echo ""
-echo -e "${GREEN}✅ Pipeline complete.${RESET}"
-echo ""
-echo -e "${DIM}Press Enter to close${RESET}"
-read -r
+    echo ""
+    echo -e "${GREEN}✅ Run #$RUN_COUNT complete.${RESET}"
+
+    if ! $LOOP_MODE; then
+        echo ""
+        echo -e "${DIM}Press Enter to close${RESET}"
+        read -r
+        break
+    fi
+
+    # Continuous mode: countdown with abort
+    echo ""
+    echo -e "${YELLOW}🔁 Continuous mode — next run in 10 seconds${RESET}"
+    echo -e "${DIM}Press Ctrl+C to stop, or wait to continue...${RESET}"
+    sleep 10 || {
+        echo ""
+        echo -e "${GREEN}⏹ Stopped after $RUN_COUNT run(s).${RESET}"
+        echo ""
+        echo -e "${DIM}Press Enter to close${RESET}"
+        read -r
+        break
+    }
+done
