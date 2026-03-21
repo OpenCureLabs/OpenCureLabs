@@ -93,7 +93,7 @@ layout {
         }
         pane split_direction="vertical" size="50%" {
             pane name="DB MONITOR" command="bash" {
-                args "-c" "watch -n 10 'echo \"── DB MONITOR ──\"; echo; psql -p 5433 -d opencurelabs -c \"SELECT COUNT(*) as runs FROM agent_runs;\" 2>/dev/null; psql -p 5433 -d opencurelabs -c \"SELECT COUNT(*) as findings FROM experiment_results;\" 2>/dev/null || echo \"DB unavailable\"'"
+                args "-c" "watch -n 10 'echo \"── DB MONITOR ──\"; echo; psql -p 5433 -d opencurelabs -c \"SELECT COUNT(*) as runs FROM agent_runs;\" 2>/dev/null; psql -p 5433 -d opencurelabs -c \"SELECT COUNT(*) as findings FROM experiment_results;\" 2>/dev/null || echo \"DB unavailable\"; echo; source /root/opencurelabs/.env 2>/dev/null; bash /root/opencurelabs/dashboard/vast_status.sh'"
             }
             pane name="SYSTEM" command="bash" {
                 args "-c" "cd /root/opencurelabs && clear; echo '── SYSTEM ──'; echo; echo 'Zellij:     '$(zellij --version); echo 'Python:     '$(python3 --version 2>/dev/null); echo 'PostgreSQL: '$(psql --version 2>/dev/null | head -1); echo 'Git branch: '$(git branch --show-current); echo; echo 'Disk:'; df -h / | tail -1; echo; echo 'GPU:'; nvidia-smi --query-gpu=name,memory.used,memory.total --format=csv,noheader 2>/dev/null || echo 'No GPU detected'; exec bash"

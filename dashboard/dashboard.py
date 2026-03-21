@@ -317,7 +317,44 @@ def query_activity_log(cur, limit=30):
     return events[:limit]
 
 
-def render_dashboard(stats, runs, findings, critiques, sources, activity=None):
+def query_vast_instances():
+    """Query Vast.ai API for active instances."""
+    vast_key = os.environ.get("VAST_AI_KEY", "")
+    if not vast_key:
+        return {"count": 0, "instances": [], "cost_per_hour": 0}
+    try:
+        import requests as _req
+        resp = _req.get(
+            "https://console.vast.ai/api/v0/instances/",
+            headers={"Authorization": f"Bearer {vast_key}"},
+            timeout=10,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        instances = data.get("instances", data) if isinstance(data, dict) else data
+        if not isinstance(instances, list):
+            instances = []
+        active = [i for i in instances if i.get("actual_status") in ("running", "loading")]
+        total_cost = sum(i.get("dph_total", 0) for i in active)
+        return {
+            "count": len(active),
+            "instances": [
+                {
+                    "id": i.get("id"),
+                    "gpu": i.get("gpu_name", "?"),
+                    "num_gpus": i.get("num_gpus", 1),
+                    "status": i.get("actual_status", "?"),
+                    "cost_hr": round(i.get("dph_total", 0), 3),
+                }
+                for i in active
+            ],
+            "cost_per_hour": round(total_cost, 3),
+        }
+    except Exception:
+        return {"count": 0, "instances": [], "cost_per_hour": 0}
+
+
+def render_dashboard(stats, runs, findings, critiques, sources, activity=None, vast_info=None):
     """Generate the full HTML dashboard page."""
 
     def stat_card(label, value, color="#7aa2f7", subtitle=""):
@@ -598,6 +635,7 @@ def render_dashboard(stats, runs, findings, critiques, sources, activity=None):
   {stat_card("Novel Findings", stats["novel_count"], "#2ea043")}
   {stat_card("Critiques", stats["critique_log"], "#FEE75C")}
   {stat_card("Sources", stats["discovered_sources"], "#c0caf5")}
+  {stat_card("Vast.ai", (vast_info or {{}}).get('count', 0), '#ff9e64', f'${(vast_info or {{}}).get("cost_per_hour", 0):.3f}/hr' if (vast_info or {{}}).get('count', 0) else 'idle')}
 </div>
 
 <!-- Charts Row 1: Agent Donut + Results by Type -->
@@ -996,7 +1034,8 @@ async def dashboard(request: Request):
     activity = query_activity_log(cur)
     cur.close()
     put_conn(conn)
-    return render_dashboard(stats, runs, findings, critiques, sources, activity)
+    vast_info = query_vast_instances()
+    return render_dashboard(stats, runs, findings, critiques, sources, activity, vast_info)
 
 
 @app.get("/api/stats")
@@ -1052,6 +1091,12 @@ async def api_sources(request: Request, limit: int = 50):
     cur.close()
     put_conn(conn)
     return data
+
+
+@app.get("/api/vast")
+@limiter.limit("30/minute")
+async def api_vast(request: Request):
+    return query_vast_instances()
 
 
 @app.get("/api/export/findings")

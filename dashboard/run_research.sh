@@ -371,6 +371,7 @@ if $HAS_GUM; then
                     "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
                 echo ""
 
+                export LABCLAW_COMPUTE=vast_ai
                 if nat run --config_file "$CONFIG" --input "$GENESIS_TASK" 2>&1 | tee -a "$LOG"; then
                     GENESIS_OK=$((GENESIS_OK + 1))
                     gum style --foreground 46 "  ✅ [$TASK_NUM/$TOTAL] $LABEL — complete"
@@ -379,6 +380,8 @@ if $HAS_GUM; then
                     gum style --foreground 196 "  ❌ [$TASK_NUM/$TOTAL] $LABEL — failed"
                 fi
             done
+
+            export LABCLAW_COMPUTE=local
 
             # ── Genesis Summary ──────────────────────────────────────────
             GENESIS_END=$(date +%s)
@@ -551,6 +554,8 @@ if $HAS_GUM; then
         || { echo "Cancelled."; read -r; exit 0; }
 
     # ── Launch ───────────────────────────────────────────────────────────
+    [[ "$USE_VAST" == "yes" ]] && export LABCLAW_COMPUTE=vast_ai || export LABCLAW_COMPUTE=local
+
     RUN_COUNT=0
     while true; do
         RUN_COUNT=$((RUN_COUNT + 1))
@@ -667,6 +672,7 @@ select domain in "${DOMAINS[@]}"; do
                         echo -e "${GREEN}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
                         echo ""
 
+                        export LABCLAW_COMPUTE=vast_ai
                         if nat run --config_file "$CONFIG" --input "$GENESIS_TASK" 2>&1 | tee -a "$LOG"; then
                             GENESIS_OK=$((GENESIS_OK + 1))
                             echo -e "${GREEN}  ✅ [$TASK_NUM/$TOTAL] $LABEL — complete${RESET}"
@@ -675,6 +681,8 @@ select domain in "${DOMAINS[@]}"; do
                             echo -e "${RED}  ❌ [$TASK_NUM/$TOTAL] $LABEL — failed${RESET}"
                         fi
                     done
+
+                    export LABCLAW_COMPUTE=local
 
                     GENESIS_END=$(date +%s)
                     GENESIS_ELAPSED=$(( GENESIS_END - GENESIS_START ))
@@ -816,6 +824,8 @@ read -rp "Run this task? [Y/n] " confirm
 case "$confirm" in
     [nN]*) echo "Cancelled."; read -r; exit 0 ;;
 esac
+
+[[ "$USE_VAST" == "yes" ]] && export LABCLAW_COMPUTE=vast_ai || export LABCLAW_COMPUTE=local
 
 RUN_COUNT=0
 while true; do
