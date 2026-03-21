@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - CI pipeline with tests, ruff, and bandit
 - Commitizen conventional commits enforcement
 
+## v0.23.1 (2026-03-21)
+
+### Fix
+
+- restore closing bracket in pyproject.toml dev deps
+
 ## v0.23.0 (2026-03-21)
 
 ### Fix
