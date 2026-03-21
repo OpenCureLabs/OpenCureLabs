@@ -289,6 +289,10 @@ class PoolManager:
                 jobs_done=row["jobs_done"],
             )
 
+        # Sync DB state against Vast.ai API — prune instances that were
+        # destroyed externally (e.g. via 'vastai destroy' or dashboard)
+        self._sync_with_api()
+
     @property
     def active_count(self) -> int:
         """Count of non-destroyed instances."""
@@ -301,6 +305,29 @@ class PoolManager:
     def get_ready_instances(self) -> list[PoolInstance]:
         """Get all instances that are ready to accept jobs."""
         return [i for i in self.instances.values() if i.status == "ready"]
+
+    def _sync_with_api(self):
+        """Validate DB pool against Vast.ai API, prune ghost instances."""
+        if not self.instances:
+            return
+        pruned = 0
+        for inst in list(self.instances.values()):
+            if inst.status in ("destroyed", "failed"):
+                continue
+            try:
+                info = _poll_instance(inst.instance_id)
+                api_status = info.get("actual_status", "")
+                if api_status in ("", "exited", "offline"):
+                    inst.status = "destroyed"
+                    _db_update_status(inst.instance_id, "destroyed")
+                    pruned += 1
+            except requests.RequestException:
+                # Instance not found on API — mark destroyed
+                inst.status = "destroyed"
+                _db_update_status(inst.instance_id, "destroyed")
+                pruned += 1
+        if pruned:
+            logger.info("Sync: pruned %d stale instances from pool (actually destroyed on Vast.ai)", pruned)
 
     # ── Scale up ─────────────────────────────────────────────────────────
 
