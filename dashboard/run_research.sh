@@ -21,6 +21,14 @@ LOG="logs/agent.log"
 cd "$PROJECT_DIR"
 source .venv/bin/activate 2>/dev/null || true
 
+# Source .env for API keys (VAST_AI_KEY, VAST_AI_BUDGET, GENAI_API_KEY, etc.)
+if [[ -f "$PROJECT_DIR/.env" ]]; then
+    set -a
+    # shellcheck source=/dev/null
+    source "$PROJECT_DIR/.env"
+    set +a
+fi
+
 # ── Colors (for fallback mode) ───────────────────────────────────────────────
 CYAN='\033[1;96m'   GREEN='\033[1;92m'  YELLOW='\033[1;93m'
 RED='\033[1;91m'    DIM='\033[2m'       BOLD='\033[1m'
@@ -316,7 +324,7 @@ if $HAS_GUM; then
                 "  🚀  G E N E S I S   M O D E" \
                 "" \
                 "  $TOTAL tasks across 3 domains" \
-                "  3 agents — sequential execution" \
+                "  3 agents — continuous until budget exhausted" \
                 "  Vast.ai cloud GPU burst — enabled" \
                 "  Public databases — TCGA, ClinVar, ChEMBL" \
                 "" \
@@ -338,6 +346,23 @@ if $HAS_GUM; then
                 --padding "0 1" \
                 --margin "0 0"
 
+            # ── Throughput mode ───────────────────────────────────────
+            echo ""
+            VAST_INSTANCES=$(gum choose \
+                --header "Execution mode:" \
+                --header.foreground 214 \
+                --cursor.foreground 46 \
+                --item.foreground 252 \
+                --selected.foreground 46 \
+                --selected.bold \
+                "1 — Sequential (safest, lowest cost)" \
+                "3 — Fast parallel" \
+                "6 — Max throughput" \
+                "12 — All at once" \
+            ) || { echo "Cancelled."; read -r; exit 0; }
+            PARALLEL="${VAST_INSTANCES%%[[:space:]]*}"
+            [[ $PARALLEL -eq 1 ]] && MODE_LABEL="sequential" || MODE_LABEL="$PARALLEL parallel"
+
             # ── Budget display ───────────────────────────────────────────
             VAST_BUDGET="${VAST_AI_BUDGET:-0}"
             echo ""
@@ -347,49 +372,141 @@ if $HAS_GUM; then
                 VAST_REMAINING=$(python3 -c "print(f'{max(0, $VAST_BUDGET - $VAST_SPENT):.2f}')" 2>/dev/null || echo "?")
                 gum style --foreground 214 \
                     "  💰 Budget: \$$VAST_REMAINING remaining of \$$VAST_BUDGET (spent: \$$VAST_SPENT)"
+                gum style --foreground 46 \
+                    "  🔄 Continuous mode — loops until budget exhausted"
             else
                 gum style --foreground 196 \
-                    "  ⚠️  No budget cap set (VAST_AI_BUDGET in .env)"
+                    "  ⚠️  No budget cap set (VAST_AI_BUDGET in .env) — will run once"
             fi
 
             echo ""
-            gum confirm "Launch Genesis Mode? ($TOTAL tasks, sequential)" \
+            gum confirm "Launch Genesis Mode? ($TOTAL tasks, $MODE_LABEL, continuous)" \
                 --affirmative "🚀 SEND IT" --negative "Cancel" \
                 || { echo "Cancelled."; read -r; exit 0; }
 
-            # ── Genesis Run Loop (sequential) ────────────────────────────
+            # ── Genesis Continuous Loop ───────────────────────────────────
             echo ""
-            gum style --foreground 214 --bold "🚀 Genesis Mode activated — $TOTAL tasks, sequential"
+            gum style --foreground 214 --bold "🚀 Genesis Mode activated — $TOTAL tasks, $MODE_LABEL, continuous"
             echo ""
 
-            GENESIS_FAILED=0
-            GENESIS_OK=0
+            GENESIS_TOTAL_OK=0
+            GENESIS_TOTAL_FAILED=0
             GENESIS_START=$(date +%s)
-
-            GENESIS_LOG_DIR="$PROJECT_DIR/logs/genesis-$(date +%Y%m%d-%H%M%S)"
-            mkdir -p "$GENESIS_LOG_DIR"
+            ROUND=0
 
             export LABCLAW_COMPUTE=vast_ai
 
-            for i in $(seq 0 $((TOTAL - 1))); do
-                TASK_NUM=$((i + 1))
-                RAW_LABEL="${ALL_LABELS[$i]}"
-                LABEL="${RAW_LABEL%% ~*}"
-                DOMAIN_NAME="${ALL_DOMAINS[$i]}"
-                GENESIS_TASK="${ALL_TASKS[$i]} Use public databases (TCGA/ClinVar/ChEMBL) for data sourcing. Deploy 3 parallel agents. Use Vast.ai cloud GPU for compute."
-                TASK_LOG="$GENESIS_LOG_DIR/task-${TASK_NUM}-$(echo "$LABEL" | tr ' ' '_').log"
+            while true; do
+                ROUND=$((ROUND + 1))
 
-                gum style --foreground 214 --bold \
-                    "  ▶ [$TASK_NUM/$TOTAL] $DOMAIN_NAME → $LABEL"
-
-                if nat run --config_file "$CONFIG" --input "$GENESIS_TASK" \
-                    >>"$TASK_LOG" 2>&1; then
-                    GENESIS_OK=$((GENESIS_OK + 1))
-                    gum style --foreground 46 "  ✅ [$TASK_NUM/$TOTAL] $LABEL — complete"
+                # ── Budget check before each round ───────────────────
+                if [[ "$VAST_BUDGET" != "0" ]] && [[ -n "$VAST_BUDGET" ]]; then
+                    VAST_SPENT=$(psql -p 5433 -d opencurelabs -t -A -c \
+                        "SELECT COALESCE(SUM(total_cost), 0) FROM vast_spend" 2>/dev/null || echo "0")
+                    VAST_REMAINING=$(python3 -c "print(f'{max(0, float($VAST_BUDGET) - float($VAST_SPENT)):.2f}')" 2>/dev/null || echo "0")
+                    if python3 -c "exit(0 if float($VAST_REMAINING) <= 0 else 1)" 2>/dev/null; then
+                        echo ""
+                        gum style --foreground 196 --bold \
+                            "  💰 Budget exhausted! Spent: \$$VAST_SPENT / \$$VAST_BUDGET"
+                        break
+                    fi
+                    gum style --foreground 214 \
+                        "  💰 Round $ROUND — \$$VAST_REMAINING remaining of \$$VAST_BUDGET"
                 else
-                    GENESIS_FAILED=$((GENESIS_FAILED + 1))
-                    gum style --foreground 196 "  ❌ [$TASK_NUM/$TOTAL] $LABEL — failed (see $TASK_LOG)"
+                    # No budget set — run only one round
+                    if [[ $ROUND -gt 1 ]]; then
+                        break
+                    fi
                 fi
+
+                GENESIS_LOG_DIR="$PROJECT_DIR/logs/genesis-$(date +%Y%m%d-%H%M%S)"
+                mkdir -p "$GENESIS_LOG_DIR"
+
+                ROUND_OK=0
+                ROUND_FAILED=0
+
+                if [[ $PARALLEL -le 1 ]]; then
+                    # ── Sequential execution ─────────────────────────
+                    for i in $(seq 0 $((TOTAL - 1))); do
+                        TASK_NUM=$((i + 1))
+                        RAW_LABEL="${ALL_LABELS[$i]}"
+                        LABEL="${RAW_LABEL%% ~*}"
+                        DOMAIN_NAME="${ALL_DOMAINS[$i]}"
+                        GENESIS_TASK="${ALL_TASKS[$i]} Use public databases (TCGA/ClinVar/ChEMBL) for data sourcing. Deploy 3 parallel agents. Use Vast.ai cloud GPU for compute."
+                        TASK_LOG="$GENESIS_LOG_DIR/task-${TASK_NUM}-$(echo "$LABEL" | tr ' ' '_').log"
+
+                        gum style --foreground 214 --bold \
+                            "  ▶ [R${ROUND} ${TASK_NUM}/$TOTAL] $DOMAIN_NAME → $LABEL"
+
+                        if nat run --config_file "$CONFIG" --input "$GENESIS_TASK" \
+                            >>"$TASK_LOG" 2>&1; then
+                            ROUND_OK=$((ROUND_OK + 1))
+                            gum style --foreground 46 "  ✅ [R${ROUND} ${TASK_NUM}/$TOTAL] $LABEL — complete"
+                        else
+                            ROUND_FAILED=$((ROUND_FAILED + 1))
+                            gum style --foreground 196 "  ❌ [R${ROUND} ${TASK_NUM}/$TOTAL] $LABEL — failed (see $TASK_LOG)"
+                        fi
+                        echo ""
+                    done
+                else
+                    # ── Parallel batch execution ─────────────────────
+                    TASK_IDX=0
+                    while [[ $TASK_IDX -lt $TOTAL ]]; do
+                        BATCH_PIDS=()
+                        BATCH_LABELS=()
+                        BATCH_LOGS=()
+                        BATCH_END=$((TASK_IDX + PARALLEL))
+                        [[ $BATCH_END -gt $TOTAL ]] && BATCH_END=$TOTAL
+
+                        for i in $(seq $TASK_IDX $((BATCH_END - 1))); do
+                            TASK_NUM=$((i + 1))
+                            RAW_LABEL="${ALL_LABELS[$i]}"
+                            LABEL="${RAW_LABEL%% ~*}"
+                            DOMAIN_NAME="${ALL_DOMAINS[$i]}"
+                            GENESIS_TASK="${ALL_TASKS[$i]} Use public databases (TCGA/ClinVar/ChEMBL) for data sourcing. Deploy 3 parallel agents. Use Vast.ai cloud GPU for compute."
+                            TASK_LOG="$GENESIS_LOG_DIR/task-${TASK_NUM}-$(echo "$LABEL" | tr ' ' '_').log"
+
+                            gum style --foreground 214 --bold \
+                                "  ▶ [R${ROUND} ${TASK_NUM}/$TOTAL] $DOMAIN_NAME → $LABEL"
+
+                            ( nat run --config_file "$CONFIG" --input "$GENESIS_TASK" \
+                                >>"$TASK_LOG" 2>&1 ) &
+                            BATCH_PIDS+=($!)
+                            BATCH_LABELS+=("$LABEL")
+                            BATCH_LOGS+=("$TASK_LOG")
+                        done
+
+                        BATCH_SIZE=${#BATCH_PIDS[@]}
+                        echo ""
+                        gum style --foreground 242 \
+                            "  ⏳ Waiting for batch of $BATCH_SIZE tasks..."
+                        echo ""
+
+                        for j in $(seq 0 $((BATCH_SIZE - 1))); do
+                            PID="${BATCH_PIDS[$j]}"
+                            LABEL="${BATCH_LABELS[$j]}"
+                            GLOBAL_NUM=$((TASK_IDX + j + 1))
+
+                            if wait "$PID" 2>/dev/null; then
+                                ROUND_OK=$((ROUND_OK + 1))
+                                gum style --foreground 46 "  ✅ [R${ROUND} ${GLOBAL_NUM}/$TOTAL] $LABEL — complete"
+                            else
+                                ROUND_FAILED=$((ROUND_FAILED + 1))
+                                gum style --foreground 196 "  ❌ [R${ROUND} ${GLOBAL_NUM}/$TOTAL] $LABEL — failed (see ${BATCH_LOGS[$j]})"
+                            fi
+                        done
+
+                        TASK_IDX=$BATCH_END
+                        [[ $TASK_IDX -lt $TOTAL ]] && echo ""
+                    done
+                fi
+
+                GENESIS_TOTAL_OK=$((GENESIS_TOTAL_OK + ROUND_OK))
+                GENESIS_TOTAL_FAILED=$((GENESIS_TOTAL_FAILED + ROUND_FAILED))
+
+                echo ""
+                gum style --foreground 214 \
+                    "  📋 Round $ROUND complete: $ROUND_OK passed, $ROUND_FAILED failed"
                 echo ""
             done
 
@@ -411,16 +528,17 @@ if $HAS_GUM; then
                 "" \
                 "  🚀 GENESIS COMPLETE" \
                 "" \
-                "  ✅ Passed:  $GENESIS_OK / $TOTAL" \
-                "  ❌ Failed:  $GENESIS_FAILED / $TOTAL" \
+                "  🔄 Rounds:  $ROUND" \
+                "  ✅ Passed:  $GENESIS_TOTAL_OK" \
+                "  ❌ Failed:  $GENESIS_TOTAL_FAILED" \
                 "  ⏱  Time:    ${GENESIS_MIN}m ${GENESIS_SEC}s" \
                 "  💰 Spent:   \$$GENESIS_SPENT" \
-                "  📁 Logs:    $GENESIS_LOG_DIR" \
+                "  📁 Logs:    $PROJECT_DIR/logs/genesis-*" \
                 "" \
             | gum style \
                 --border double \
-                --border-foreground "$( [[ $GENESIS_FAILED -eq 0 ]] && echo 46 || echo 196 )" \
-                --foreground "$( [[ $GENESIS_FAILED -eq 0 ]] && echo 46 || echo 214 )" \
+                --border-foreground "$( [[ $GENESIS_TOTAL_FAILED -eq 0 ]] && echo 46 || echo 196 )" \
+                --foreground "$( [[ $GENESIS_TOTAL_FAILED -eq 0 ]] && echo 46 || echo 214 )" \
                 --bold \
                 --padding "0 2" \
                 --margin "0 0"
@@ -673,35 +791,135 @@ select domain in "${DOMAINS[@]}"; do
             echo -e "  $TOTAL tasks · 3 domains · 3 agents · Vast.ai burst"
             echo ""
 
+            echo -e "${BOLD}Execution mode:${RESET}"
+            PARALLEL_OPTS=("1 — Sequential" "3 — Fast parallel" "6 — Max throughput" "12 — All at once")
+            select po in "${PARALLEL_OPTS[@]}"; do
+                case "$REPLY" in
+                    1) PARALLEL=1; break ;; 2) PARALLEL=3; break ;;
+                    3) PARALLEL=6; break ;; 4) PARALLEL=12; break ;;
+                    *) echo "Invalid choice." ;;
+                esac
+            done
+            [[ $PARALLEL -eq 1 ]] && MODE_LABEL="sequential" || MODE_LABEL="$PARALLEL parallel"
+
+            VAST_BUDGET="${VAST_AI_BUDGET:-0}"
+            if [[ "$VAST_BUDGET" != "0" ]] && [[ -n "$VAST_BUDGET" ]]; then
+                VAST_SPENT=$(psql -p 5433 -d opencurelabs -t -A -c \
+                    "SELECT COALESCE(SUM(total_cost), 0) FROM vast_spend" 2>/dev/null || echo "0")
+                echo -e "  💰 Budget: \$$VAST_BUDGET (spent: \$$VAST_SPENT)"
+                echo -e "  🔄 Continuous — loops until budget exhausted"
+            else
+                echo -e "${RED}  ⚠️  No budget cap set (VAST_AI_BUDGET in .env) — will run once${RESET}"
+            fi
+
             echo ""
-            read -rp "Launch Genesis Mode? ($TOTAL tasks, sequential) [y/N] " genesis_confirm
+            read -rp "Launch Genesis Mode? ($TOTAL tasks, $MODE_LABEL, continuous) [y/N] " genesis_confirm
             case "$genesis_confirm" in
                 [yY]*)
-                    GENESIS_FAILED=0
-                    GENESIS_OK=0
+                    GENESIS_TOTAL_OK=0
+                    GENESIS_TOTAL_FAILED=0
                     GENESIS_START=$(date +%s)
-                    GENESIS_LOG_DIR="$PROJECT_DIR/logs/genesis-$(date +%Y%m%d-%H%M%S)"
-                    mkdir -p "$GENESIS_LOG_DIR"
+                    ROUND=0
 
                     export LABCLAW_COMPUTE=vast_ai
 
-                    for i in $(seq 0 $((TOTAL - 1))); do
-                        TASK_NUM=$((i + 1))
-                        LABEL="${ALL_LABELS[$i]}"
-                        DOMAIN_NAME="${ALL_DOMAINS[$i]}"
-                        GENESIS_TASK="${ALL_TASKS[$i]} Use public databases (TCGA/ClinVar/ChEMBL) for data sourcing. Deploy 3 parallel agents. Use Vast.ai cloud GPU for compute."
-                        TASK_LOG="$GENESIS_LOG_DIR/task-${TASK_NUM}-$(echo "$LABEL" | tr ' ' '_').log"
+                    while true; do
+                        ROUND=$((ROUND + 1))
 
-                        echo -e "${YELLOW}  ▶ [$TASK_NUM/$TOTAL] $DOMAIN_NAME → $LABEL${RESET}"
-
-                        if nat run --config_file "$CONFIG" --input "$GENESIS_TASK" \
-                            >>"$TASK_LOG" 2>&1; then
-                            GENESIS_OK=$((GENESIS_OK + 1))
-                            echo -e "${GREEN}  ✅ [$TASK_NUM/$TOTAL] $LABEL — complete${RESET}"
+                        # Budget check before each round
+                        if [[ "$VAST_BUDGET" != "0" ]] && [[ -n "$VAST_BUDGET" ]]; then
+                            VAST_SPENT=$(psql -p 5433 -d opencurelabs -t -A -c \
+                                "SELECT COALESCE(SUM(total_cost), 0) FROM vast_spend" 2>/dev/null || echo "0")
+                            VAST_REMAINING=$(python3 -c "print(f'{max(0, float($VAST_BUDGET) - float($VAST_SPENT)):.2f}')" 2>/dev/null || echo "0")
+                            if python3 -c "exit(0 if float($VAST_REMAINING) <= 0 else 1)" 2>/dev/null; then
+                                echo ""
+                                echo -e "${RED}  💰 Budget exhausted! Spent: \$$VAST_SPENT / \$$VAST_BUDGET${RESET}"
+                                break
+                            fi
+                            echo -e "${YELLOW}  💰 Round $ROUND — \$$VAST_REMAINING remaining of \$$VAST_BUDGET${RESET}"
                         else
-                            GENESIS_FAILED=$((GENESIS_FAILED + 1))
-                            echo -e "${RED}  ❌ [$TASK_NUM/$TOTAL] $LABEL — failed (see $TASK_LOG)${RESET}"
+                            if [[ $ROUND -gt 1 ]]; then
+                                break
+                            fi
                         fi
+
+                        GENESIS_LOG_DIR="$PROJECT_DIR/logs/genesis-$(date +%Y%m%d-%H%M%S)"
+                        mkdir -p "$GENESIS_LOG_DIR"
+
+                        ROUND_OK=0
+                        ROUND_FAILED=0
+
+                        if [[ $PARALLEL -le 1 ]]; then
+                            for i in $(seq 0 $((TOTAL - 1))); do
+                                TASK_NUM=$((i + 1))
+                                LABEL="${ALL_LABELS[$i]}"
+                                DOMAIN_NAME="${ALL_DOMAINS[$i]}"
+                                GENESIS_TASK="${ALL_TASKS[$i]} Use public databases (TCGA/ClinVar/ChEMBL) for data sourcing. Deploy 3 parallel agents. Use Vast.ai cloud GPU for compute."
+                                TASK_LOG="$GENESIS_LOG_DIR/task-${TASK_NUM}-$(echo "$LABEL" | tr ' ' '_').log"
+
+                                echo -e "${YELLOW}  ▶ [R${ROUND} ${TASK_NUM}/$TOTAL] $DOMAIN_NAME → $LABEL${RESET}"
+
+                                if nat run --config_file "$CONFIG" --input "$GENESIS_TASK" \
+                                    >>"$TASK_LOG" 2>&1; then
+                                    ROUND_OK=$((ROUND_OK + 1))
+                                    echo -e "${GREEN}  ✅ [R${ROUND} ${TASK_NUM}/$TOTAL] $LABEL — complete${RESET}"
+                                else
+                                    ROUND_FAILED=$((ROUND_FAILED + 1))
+                                    echo -e "${RED}  ❌ [R${ROUND} ${TASK_NUM}/$TOTAL] $LABEL — failed (see $TASK_LOG)${RESET}"
+                                fi
+                                echo ""
+                            done
+                        else
+                            TASK_IDX=0
+                            while [[ $TASK_IDX -lt $TOTAL ]]; do
+                                BATCH_PIDS=()
+                                BATCH_LABELS=()
+                                BATCH_LOGS=()
+                                BATCH_END=$((TASK_IDX + PARALLEL))
+                                [[ $BATCH_END -gt $TOTAL ]] && BATCH_END=$TOTAL
+
+                                for i in $(seq $TASK_IDX $((BATCH_END - 1))); do
+                                    TASK_NUM=$((i + 1))
+                                    LABEL="${ALL_LABELS[$i]}"
+                                    DOMAIN_NAME="${ALL_DOMAINS[$i]}"
+                                    GENESIS_TASK="${ALL_TASKS[$i]} Use public databases (TCGA/ClinVar/ChEMBL) for data sourcing. Deploy 3 parallel agents. Use Vast.ai cloud GPU for compute."
+                                    TASK_LOG="$GENESIS_LOG_DIR/task-${TASK_NUM}-$(echo "$LABEL" | tr ' ' '_').log"
+
+                                    echo -e "${YELLOW}  ▶ [R${ROUND} ${TASK_NUM}/$TOTAL] $DOMAIN_NAME → $LABEL${RESET}"
+                                    ( nat run --config_file "$CONFIG" --input "$GENESIS_TASK" >>"$TASK_LOG" 2>&1 ) &
+                                    BATCH_PIDS+=($!)
+                                    BATCH_LABELS+=("$LABEL")
+                                    BATCH_LOGS+=("$TASK_LOG")
+                                done
+
+                                BATCH_SIZE=${#BATCH_PIDS[@]}
+                                echo ""
+                                echo -e "${DIM}  ⏳ Waiting for batch of $BATCH_SIZE tasks...${RESET}"
+                                echo ""
+
+                                for j in $(seq 0 $((BATCH_SIZE - 1))); do
+                                    PID="${BATCH_PIDS[$j]}"
+                                    LABEL="${BATCH_LABELS[$j]}"
+                                    GLOBAL_NUM=$((TASK_IDX + j + 1))
+                                    if wait "$PID" 2>/dev/null; then
+                                        ROUND_OK=$((ROUND_OK + 1))
+                                        echo -e "${GREEN}  ✅ [R${ROUND} ${GLOBAL_NUM}/$TOTAL] $LABEL — complete${RESET}"
+                                    else
+                                        ROUND_FAILED=$((ROUND_FAILED + 1))
+                                        echo -e "${RED}  ❌ [R${ROUND} ${GLOBAL_NUM}/$TOTAL] $LABEL — failed (see ${BATCH_LOGS[$j]})${RESET}"
+                                    fi
+                                done
+
+                                TASK_IDX=$BATCH_END
+                                [[ $TASK_IDX -lt $TOTAL ]] && echo ""
+                            done
+                        fi
+
+                        GENESIS_TOTAL_OK=$((GENESIS_TOTAL_OK + ROUND_OK))
+                        GENESIS_TOTAL_FAILED=$((GENESIS_TOTAL_FAILED + ROUND_FAILED))
+
+                        echo ""
+                        echo -e "${YELLOW}  📋 Round $ROUND complete: $ROUND_OK passed, $ROUND_FAILED failed${RESET}"
                         echo ""
                     done
 
@@ -712,13 +930,18 @@ select domain in "${DOMAINS[@]}"; do
                     GENESIS_MIN=$(( GENESIS_ELAPSED / 60 ))
                     GENESIS_SEC=$(( GENESIS_ELAPSED % 60 ))
 
+                    GENESIS_SPENT=$(psql -p 5433 -d opencurelabs -t -A -c \
+                        "SELECT COALESCE(SUM(total_cost), 0) FROM vast_spend WHERE started_at >= to_timestamp($GENESIS_START)" \
+                        2>/dev/null || echo "?")
+
                     echo ""
                     echo -e "${YELLOW}══════════════════════════════════════════════════${RESET}"
                     echo -e "${YELLOW}  🚀 GENESIS COMPLETE${RESET}"
-                    echo -e "  ✅ Passed:  $GENESIS_OK / $TOTAL"
-                    echo -e "  ❌ Failed:  $GENESIS_FAILED / $TOTAL"
+                    echo -e "  🔄 Rounds:  $ROUND"
+                    echo -e "  ✅ Passed:  $GENESIS_TOTAL_OK"
+                    echo -e "  ❌ Failed:  $GENESIS_TOTAL_FAILED"
                     echo -e "  ⏱  Time:    ${GENESIS_MIN}m ${GENESIS_SEC}s"
-                    echo -e "  📁 Logs:    $GENESIS_LOG_DIR"
+                    echo -e "  💰 Spent:   \$$GENESIS_SPENT"
                     echo -e "${YELLOW}══════════════════════════════════════════════════${RESET}"
                     echo ""
                     echo -e "${DIM}Press Enter to close${RESET}"
