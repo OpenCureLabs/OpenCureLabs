@@ -395,16 +395,21 @@ class PoolManager:
 
     # ── Wait for ready ───────────────────────────────────────────────────
 
-    def wait_for_ready(self, min_ready: int = 1, timeout: int = 600):
+    def wait_for_ready(self, min_ready: int = 1, timeout: int = 600, progress_fn=None):
         """Block until at least min_ready instances are fully ready.
 
         Polls all provisioning/setup instances in parallel.
+        progress_fn: optional callable(msg, *args) for extra output (e.g. batch _log)
         """
         deadline = time.monotonic() + timeout
+        last_progress = time.monotonic()
 
         while time.monotonic() < deadline:
             if self.ready_count >= min_ready:
-                logger.info("Pool ready: %d/%d instances", self.ready_count, self.active_count)
+                msg = "Pool ready: %d/%d instances"
+                logger.info(msg, self.ready_count, self.active_count)
+                if progress_fn:
+                    progress_fn(msg, self.ready_count, self.active_count)
                 return
 
             # Check provisioning instances for SSH info
@@ -422,10 +427,10 @@ class PoolManager:
                                 ssh_host=inst.ssh_host,
                                 ssh_port=inst.ssh_port,
                             )
-                            logger.info(
-                                "Instance %d running, waiting for setup...",
-                                inst.instance_id,
-                            )
+                            msg = "Instance %d (%s) booted — running onstart/pip install..."
+                            logger.info(msg, inst.instance_id, inst.gpu_name)
+                            if progress_fn:
+                                progress_fn(msg, inst.instance_id, inst.gpu_name)
                     except Exception as e:
                         logger.warning("Poll failed for %d: %s", inst.instance_id, e)
 
@@ -433,7 +438,27 @@ class PoolManager:
                     if inst.ssh_host and _check_setup_ready(inst.ssh_host, inst.ssh_port):
                         inst.status = "ready"
                         _db_update_status(inst.instance_id, "ready")
-                        logger.info("Instance %d is READY", inst.instance_id)
+                        msg = "Instance %d (%s) READY  [%d/%d ready]"
+                        logger.info(msg, inst.instance_id, inst.gpu_name,
+                                    self.ready_count, self.active_count)
+                        if progress_fn:
+                            progress_fn(msg, inst.instance_id, inst.gpu_name,
+                                        self.ready_count, self.active_count)
+
+            # Print a progress summary every 30s so the screen isn't silent
+            now = time.monotonic()
+            if now - last_progress >= 30:
+                provisioning = sum(1 for i in self.instances.values() if i.status == "provisioning")
+                setup = sum(1 for i in self.instances.values() if i.status == "setup")
+                ready = self.ready_count
+                elapsed = int(now - (deadline - timeout))
+                remaining = int(deadline - now)
+                msg = "Waiting... %ds elapsed | provisioning:%d  installing:%d  ready:%d/%d | %ds left"
+                args = (elapsed, provisioning, setup, ready, self.active_count, remaining)
+                logger.info(msg, *args)
+                if progress_fn:
+                    progress_fn(msg, *args)
+                last_progress = now
 
             time.sleep(10)
 

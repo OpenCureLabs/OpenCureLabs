@@ -98,7 +98,7 @@ def run_batch(
     # ── 4. Wait for at least 1 instance to be ready ──────────────────────
     _log("Waiting for instances to be ready (setup + pip install)...")
     try:
-        pool.wait_for_ready(min_ready=1, timeout=900)
+        pool.wait_for_ready(min_ready=1, timeout=900, progress_fn=_log)
     except TimeoutError as e:
         _log("No instances became ready: %s — aborting", e)
         pool.teardown()
