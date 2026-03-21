@@ -5,6 +5,7 @@ __pycache__/
 *.pyc
 *.pyo
 *.egg-info/
+dist/
 .pytest_cache/
 .ruff_cache/
 data/raw/

@@ -47,12 +47,19 @@ jobs:
         run: |
           git push origin main --tags
 
+      - name: Build wheel
+        if: steps.bump.outputs.bumped == 'true'
+        run: |
+          pip install build
+          python -m build packages/agentiq_labclaw/ --outdir dist/
+
       - name: Create GitHub Release
         if: steps.bump.outputs.bumped == 'true'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
           gh release create "v${{ steps.bump.outputs.version }}" \
+            dist/*.whl \
             --title "v${{ steps.bump.outputs.version }}" \
             --notes-file CHANGELOG.md \
             --latest

@@ -182,25 +182,11 @@ def _find_offers(gpu_required: bool, max_cost_hr: float, count: int = 20) -> lis
     return resp.json().get("offers", [])
 
 
-def _provision_one(offer_id: int, image: str = "pytorch/pytorch:latest") -> int:
+def _provision_one(offer_id: int, image: str = "pytorch/pytorch:latest", onstart: str | None = None) -> int:
     """Provision a single Vast.ai instance. Returns instance_id."""
-    gh_token = os.environ.get("GITHUB_TOKEN", "")
-    if gh_token:
-        pip_url = f"git+https://{gh_token}@github.com/OpenCureLabs/OpenCureLabs.git#subdirectory=packages/agentiq_labclaw"
-    else:
-        pip_url = "git+https://github.com/OpenCureLabs/OpenCureLabs.git#subdirectory=packages/agentiq_labclaw"
-
-    onstart = (
-        "#!/bin/bash\n"
-        "set -e\n"
-        "exec > /tmp/labclaw_setup.log 2>&1\n"
-        "echo '[labclaw] Starting setup...'\n"
-        f"GIT_CLONE_PROTECTION_ACTIVE=false pip install --no-deps '{pip_url}' && "
-        "echo '[labclaw] pip install OK' || "
-        "{ echo '[labclaw] pip install FAILED'; exit 1; }\n"
-        "touch /tmp/labclaw_ready\n"
-        "echo '[labclaw] Setup complete'\n"
-    )
+    if onstart is None:
+        from agentiq_labclaw.compute import build_onstart_script, resolve_wheel_url
+        onstart = build_onstart_script(resolve_wheel_url())
 
     payload = {
         "client_id": "opencurelabs",
@@ -332,13 +318,22 @@ class PoolManager:
                 f"No Vast.ai offers found (gpu={self.gpu_required}, max=${self.max_cost_hr}/hr)"
             )
 
+        # Resolve wheel URL once for all instances (avoids N API calls)
+        from agentiq_labclaw.compute import build_onstart_script, resolve_wheel_url
+        wheel_url = resolve_wheel_url()
+        onstart = build_onstart_script(wheel_url)
+        if wheel_url:
+            logger.info("Using pre-built wheel: %s", wheel_url)
+        else:
+            logger.warning("No wheel found — falling back to full repo clone")
+
         # Provision in parallel
         provisioned = []
         with ThreadPoolExecutor(max_workers=min(needed, 10)) as executor:
             futures = {}
             for i in range(needed):
                 offer = offers[i % len(offers)]
-                fut = executor.submit(_provision_one, offer["id"])
+                fut = executor.submit(_provision_one, offer["id"], onstart=onstart)
                 futures[fut] = offer
 
             for fut in as_completed(futures):

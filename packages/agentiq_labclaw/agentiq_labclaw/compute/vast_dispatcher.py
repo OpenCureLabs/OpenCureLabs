@@ -232,25 +232,9 @@ def _create_instance(api_key: str, offer_id: int, image: str = "pytorch/pytorch:
     """Create a Vast.ai instance from an offer. Returns instance ID."""
     headers = {"Authorization": f"Bearer {api_key}"}
 
-    # Install agentiq_labclaw from GitHub on the remote instance.
-    # Uses GITHUB_TOKEN if set (for private repos), else assumes public.
-    gh_token = os.environ.get("GITHUB_TOKEN", "")
-    if gh_token:
-        pip_url = f"git+https://{gh_token}@github.com/OpenCureLabs/OpenCureLabs.git#subdirectory=packages/agentiq_labclaw"
-    else:
-        pip_url = "git+https://github.com/OpenCureLabs/OpenCureLabs.git#subdirectory=packages/agentiq_labclaw"
-
-    onstart_script = (
-        "#!/bin/bash\n"
-        "set -e\n"
-        "exec > /tmp/labclaw_setup.log 2>&1\n"
-        "echo '[labclaw] Starting setup...'\n"
-        f"GIT_CLONE_PROTECTION_ACTIVE=false pip install --no-deps '{pip_url}' && "
-        "echo '[labclaw] pip install OK' || "
-        "{ echo '[labclaw] pip install FAILED'; exit 1; }\n"
-        "touch /tmp/labclaw_ready\n"
-        "echo '[labclaw] Setup complete'\n"
-    )
+    # Resolve wheel URL once and build onstart script
+    from agentiq_labclaw.compute import build_onstart_script, resolve_wheel_url
+    onstart_script = build_onstart_script(resolve_wheel_url())
 
     payload = {
         "client_id": "opencurelabs",
