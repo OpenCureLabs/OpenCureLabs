@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - CI pipeline with tests, ruff, and bandit
 - Commitizen conventional commits enforcement
 
+## v0.11.0 (2026-03-21)
+
+### Feat
+
+- **dashboard**: add continuous run mode to research launcher
+
 ## v0.10.0 (2026-03-21)
 
 ### Feat
