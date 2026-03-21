@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - CI pipeline with tests, ruff, and bandit
 - Commitizen conventional commits enforcement
 
+## v0.23.3 (2026-03-21)
+
+### Fix
+
+- obabel SMILES flag must be concatenated with -: (no space)
+
 ## v0.23.2 (2026-03-21)
 
 ### Fix
