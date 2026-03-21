@@ -41,8 +41,9 @@ def _smiles_to_pdbqt(smiles: str, output_path: str) -> str:
     sdf_path = output_path.replace(".pdbqt", ".sdf")
 
     # Generate 3D coordinates with explicit hydrogens
+    # -: must be directly concatenated with the SMILES (no space)
     result = subprocess.run(  # noqa: S603
-        ["obabel", "-:", smiles, "-osdf", "-O", sdf_path, "--gen3d", "-h"],  # noqa: S607
+        ["obabel", f"-:{smiles}", "-osdf", "-O", sdf_path, "--gen3d", "-h"],  # noqa: S607
         capture_output=True,
         text=True,
     )
