@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - CI pipeline with tests, ruff, and bandit
 - Commitizen conventional commits enforcement
 
+## v0.23.2 (2026-03-21)
+
+### Fix
+
+- restore closing triple-quote in __init__.py docstring
+
 ## v0.23.1 (2026-03-21)
 
 ### Fix
