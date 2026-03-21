@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - CI pipeline with tests, ruff, and bandit
 - Commitizen conventional commits enforcement
 
+## v0.16.2 (2026-03-21)
+
+### Fix
+
+- make Genesis Mode run tasks sequentially instead of in parallel batches
+
 ## v0.16.1 (2026-03-21)
 
 ### Fix
