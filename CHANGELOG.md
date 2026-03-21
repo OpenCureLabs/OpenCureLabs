@@ -28,6 +28,187 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - CI pipeline with tests, ruff, and bandit
 - Commitizen conventional commits enforcement
 
+## v0.21.0 (2026-03-21)
+
+### Feat
+
+- Docker image + auto-download data for reliable batch dispatch
+- live progress during wait_for_ready
+- **compute**: install from pre-built wheel instead of cloning full repo
+- batch-scale Vast.ai dispatch — 100+ tasks across instance pool
+
+### Fix
+
+- AlphaFold fallback uses UniProt accession, lazy rdkit imports, wider error msgs
+- graceful DB fallback on remote instances, increase stderr limit
+- auto-import skill modules when registry is empty
+- install pydantic+psycopg2+requests in onstart before wheel
+- _poll_instance must unwrap Vast.ai {instances: {}} envelope
+- lower requires-python to >=3.10 for Vast.ai compatibility
+- sync pool_manager DB state against Vast.ai API on init
+- **compute**: auto-attach SSH key to new Vast.ai instances
+- **compute**: use valid wheel filename for pip install
+- **vast**: register SSH key + harden onstart script
+- validate batch inputs, cap tasks at 500 / instances at 20
+- prompt batch count/pool size before Genesis confirmation
+- eliminate SQL string construction in pool_manager (B608)
+
+## v0.19.0 (2026-03-21)
+
+### Feat
+
+- Budget tab — live AI spend tracking across all providers
+
+## v0.18.0 (2026-03-21)
+
+### Feat
+
+- pull budget from Vast.ai account balance instead of manual cap
+
+## v0.17.0 (2026-03-21)
+
+### Feat
+
+- Genesis continuous loop with throughput chooser and .env sourcing
+
+## v0.16.2 (2026-03-21)
+
+### Fix
+
+- make Genesis Mode run tasks sequentially instead of in parallel batches
+
+## v0.16.1 (2026-03-21)
+
+### Fix
+
+- expose Pydantic args_schema to specialist tools so LLM sends correct field names
+
+## v0.16.0 (2026-03-21)
+
+### Feat
+
+- Vast.ai instance monitoring + LABCLAW_COMPUTE env var
+
+## v0.15.0 (2026-03-21)
+
+### Feat
+
+- Genesis Mode — run all 12 tasks across all domains
+
+## v0.14.0 (2026-03-21)
+
+### Feat
+
+- Alt+c stop agents keybind + dashboard --reload mode
+
+## v0.13.0 (2026-03-21)
+
+### Feat
+
+- **dashboard**: new logo — robot hand + DNA helix
+
+## v0.12.1 (2026-03-21)
+
+### Fix
+
+- **dashboard**: clarify helpbar labels for Alt+s and Alt+x
+
+## v0.12.0 (2026-03-21)
+
+### Feat
+
+- **agents**: track coordinator and specialist runs in database
+
+## v0.11.2 (2026-03-21)
+
+### Fix
+
+- **dashboard**: remove auto-commit/push from shutdown
+
+## v0.11.1 (2026-03-21)
+
+### Fix
+
+- **dashboard**: harden score_bar against dict/non-numeric scores
+
+## v0.11.0 (2026-03-21)
+
+### Feat
+
+- **dashboard**: add continuous run mode to research launcher
+
+## v0.10.0 (2026-03-21)
+
+### Feat
+
+- **dashboard**: add data mode, agent count, Vast.ai options to research launcher
+
+## v0.9.0 (2026-03-21)
+
+### Feat
+
+- add follow-up prompts to research menu
+
+## v0.8.0 (2026-03-21)
+
+### Feat
+
+- gum-powered interactive research menu (Alt+S)
+
+## v0.7.2 (2026-03-21)
+
+### Fix
+
+- Zellij keybindings, dashboard score_bar, and stop.sh
+
+## v0.7.1 (2026-03-20)
+
+### Fix
+
+- **zellij**: Alt+n switches tabs, add Alt+r research, fix helpbar
+
+## v0.7.0 (2026-03-20)
+
+### Feat
+
+- add 88 tests (71% coverage), connection pooling, pin nvidia-nat
+
+## v0.6.1 (2026-03-20)
+
+### Fix
+
+- **dashboard**: soften green (#57F287 → #3fb950), bust logo cache (/logo-v2.png)
+
+## v0.6.0 (2026-03-20)
+
+### Feat
+
+- **dashboard**: add 5 D3.js interactive charts + new logo
+
+## v0.5.0 (2026-03-20)
+
+### Feat
+
+- dashboard improvements, rate limiting, and deployment infrastructure
+
+## v0.4.0 (2026-03-20)
+
+### Feat
+
+- **nat-plugin**: add schema hints, param normalization, and agent_run_id for orchestrator
+
+## v0.3.1 (2026-03-20)
+
+### Fix
+
+- **qsar**: replace pickle with joblib — resolves Bandit B301
+
+## v0.3.0 (2026-03-20)
+
+### Feat
+
+- production-grade hardening — rate limiting, DB indexes, expanded tests
+
 ## v0.20.0 (2026-03-21)
 
 ### Feat
