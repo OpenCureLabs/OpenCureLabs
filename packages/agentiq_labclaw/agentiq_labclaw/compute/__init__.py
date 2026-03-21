@@ -58,11 +58,12 @@ def build_onstart_script(wheel_url: str | None = None) -> str:
     if wheel_url:
         if gh_token and "api.github.com" in wheel_url:
             # Private repo: download via GitHub API with auth + octet-stream
+            # Use proper wheel filename so pip accepts it
             install_cmd = (
                 f"curl -sL -H 'Authorization: token {gh_token}' "
                 f"-H 'Accept: application/octet-stream' "
-                f"'{wheel_url}' -o /tmp/labclaw.whl && "
-                "pip install --no-deps /tmp/labclaw.whl"
+                f"'{wheel_url}' -o /tmp/agentiq_labclaw-latest-py3-none-any.whl && "
+                "pip install --no-deps /tmp/agentiq_labclaw-latest-py3-none-any.whl"
             )
         else:
             # Public repo: direct URL works
