@@ -28,6 +28,30 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - CI pipeline with tests, ruff, and bandit
 - Commitizen conventional commits enforcement
 
+## v0.20.0 (2026-03-21)
+
+### Feat
+
+- Docker image + auto-download data for reliable batch dispatch
+- live progress during wait_for_ready
+- **compute**: install from pre-built wheel instead of cloning full repo
+- batch-scale Vast.ai dispatch — 100+ tasks across instance pool
+
+### Fix
+
+- graceful DB fallback on remote instances, increase stderr limit
+- auto-import skill modules when registry is empty
+- install pydantic+psycopg2+requests in onstart before wheel
+- _poll_instance must unwrap Vast.ai {instances: {}} envelope
+- lower requires-python to >=3.10 for Vast.ai compatibility
+- sync pool_manager DB state against Vast.ai API on init
+- **compute**: auto-attach SSH key to new Vast.ai instances
+- **compute**: use valid wheel filename for pip install
+- **vast**: register SSH key + harden onstart script
+- validate batch inputs, cap tasks at 500 / instances at 20
+- prompt batch count/pool size before Genesis confirmation
+- eliminate SQL string construction in pool_manager (B608)
+
 ## v0.19.0 (2026-03-21)
 
 ### Feat
