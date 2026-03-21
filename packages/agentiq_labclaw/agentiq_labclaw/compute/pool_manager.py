@@ -192,8 +192,14 @@ def _provision_one(offer_id: int, image: str = "pytorch/pytorch:latest") -> int:
 
     onstart = (
         "#!/bin/bash\n"
-        f"pip install '{pip_url}' 2>&1 | tail -5\n"
+        "set -e\n"
+        "exec > /tmp/labclaw_setup.log 2>&1\n"
+        "echo '[labclaw] Starting setup...'\n"
+        f"GIT_CLONE_PROTECTION_ACTIVE=false pip install --no-deps '{pip_url}' && "
+        "echo '[labclaw] pip install OK' || "
+        "{ echo '[labclaw] pip install FAILED'; exit 1; }\n"
         "touch /tmp/labclaw_ready\n"
+        "echo '[labclaw] Setup complete'\n"
     )
 
     payload = {
@@ -242,20 +248,25 @@ def _destroy_instance(instance_id: int):
 
 def _check_setup_ready(ssh_host: str, ssh_port: int) -> bool:
     """Check if the onstart script has finished (marker file exists)."""
+    ssh_base = [
+        "ssh", "-o", "StrictHostKeyChecking=no",
+        "-o", "ConnectTimeout=5",
+        "-i", SSH_KEY_PATH,
+        "-p", str(ssh_port),
+        f"root@{ssh_host}",
+    ]
     try:
         result = subprocess.run(
-            [
-                "ssh", "-o", "StrictHostKeyChecking=no",
-                "-o", "ConnectTimeout=5",
-                "-i", SSH_KEY_PATH,
-                "-p", str(ssh_port),
-                f"root@{ssh_host}",
-                "test -f /tmp/labclaw_ready && echo READY || echo WAIT",
-            ],
+            [*ssh_base, "test -f /tmp/labclaw_ready && echo READY || echo WAIT"],
             capture_output=True, text=True, timeout=10,
         )
-        return "READY" in result.stdout
-    except Exception:
+        if "READY" in result.stdout:
+            return True
+        if result.returncode != 0:
+            logger.debug("SSH check for %s:%d failed: %s", ssh_host, ssh_port, result.stderr.strip())
+        return False
+    except Exception as e:
+        logger.debug("SSH check for %s:%d exception: %s", ssh_host, ssh_port, e)
         return False
 
 

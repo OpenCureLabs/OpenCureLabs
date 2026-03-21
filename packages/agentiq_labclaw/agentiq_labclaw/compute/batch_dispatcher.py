@@ -21,7 +21,6 @@ from __future__ import annotations
 import json
 import logging
 import os
-import sys
 import threading
 import time
 
@@ -99,7 +98,7 @@ def run_batch(
     # ── 4. Wait for at least 1 instance to be ready ──────────────────────
     _log("Waiting for instances to be ready (setup + pip install)...")
     try:
-        pool.wait_for_ready(min_ready=1, timeout=600)
+        pool.wait_for_ready(min_ready=1, timeout=900)
     except TimeoutError as e:
         _log("No instances became ready: %s — aborting", e)
         pool.teardown()
@@ -203,7 +202,7 @@ def _monitor_loop(batch_id, queue, pool, workers, threads, callback=None):
             break
 
         # Auto-scale pool based on queue depth
-        from agentiq_labclaw.compute.vast_dispatcher import get_total_spend, get_account_balance
+        from agentiq_labclaw.compute.vast_dispatcher import get_account_balance, get_total_spend
         balance = get_account_balance()
         spent = get_total_spend()
         pool.auto_scale(pending, balance - spent)

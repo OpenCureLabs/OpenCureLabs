@@ -242,8 +242,14 @@ def _create_instance(api_key: str, offer_id: int, image: str = "pytorch/pytorch:
 
     onstart_script = (
         "#!/bin/bash\n"
-        f"pip install '{pip_url}' 2>&1 | tail -5\n"
+        "set -e\n"
+        "exec > /tmp/labclaw_setup.log 2>&1\n"
+        "echo '[labclaw] Starting setup...'\n"
+        f"GIT_CLONE_PROTECTION_ACTIVE=false pip install --no-deps '{pip_url}' && "
+        "echo '[labclaw] pip install OK' || "
+        "{ echo '[labclaw] pip install FAILED'; exit 1; }\n"
         "touch /tmp/labclaw_ready\n"
+        "echo '[labclaw] Setup complete'\n"
     )
 
     payload = {
