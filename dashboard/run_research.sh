@@ -377,23 +377,54 @@ if $HAS_GUM; then
                 BATCH_MODE=1
                 # Prompt for batch parameters before confirmation
                 BATCH_COUNT=$(gum input \
-                    --header "How many tasks?" \
+                    --header "How many tasks? (max 500)" \
                     --placeholder "100" \
                     --value "100" \
                     --header.foreground 214 \
                     --prompt.foreground 46 \
                 ) || BATCH_COUNT=100
+                # Validate: integer between 1-500
+                if ! [[ "$BATCH_COUNT" =~ ^[0-9]+$ ]] || [[ "$BATCH_COUNT" -lt 1 ]]; then
+                    BATCH_COUNT=100
+                elif [[ "$BATCH_COUNT" -gt 500 ]]; then
+                    BATCH_COUNT=500
+                    gum style --foreground 196 "  ⚠️  Capped to 500 tasks (budget protection)"
+                fi
 
                 POOL_SIZE=$(gum input \
-                    --header "Instance pool size?" \
+                    --header "Instance pool size? (max 20)" \
                     --placeholder "10" \
                     --value "10" \
                     --header.foreground 214 \
                     --prompt.foreground 46 \
                 ) || POOL_SIZE=10
+                # Validate: integer between 1-20
+                if ! [[ "$POOL_SIZE" =~ ^[0-9]+$ ]] || [[ "$POOL_SIZE" -lt 1 ]]; then
+                    POOL_SIZE=10
+                elif [[ "$POOL_SIZE" -gt 20 ]]; then
+                    POOL_SIZE=20
+                    gum style --foreground 196 "  ⚠️  Capped to 20 instances (budget protection)"
+                fi
 
                 TOTAL="$BATCH_COUNT"
                 MODE_LABEL="batch ($POOL_SIZE instances)"
+
+                # Show updated batch summary
+                echo ""
+                EST_COST=$(python3 -c "print(f'\${(int(\"$POOL_SIZE\") * 0.50 * 0.5):.2f}')" 2>/dev/null || echo "?")
+                printf '%s\n' \
+                    "" \
+                    "  📦  B A T C H   M O D E" \
+                    "" \
+                    "  $BATCH_COUNT tasks → $POOL_SIZE Vast.ai instances" \
+                    "  Estimated cost: ~\$$EST_COST (at \$0.50/hr, ~30min)" \
+                    "" \
+                | gum style \
+                    --border rounded \
+                    --border-foreground 46 \
+                    --foreground 46 \
+                    --bold \
+                    --padding "0 1"
             else
                 BATCH_MODE=0
                 [[ $PARALLEL -eq 1 ]] && MODE_LABEL="sequential" || MODE_LABEL="$PARALLEL parallel"
@@ -871,12 +902,28 @@ select domain in "${DOMAINS[@]}"; do
             if [[ $PARALLEL -eq 100 ]]; then
                 BATCH_MODE=1
                 echo ""
-                read -rp "How many tasks? [100] " BATCH_COUNT
+                read -rp "How many tasks? (1-500) [100] " BATCH_COUNT
                 BATCH_COUNT="${BATCH_COUNT:-100}"
-                read -rp "Instance pool size? [10] " POOL_SIZE
+                # Validate
+                if ! [[ "$BATCH_COUNT" =~ ^[0-9]+$ ]] || [[ "$BATCH_COUNT" -lt 1 ]]; then
+                    BATCH_COUNT=100
+                elif [[ "$BATCH_COUNT" -gt 500 ]]; then
+                    BATCH_COUNT=500
+                    echo -e "${RED}  ⚠️  Capped to 500 tasks (budget protection)${RESET}"
+                fi
+                read -rp "Instance pool size? (1-20) [10] " POOL_SIZE
                 POOL_SIZE="${POOL_SIZE:-10}"
+                if ! [[ "$POOL_SIZE" =~ ^[0-9]+$ ]] || [[ "$POOL_SIZE" -lt 1 ]]; then
+                    POOL_SIZE=10
+                elif [[ "$POOL_SIZE" -gt 20 ]]; then
+                    POOL_SIZE=20
+                    echo -e "${RED}  ⚠️  Capped to 20 instances (budget protection)${RESET}"
+                fi
                 TOTAL="$BATCH_COUNT"
                 MODE_LABEL="batch ($POOL_SIZE instances)"
+                EST_COST=$(python3 -c "print(f'\${(int(\"$POOL_SIZE\") * 0.50 * 0.5):.2f}')" 2>/dev/null || echo "?")
+                echo ""
+                echo -e "${YELLOW}  📦 $BATCH_COUNT tasks → $POOL_SIZE instances (est. ~\$$EST_COST)${RESET}"
             else
                 BATCH_MODE=0
                 [[ $PARALLEL -eq 1 ]] && MODE_LABEL="sequential" || MODE_LABEL="$PARALLEL parallel"
