@@ -86,7 +86,7 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET"], a
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 
-@app.get("/logo-v2.png")
+@app.get("/logo-v3.png")
 async def serve_logo():
     logo_path = os.path.join(PROJECT_ROOT, "OpenCureLabs.png")
     if os.path.exists(logo_path):
@@ -462,7 +462,7 @@ def render_dashboard(stats, runs, findings, critiques, sources, activity=None):
     border-bottom: 1px solid #21262d;
   }}
   .header h1 {{ color: #7aa2f7; font-size: 24px; }}
-  .header-logo {{ width: 96px; height: 96px; border-radius: 4px; }}
+  .header-logo {{ width: 96px; height: 96px; border-radius: 50%; }}
   .header .ts {{ color: #484f58; font-size: 13px; margin-left: auto; }}
   .header .refresh {{ color: #484f58; font-size: 12px; }}
   .discord-link {{
@@ -583,7 +583,7 @@ def render_dashboard(stats, runs, findings, critiques, sources, activity=None):
 <body>
 
 <div class="header">
-  <img src="/logo-v2.png" alt="OpenCure Labs" class="header-logo">
+  <img src="/logo-v3.png" alt="OpenCure Labs" class="header-logo">
   <h1>OpenCure Labs</h1>
   <a href="https://discord.com/channels/1484240467477659941/1484241124104081680" target="_blank" class="discord-link" title="Discord Server">💬 Discord</a>
   <span class="ts">Dashboard · {now}</span>
