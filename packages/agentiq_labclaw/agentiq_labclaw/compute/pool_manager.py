@@ -221,7 +221,9 @@ def _poll_instance(instance_id: int) -> dict:
         timeout=30,
     )
     resp.raise_for_status()
-    return resp.json()
+    data = resp.json()
+    # Vast.ai wraps single-instance response as {"instances": {<fields>}}
+    return data.get("instances", data)
 
 
 def _destroy_instance(instance_id: int):
