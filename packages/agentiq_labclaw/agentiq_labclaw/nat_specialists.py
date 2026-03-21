@@ -106,9 +106,33 @@ async def specialist_agent(config: SpecialistAgentConfig, builder: Builder):
     agent = create_react_agent(model=llm, tools=tools, prompt=SystemMessage(content=system_msg))
 
     async def _run(input_text: str) -> str:
-        result = await agent.ainvoke({"messages": [HumanMessage(content=input_text)]})
-        messages = result.get("messages", [])
-        return messages[-1].content if messages else "No response generated."
+        run_id = None
+        try:
+            from agentiq_labclaw.db.agent_runs import complete_run, start_run
+            run_id = start_run(agent_name=config.specialty_domain)
+        except Exception as e:
+            logger.debug("Could not record specialist run start: %s", e)
+
+        try:
+            result = await agent.ainvoke({"messages": [HumanMessage(content=input_text)]})
+            messages = result.get("messages", [])
+            response = messages[-1].content if messages else "No response generated."
+
+            if run_id is not None:
+                try:
+                    complete_run(run_id, status="completed")
+                except Exception:
+                    logger.debug("Failed to mark specialist run %s as completed", run_id)
+
+            return response
+        except Exception as e:
+            if run_id is not None:
+                try:
+                    from agentiq_labclaw.db.agent_runs import complete_run as _cr
+                    _cr(run_id, status="failed", result={"error": str(e)})
+                except Exception:
+                    pass
+            raise
 
     yield FunctionInfo.from_fn(
         _run,
@@ -187,9 +211,33 @@ async def hierarchical_coordinator(config: HierarchicalCoordinatorConfig, builde
     )
 
     async def _run(input_text: str) -> str:
-        result = await agent.ainvoke({"messages": [HumanMessage(content=input_text)]})
-        messages = result.get("messages", [])
-        return messages[-1].content if messages else "No response generated."
+        run_id = None
+        try:
+            from agentiq_labclaw.db.agent_runs import complete_run, start_run
+            run_id = start_run(agent_name="coordinator")
+        except Exception as e:
+            logger.debug("Could not record coordinator run start: %s", e)
+
+        try:
+            result = await agent.ainvoke({"messages": [HumanMessage(content=input_text)]})
+            messages = result.get("messages", [])
+            response = messages[-1].content if messages else "No response generated."
+
+            if run_id is not None:
+                try:
+                    complete_run(run_id, status="completed")
+                except Exception:
+                    logger.debug("Failed to mark coordinator run %s as completed", run_id)
+
+            return response
+        except Exception as e:
+            if run_id is not None:
+                try:
+                    from agentiq_labclaw.db.agent_runs import complete_run as _cr
+                    _cr(run_id, status="failed", result={"error": str(e)})
+                except Exception:
+                    pass
+            raise
 
     yield FunctionInfo.from_fn(
         _run,
