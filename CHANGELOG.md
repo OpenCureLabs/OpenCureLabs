@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - CI pipeline with tests, ruff, and bandit
 - Commitizen conventional commits enforcement
 
+## v0.16.1 (2026-03-21)
+
+### Fix
+
+- expose Pydantic args_schema to specialist tools so LLM sends correct field names
+
 ## v0.16.0 (2026-03-21)
 
 ### Feat
