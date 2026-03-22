@@ -859,6 +859,8 @@ if $HAS_GUM; then
             DISPLAY+=("$label — $desc")
         done
 
+        ITEM_COUNT=${#ITEMS[@]}
+
         SELECTED=$(gum choose \
             --header "Select task:" \
             --header.foreground 39 \
@@ -867,6 +869,7 @@ if $HAS_GUM; then
             --selected.foreground 46 \
             --selected.bold \
             "⬅ Back" \
+            "🚀 Run All — Execute all $ITEM_COUNT tasks in this domain" \
             "${DISPLAY[@]}" \
         ) || { echo "Cancelled."; read -r; exit 0; }
 
@@ -874,17 +877,32 @@ if $HAS_GUM; then
             _STEP=$_BACK_FROM_3; continue
         fi
 
-        # Extract the label part (before " — ") and find matching task
-        SELECTED_LABEL="${SELECTED%% — *}"
-        TASK=""
-        for item in "${ITEMS[@]}"; do
-            raw="${item%%|*}"
-            label="${raw%% ~*}"
-            if [[ "$label" == "$SELECTED_LABEL" ]]; then
-                TASK="${item#*|}"
-                break
-            fi
-        done
+        RUN_ALL=false
+        if [[ "$SELECTED" == *"Run All"* ]]; then
+            RUN_ALL=true
+            # Build combined task list for sequential execution
+            RUN_ALL_TASKS=()
+            RUN_ALL_LABELS=()
+            for item in "${ITEMS[@]}"; do
+                RUN_ALL_TASKS+=("${item#*|}")
+                raw="${item%%|*}"
+                RUN_ALL_LABELS+=("${raw%% ~*}")
+            done
+            TASK="${RUN_ALL_TASKS[0]}"
+            SELECTED_LABEL=""
+        else
+            # Extract the label part (before " — ") and find matching task
+            SELECTED_LABEL="${SELECTED%% — *}"
+            TASK=""
+            for item in "${ITEMS[@]}"; do
+                raw="${item%%|*}"
+                label="${raw%% ~*}"
+                if [[ "$label" == "$SELECTED_LABEL" ]]; then
+                    TASK="${item#*|}"
+                    break
+                fi
+            done
+        fi
     fi
 
     BASE_TASK="$TASK"
@@ -992,8 +1010,13 @@ if $HAS_GUM; then
 
     # ── Confirmation summary ─────────────────────────────────────────
     echo ""
+    if ${RUN_ALL:-false}; then
+        TASK_SUMMARY="🚀 Run All — ${#RUN_ALL_TASKS[@]} tasks in domain"
+    else
+        TASK_SUMMARY="📋 Task: $TASK"
+    fi
     printf '%s\n' \
-        "📋 Task: $TASK" \
+        "$TASK_SUMMARY" \
         "$([[ "$DATA_MODE" == "public" ]] && echo "📡 Data: Public databases" || echo "📁 Data: My files")" \
         "🤖 Agents: ${AGENT_NUM:-1}" \
         "$([[ "$USE_VAST" == "yes" ]] && echo "☁️  Compute: Vast.ai cloud GPU" || echo "🖥️  Compute: Local GPU")" \
@@ -1054,6 +1077,63 @@ if $HAS_GUM; then
     # Species routing — propagated to all LabClaw skills via environment
     export LABCLAW_SPECIES="${LABCLAW_SPECIES:-human}"
     [[ "$LABCLAW_SPECIES" != "human" ]] && TASK="$TASK species=$LABCLAW_SPECIES."
+
+    # ── Run All: sequential multi-task execution ─────────────────────
+    if ${RUN_ALL:-false}; then
+        TOTAL_ALL=${#RUN_ALL_TASKS[@]}
+        ALL_OK=0
+        ALL_FAILED=0
+
+        echo ""
+        gum style --foreground 46 --bold "🚀 Running all $TOTAL_ALL tasks sequentially..." 2>/dev/null || true
+        echo ""
+
+        for i in $(seq 0 $((TOTAL_ALL - 1))); do
+            TASK_NUM=$((i + 1))
+            LABEL="${RUN_ALL_LABELS[$i]}"
+            CURRENT_TASK="${RUN_ALL_TASKS[$i]}"
+            [[ "$DATA_MODE" == "public" ]] && CURRENT_TASK="$CURRENT_TASK Use public databases (TCGA/ClinVar/ChEMBL) for data sourcing."
+            [[ "${AGENT_NUM:-1}" -gt 1 ]] 2>/dev/null && CURRENT_TASK="$CURRENT_TASK Deploy $AGENT_NUM parallel agents."
+            [[ "$USE_VAST" == "yes" ]] && CURRENT_TASK="$CURRENT_TASK Use Vast.ai cloud GPU for compute."
+            [[ "$LABCLAW_SPECIES" != "human" ]] && CURRENT_TASK="$CURRENT_TASK species=$LABCLAW_SPECIES."
+
+            gum style --foreground 214 --bold \
+                "  ▶ [$TASK_NUM/$TOTAL_ALL] $LABEL" 2>/dev/null || true
+
+            TASK_LOG="$PROJECT_DIR/logs/runall-$(date +%Y%m%d-%H%M%S)-${TASK_NUM}.log"
+
+            if nat run --config_file "$CONFIG" --input "$CURRENT_TASK" \
+                2>&1 | tee -a "$TASK_LOG"; then
+                ALL_OK=$((ALL_OK + 1))
+                gum style --foreground 46 "  ✅ [$TASK_NUM/$TOTAL_ALL] $LABEL — complete" 2>/dev/null || true
+            else
+                ALL_FAILED=$((ALL_FAILED + 1))
+                gum style --foreground 196 "  ❌ [$TASK_NUM/$TOTAL_ALL] $LABEL — failed" 2>/dev/null || true
+            fi
+            echo ""
+        done
+
+        echo ""
+        printf '%s\n' \
+            "" \
+            "  🏁 RUN ALL COMPLETE" \
+            "" \
+            "  ✅ Passed:  $ALL_OK / $TOTAL_ALL" \
+            "  ❌ Failed:  $ALL_FAILED" \
+            "" \
+        | (gum style \
+            --border rounded \
+            --border-foreground "$( [[ $ALL_FAILED -eq 0 ]] && echo 46 || echo 196 )" \
+            --foreground "$( [[ $ALL_FAILED -eq 0 ]] && echo 46 || echo 214 )" \
+            --bold \
+            --padding "0 2" \
+            --margin "0 0" 2>/dev/null || cat)
+
+        echo ""
+        echo -e "${DIM}Press Enter to close${RESET}"
+        read -r
+        exit 0
+    fi
 
     RUN_COUNT=0
     while true; do
