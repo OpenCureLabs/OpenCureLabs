@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OpenCure Labs — Live Discoveries</title>
+    <style>
+        :root {
+            --bg: #0a0e1a;
+            --surface: #111827;
+            --border: #1f2937;
+            --accent: #22d3ee;
+            --accent2: #818cf8;
+            --text: #e2e8f0;
+            --muted: #64748b;
+            --novel: #34d399;
+            --tag-bg: #1e293b;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', system-ui, sans-serif;
+            min-height: 100vh;
+        }
+
+        header {
+            border-bottom: 1px solid var(--border);
+            padding: 1.5rem 2rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        header img {
+            height: 36px;
+        }
+
+        header h1 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        header span {
+            color: var(--muted);
+            font-size: 0.875rem;
+            margin-left: auto;
+        }
+
+        .hero {
+            text-align: center;
+            padding: 3rem 1rem 2rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .hero h2 {
+            font-size: 2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero p {
+            color: var(--muted);
+            margin-top: 0.5rem;
+            font-size: 0.95rem;
+        }
+
+        .stats-bar {
+            display: flex;
+            gap: 2rem;
+            justify-content: center;
+            padding: 1.25rem;
+            border-bottom: 1px solid var(--border);
+            background: var(--surface);
+        }
+
+        .stat {
+            text-align: center;
+        }
+
+        .stat .value {
+            font-size: 1.5rem;
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        .stat .label {
+            font-size: 0.75rem;
+            color: var(--muted);
+            margin-top: 0.2rem;
+        }
+
+        .filters {
+            display: flex;
+            gap: 0.5rem;
+            padding: 1rem 2rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .filter-btn {
+            padding: 0.35rem 0.85rem;
+            border-radius: 9999px;
+            border: 1px solid var(--border);
+            background: var(--tag-bg);
+            color: var(--muted);
+            font-size: 0.8rem;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .filter-btn:hover,
+        .filter-btn.active {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: rgba(34, 211, 238, 0.08);
+        }
+
+        .feed {
+            max-width: 900px;
+            margin: 0 auto;
+            padding: 0 1.5rem 3rem;
+        }
+
+        .result-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 1.1rem 1.25rem;
+            margin-bottom: 0.75rem;
+            display: flex;
+            gap: 1rem;
+            align-items: flex-start;
+            transition: border-color 0.15s;
+            text-decoration: none;
+            color: inherit;
+        }
+
+        .result-card:hover {
+            border-color: var(--accent);
+        }
+
+        .skill-icon {
+            width: 40px;
+            height: 40px;
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.2rem;
+            flex-shrink: 0;
+            background: var(--tag-bg);
+        }
+
+        .card-body {
+            flex: 1;
+            min-width: 0;
+        }
+
+        .card-top {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+
+        .skill-tag {
+            font-size: 0.7rem;
+            padding: 0.2rem 0.55rem;
+            border-radius: 9999px;
+            background: var(--tag-bg);
+            color: var(--accent2);
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        .novel-badge {
+            font-size: 0.7rem;
+            padding: 0.2rem 0.55rem;
+            border-radius: 9999px;
+            background: rgba(52, 211, 153, 0.12);
+            color: var(--novel);
+            font-weight: 600;
+        }
+
+        .card-title {
+            font-size: 0.95rem;
+            font-weight: 500;
+            margin-top: 0.3rem;
+        }
+
+        .card-meta {
+            display: flex;
+            gap: 1rem;
+            margin-top: 0.4rem;
+            flex-wrap: wrap;
+        }
+
+        .meta-item {
+            font-size: 0.78rem;
+            color: var(--muted);
+        }
+
+        .meta-item span {
+            color: var(--text);
+            font-weight: 500;
+        }
+
+        .card-time {
+            font-size: 0.75rem;
+            color: var(--muted);
+            margin-left: auto;
+            white-space: nowrap;
+        }
+
+        .loading {
+            text-align: center;
+            padding: 3rem;
+            color: var(--muted);
+        }
+
+        .pulse {
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1
+            }
+
+            50% {
+                opacity: 0.4
+            }
+        }
+
+        footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--muted);
+            font-size: 0.8rem;
+            border-top: 1px solid var(--border);
+        }
+
+        footer a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <h1>🧬 OpenCure Labs</h1>
+        <span id="last-updated">Fetching latest discoveries…</span>
+    </header>
+
+    <div class="hero">
+        <h2>Global Research Feed</h2>
+        <p>AI-generated scientific discoveries contributed by researchers worldwide — open for anyone to download and
+            use.</p>
+    </div>
+
+    <div class="stats-bar">
+        <div class="stat">
+            <div class="value" id="stat-total">—</div>
+            <div class="label">Total Results</div>
+        </div>
+        <div class="stat">
+            <div class="value" id="stat-novel">—</div>
+            <div class="label">Novel Findings</div>
+        </div>
+        <div class="stat">
+            <div class="value" id="stat-skills">—</div>
+            <div class="label">Skill Types</div>
+        </div>
+        <div class="stat">
+            <div class="value" id="stat-today">—</div>
+            <div class="label">Today</div>
+        </div>
+    </div>
+
+    <div class="filters">
+        <span style="font-size:0.8rem;color:var(--muted);margin-right:0.5rem">Filter:</span>
+        <button class="filter-btn active" data-skill="all" onclick="setFilter(this,'all')">All</button>
+        <button class="filter-btn" data-skill="neoantigen_prediction"
+            onclick="setFilter(this,'neoantigen_prediction')">Neoantigen</button>
+        <button class="filter-btn" data-skill="variant_pathogenicity"
+            onclick="setFilter(this,'variant_pathogenicity')">Variant</button>
+        <button class="filter-btn" data-skill="molecular_docking"
+            onclick="setFilter(this,'molecular_docking')">Docking</button>
+        <button class="filter-btn" data-skill="qsar" onclick="setFilter(this,'qsar')">QSAR</button>
+        <button class="filter-btn" data-skill="structure_prediction"
+            onclick="setFilter(this,'structure_prediction')">Structure</button>
+        <button class="filter-btn" data-skill="sequencing_qc" onclick="setFilter(this,'sequencing_qc')">QC</button>
+        <button class="filter-btn" data-skill="grok_research"
+            onclick="setFilter(this,'grok_research')">Literature</button>
+    </div>
+
+    <div class="feed" id="feed">
+        <div class="loading pulse">Loading discoveries…</div>
+    </div>
+
+    <footer>
+        Data is open and freely downloadable from <a
+            href="https://pub.opencurelabs.ai/latest.json">pub.opencurelabs.ai</a> &middot;
+        <a href="https://github.com/OpenCureLabs/OpenCureLabs">GitHub</a> &middot;
+        Results are AI-generated and should be independently validated before clinical use.
+    </footer>
+
+    <script>
+        const INGEST_URL = 'https://ingest.opencurelabs.ai';
+        const SKILL_ICONS = {
+            neoantigen_prediction: '🎯',
+            variant_pathogenicity: '🧬',
+            molecular_docking: '⚗️',
+            qsar: '📊',
+            structure_prediction: '🔬',
+            sequencing_qc: '📋',
+            grok_research: '📚',
+            report_generator: '📄',
+        };
+        const SKILL_LABELS = {
+            neoantigen_prediction: 'Neoantigen Prediction',
+            variant_pathogenicity: 'Variant Pathogenicity',
+            molecular_docking: 'Molecular Docking',
+            qsar: 'QSAR Model',
+            structure_prediction: 'Structure Prediction',
+            sequencing_qc: 'Sequencing QC',
+            grok_research: 'Literature Review',
+            report_generator: 'Report',
+        };
+
+        let allResults = [];
+        let activeFilter = 'all';
+
+        function setFilter(btn, skill) {
+            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            activeFilter = skill;
+            renderFeed(allResults);
+        }
+
+        function timeAgo(iso) {
+            const diff = Date.now() - new Date(iso).getTime();
+            const m = Math.floor(diff / 60000);
+            if (m < 1) return 'just now';
+            if (m < 60) return `${m}m ago`;
+            const h = Math.floor(m / 60);
+            if (h < 24) return `${h}h ago`;
+            return `${Math.floor(h / 24)}d ago`;
+        }
+
+        function renderFeed(results) {
+            const feed = document.getElementById('feed');
+            const filtered = activeFilter === 'all' ? results : results.filter(r => r.skill === activeFilter);
+
+            if (!filtered.length) {
+                feed.innerHTML = '<div class="loading">No results yet for this filter.</div>';
+                return;
+            }
+
+            feed.innerHTML = filtered.map(r => `
+    <a class="result-card" href="${r.r2_url}" target="_blank" rel="noopener">
+      <div class="skill-icon">${SKILL_ICONS[r.skill] || '🔬'}</div>
+      <div class="card-body">
+        <div class="card-top">
+          <span class="skill-tag">${SKILL_LABELS[r.skill] || r.skill}</span>
+          ${r.novel ? '<span class="novel-badge">✨ Novel</span>' : ''}
+        </div>
+        <div class="card-title">${r.gene ? `Gene: <strong>${r.gene}</strong>` : r.skill.replace(/_/g, ' ')}</div>
+        <div class="card-meta">
+          ${r.confidence_score != null ? `<span class="meta-item">Confidence: <span>${(r.confidence_score * 100).toFixed(0)}%</span></span>` : ''}
+          <span class="meta-item">Date: <span>${r.date}</span></span>
+          <span class="meta-item">Status: <span>${r.status}</span></span>
+        </div>
+      </div>
+      <div class="card-time">${timeAgo(r.created_at)}</div>
+    </a>
+  `).join('');
+        }
+
+        function updateStats(results) {
+            const today = new Date().toISOString().split('T')[0];
+            document.getElementById('stat-total').textContent = results.length;
+            document.getElementById('stat-novel').textContent = results.filter(r => r.novel).length;
+            document.getElementById('stat-skills').textContent = new Set(results.map(r => r.skill)).size;
+            document.getElementById('stat-today').textContent = results.filter(r => r.date === today).length;
+        }
+
+        async function loadResults() {
+            try {
+                const resp = await fetch(`${INGEST_URL}/results?limit=100`);
+                const data = await resp.json();
+                allResults = data.results || [];
+                updateStats(allResults);
+                renderFeed(allResults);
+                document.getElementById('last-updated').textContent =
+                    `Updated ${new Date().toLocaleTimeString()} · ${allResults.length} results`;
+            } catch (e) {
+                document.getElementById('feed').innerHTML =
+                    '<div class="loading">Could not load results — please try again shortly.</div>';
+            }
+        }
+
+        loadResults();
+        // Auto-refresh every 60 seconds
+        setInterval(loadResults, 60000);
+    </script>
+</body>
+
+</html>
