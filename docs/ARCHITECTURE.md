@@ -363,17 +363,142 @@ with automatic TTL expiration.
 
 4. REVIEW (novel results only)
    Novel result ──→ Grok Tier 1 (local scientific critique JSON)
-                ──→ Grok Tier 2 (sweep verification — independent re-review)
                 ──→ Grok (literature corroboration)
                 ──→ critique_log table
 
 5. PUBLISHING
    Validated result ──→ GitHub (commit + push)
                     ──→ PDF report (ReportLab)
+                    ──→ R2Publisher (sign + POST to ingest worker)
 
 6. STORAGE
    All results ──→ PostgreSQL (experiment_results, pipeline_runs, agent_runs)
+               ──→ Cloudflare R2 (full result blobs)
+               ──→ Cloudflare D1 (queryable index)
 ```
+
+---
+
+## Result Lifecycle (End-to-End)
+
+This diagram shows the complete path a result takes from compute through
+review, publication, and public availability.
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│                         LOCAL MACHINE                                │
+│                                                                      │
+│  ┌─────────────┐         ┌───────────────────────┐                   │
+│  │ Skill runs   │────────→│ Post-Execution        │                   │
+│  │ (local GPU   │ result  │ Orchestrator          │                   │
+│  │  or Vast.ai) │         │                       │                   │
+│  └─────────────┘         │ 1. Validate (schema)  │                   │
+│        ▲                  │ 2. Dedup (novelty)    │                   │
+│  SSH   │ result           │ 3. Safety check       │                   │
+│  stdin │ stdout           │ 4. Grok Tier 1 ──────────→ xAI API       │
+│        │                  │    (scientific review) │◁── critique JSON  │
+│  ┌─────┴───────┐         │ 5. Store → PostgreSQL  │                   │
+│  │  Vast.ai    │         │ 6. PDF report          │                   │
+│  │  GPU        │         │ 7. GitHub commit       │                   │
+│  │  (optional) │         │ 8. R2Publisher ────────────────┐           │
+│  └─────────────┘         └───────────────────────┘       │           │
+│                                                           │           │
+│                            Ed25519 sign payload           │           │
+│                            X-Contributor-Key header       │           │
+│                            X-Signature header             │           │
+└───────────────────────────────────────────────────────────┼───────────┘
+                                                            │
+                              POST /results                 │
+                              (raw signed JSON)             │
+                                                            ▼
+┌──────────────────────────────────────────────────────────────────────┐
+│                    CLOUDFLARE (ingest.opencurelabs.ai)                │
+│                                                                      │
+│  ┌──────────────────────────────────────────────────────────────┐    │
+│  │ Ingest Worker (handlePost)                                    │    │
+│  │                                                               │    │
+│  │  1. Verify Ed25519 signature (lookup contributor key in D1)   │    │
+│  │  2. Validate payload (skill enum, local_critique required)    │    │
+│  │  3. Force status = "pending"                                  │    │
+│  │  4. Write full blob → R2   (results/{skill}/{date}/{id}.json) │    │
+│  │  5. Insert index row → D1  (id, skill, status, r2_url, ...)  │    │
+│  │  6. Return { id, url, status: "pending" }                     │    │
+│  └──────────────────────────────────────────────────────────────┘    │
+│                                                                      │
+│           R2 (blob store)              D1 (SQLite index)             │
+│  ┌──────────────────────┐     ┌──────────────────────────┐          │
+│  │ Full result JSON     │     │ id, skill, status,       │          │
+│  │ + local_critique     │     │ r2_url, confidence,      │          │
+│  │ + metadata           │     │ gene, novel, species,    │          │
+│  │                      │     │ contributor_id,          │          │
+│  │ (later: +batch_      │     │ created_at, reviewed_at  │          │
+│  │  critique appended)  │     │                          │          │
+│  └──────────────────────┘     │ status: pending →        │          │
+│                                │   published | blocked    │          │
+│                                └──────────────────────────┘          │
+└──────────────────────────────────────────────────────────────────────┘
+                                        ▲
+                              PATCH     │    GET /results?status=pending
+                              /results/ │    (queries D1 for unverified)
+                              {id}      │
+                                        │
+┌───────────────────────────────────────┼──────────────────────────────┐
+│                    SWEEP (reviewer/sweep.py — runs on VM)            │
+│                                                                      │
+│  Runs periodically (every 60s):                                      │
+│                                                                      │
+│  1. GET /results?status=pending  ──→ list of unverified results      │
+│  2. Fetch full blob from R2 URL                                      │
+│  3. Grok Tier 2 re-review:                                           │
+│     • Verify local_critique wasn't fabricated                        │
+│     • Independently assess result_data quality                       │
+│     • Score ≥ 7.0 → published | < 5.0 → blocked | 5–7 → deferred   │
+│  4. PATCH /results/{id} with:                                        │
+│     • status: "published" or "blocked"                               │
+│     • batch_critique: { ... }                                        │
+│                                                                      │
+│  Ingest Worker on PATCH:                                             │
+│  • Updates D1 status + reviewed_at                                   │
+│  • Appends batch_critique to R2 blob                                 │
+│  • If published → adds to latest.json (rolling 100-entry feed)       │
+└──────────────────────────────────────────────────────────────────────┘
+
+                                        │
+                                        ▼ published results
+                              ┌─────────────────────┐
+                              │   PUBLIC ACCESS      │
+                              │                      │
+                              │ GET /results         │
+                              │  → D1 query          │
+                              │  (status=published)  │
+                              │                      │
+                              │ latest.json          │
+                              │  → rolling feed      │
+                              │  (pub.opencurelabs   │
+                              │   .ai)               │
+                              └─────────────────────┘
+```
+
+### Status Lifecycle
+
+| Status | Meaning | Set by | Visible publicly |
+|---|---|---|---|
+| `pending` | Submitted, awaiting Tier 2 verification | Ingest Worker (on POST) | No |
+| `published` | Verified by Grok sweep, included in feed | Sweep (via PATCH) | Yes |
+| `blocked` | Failed Tier 2 review, suppressed | Sweep (via PATCH) | No |
+
+### Key Design Points
+
+- **R2 and D1 are always written together** — every submitted result has both
+  a full blob in R2 and an index row in D1. There is no scenario where a
+  result exists in one but not the other.
+- **Vast.ai results return to the local machine first** — remote GPU instances
+  stream results back via SSH stdout. Review, signing, and publishing all
+  happen locally.
+- **The sweep never creates D1 rows** — it only transitions `pending` →
+  `published` or `blocked`. All D1 rows are created at submission time.
+- **`latest.json`** is rebuilt on each PATCH that sets `status=published` — it
+  contains the 100 most recent published results and is served from R2.
 
 ---
 
