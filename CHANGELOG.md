@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - CI pipeline with tests, ruff, and bandit
 - Commitizen conventional commits enforcement
 
+## v0.39.3 (2026-03-22)
+
+### Fix
+
+- **ci**: pin deps + use uv to resolve pyarrow/dateutil conflicts
+
 ## v0.39.2 (2026-03-22)
 
 ### Fix
