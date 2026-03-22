@@ -364,6 +364,9 @@ if $HAS_GUM; then
 
     while true; do
 
+    # Clear screen on each step to prevent stacking
+    clear
+
     case $_STEP in
 
     # ══════════════════════════════════════════════════════════════════════
