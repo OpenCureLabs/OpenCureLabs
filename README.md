@@ -1,7 +1,13 @@
-# 🧬 OpenCure Labs
-Autonomous AI agents running real science — so every researcher can fight cancer like a funded lab.
+<p align="center">
+  <img src="logos/OpenCure_Labs_logo_main.png" alt="OpenCure Labs" width="400">
+</p>
 
-[![CI](https://github.com/OpenCureLabs/OpenCureLabs/actions/workflows/ci.yml/badge.svg)](https://github.com/OpenCureLabs/OpenCureLabs/actions/workflows/ci.yml)
+<h1 align="center">OpenCure Labs</h1>
+<p align="center">Autonomous AI agents running real science — so every researcher can fight cancer like a funded lab.</p>
+
+<p align="center">
+  <a href="https://github.com/OpenCureLabs/OpenCureLabs/actions/workflows/ci.yml"><img src="https://github.com/OpenCureLabs/OpenCureLabs/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+</p>
 
 ## 🎯 The Mission
 
