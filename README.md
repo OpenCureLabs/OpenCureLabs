@@ -1,5 +1,5 @@
 <p align="center">
-  <img src="logos/OpenCure_Labs_logo_main.png" alt="OpenCure Labs" width="400">
+  <img src="logos/OpenCure%20Labs%20Main%20Logo%20Transparent%20bg.svg" alt="OpenCure Labs" width="400">
 </p>
 
 <h1 align="center">OpenCure Labs</h1>
