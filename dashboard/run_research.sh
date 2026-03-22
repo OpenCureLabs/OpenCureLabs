@@ -388,9 +388,9 @@ if $HAS_GUM; then
         --selected.foreground 46 \
         --selected.bold \
         "🔬 Cancer — Find mutations, predict immune targets" \
-        "🐾 Veterinary — Cancer & variants for dogs and cats" \
-        "💊 Drug Discovery — Screen molecules, predict effectiveness" \
         "🧬 Rare Disease — Analyze genetic variants for diagnosis" \
+        "💊 Drug Discovery — Screen molecules, predict effectiveness" \
+        "🐾 Veterinary — Cancer & variants for dogs and cats" \
         "⌨️  Custom Task — Type your own research question" \
         "🚀 Genesis Mode — Run EVERY task across ALL domains (12 runs, full send)" \
     ) || { echo "Cancelled."; read -r; exit 0; }
@@ -1114,11 +1114,13 @@ echo -e "${BOLD}What do you want to research?${RESET}"
 echo ""
 
 LABCLAW_SPECIES="human"
-DOMAINS=("Cancer — Find mutations, predict immune targets" "Veterinary — Cancer & variants for dogs and cats" "Drug Discovery — Screen molecules, predict effectiveness" "Rare Disease — Analyze genetic variants for diagnosis" "Custom Task — Type your own question" "Genesis Mode — Run EVERY task across ALL domains (12 runs)")
+DOMAINS=("Cancer — Find mutations, predict immune targets" "Rare Disease — Analyze genetic variants for diagnosis" "Drug Discovery — Screen molecules, predict effectiveness" "Veterinary — Cancer & variants for dogs and cats" "Custom Task — Type your own question" "Genesis Mode — Run EVERY task across ALL domains (12 runs)")
 select domain in "${DOMAINS[@]}"; do
     case "$REPLY" in
         1) ITEMS=("${CANCER_TASKS[@]}"); break ;;
-        2)
+        2) ITEMS=("${RARE_TASKS[@]}"); break ;;
+        3) ITEMS=("${DRUG_TASKS[@]}"); break ;;
+        4)
             echo ""
             echo -e "${BOLD}Which animal?${RESET}"
             echo "  1) Dog (Canine) — CanFam3.1, DLA alleles"
@@ -1130,8 +1132,6 @@ select domain in "${DOMAINS[@]}"; do
             esac
             break
             ;;
-        3) ITEMS=("${DRUG_TASKS[@]}"); break ;;
-        4) ITEMS=("${RARE_TASKS[@]}"); break ;;
         5)
             echo ""
             read -rp "Task: " TASK
