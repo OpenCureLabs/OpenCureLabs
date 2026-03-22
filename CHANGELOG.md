@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - CI pipeline with tests, ruff, and bandit
 - Commitizen conventional commits enforcement
 
+## v0.27.0 (2026-03-22)
+
+### Feat
+
+- solo mode — private My Data analysis with opt-in R2 contribution
+
 ## v0.26.0 (2026-03-22)
 
 ### Feat
