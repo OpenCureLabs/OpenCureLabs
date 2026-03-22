@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - CI pipeline with tests, ruff, and bandit
 - Commitizen conventional commits enforcement
 
+## v0.36.0 (2026-03-22)
+
+### Feat
+
+- Genesis mode now includes veterinary tasks (20 runs across 5 domains)
+
 ## v0.35.1 (2026-03-22)
 
 ### Fix
