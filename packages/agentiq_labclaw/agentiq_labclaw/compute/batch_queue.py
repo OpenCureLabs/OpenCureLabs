@@ -189,7 +189,7 @@ class BatchQueue:
     # ── Complete / Fail ──────────────────────────────────────────────────
 
     def complete_job(self, job_id: int, result_data: dict):
-        """Mark a job as completed with its results."""
+        """Mark a job as completed with its results, and insert into experiment_results."""
         conn = _get_conn()
         try:
             cur = conn.cursor()
@@ -200,13 +200,36 @@ class BatchQueue:
                     result_data = %s,
                     completed_at = NOW()
                 WHERE id = %s
+                RETURNING skill_name
                 """,
                 (json.dumps(result_data, default=str), job_id),
             )
+            row = cur.fetchone()
+            skill_name = row[0] if row else "unknown"
+
+            # Mirror into experiment_results for the findings dashboard
+            novel = result_data.get("novel", False) if isinstance(result_data, dict) else False
+            cur.execute(
+                """
+                INSERT INTO experiment_results (result_type, result_data, novel)
+                VALUES (%s, %s, %s)
+                """,
+                (skill_name, json.dumps(result_data, default=str), bool(novel)),
+            )
+
             conn.commit()
             cur.close()
         finally:
             conn.close()
+
+        # Publish to R2 global dataset (fire-and-forget — DB commit already done)
+        try:
+            from agentiq_labclaw.publishers.r2_publisher import R2Publisher
+            r2 = R2Publisher()
+            if r2.enabled:
+                r2.publish_result(skill_name, result_data, novel=bool(novel), status="published")
+        except Exception:
+            pass  # R2 is optional; batch result is already in DB
 
     def fail_job(self, job_id: int, error: str, retry: bool = True):
         """Mark a job as failed. Requeue if retry_count < 2."""
