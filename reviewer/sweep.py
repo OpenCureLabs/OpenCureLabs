@@ -25,6 +25,11 @@ from urllib.error import URLError
 # Allow import from project root
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
+# Load .env for API keys (ANTHROPIC_API_KEY, XAI_API_KEY)
+from dotenv import load_dotenv  # noqa: E402
+
+load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)-7s %(name)s — %(message)s",
@@ -34,6 +39,7 @@ logger = logging.getLogger("labclaw.reviewer.sweep")
 
 INGEST_URL = os.environ.get("INGEST_URL", "https://ingest.opencurelabs.ai")
 PUBLIC_URL = os.environ.get("PUBLIC_URL", "https://pub.opencurelabs.ai")
+UA = "OpenCureLabs-Sweep/1.0"
 
 
 def api_get(path: str, params: dict | None = None) -> dict:
@@ -43,7 +49,7 @@ def api_get(path: str, params: dict | None = None) -> dict:
         qs = "&".join(f"{k}={v}" for k, v in params.items() if v is not None)
         url = f"{url}?{qs}"
 
-    req = Request(url, headers={"Accept": "application/json"})
+    req = Request(url, headers={"Accept": "application/json", "User-Agent": UA})
     with urlopen(req, timeout=30) as resp:  # noqa: S310 — trusted internal URL
         return json.loads(resp.read())
 
@@ -52,14 +58,14 @@ def api_post(path: str, data: dict) -> dict:
     """POST request to the ingest worker API."""
     url = f"{INGEST_URL}{path}"
     body = json.dumps(data).encode()
-    req = Request(url, data=body, headers={"Content-Type": "application/json"}, method="POST")
+    req = Request(url, data=body, headers={"Content-Type": "application/json", "User-Agent": UA}, method="POST")
     with urlopen(req, timeout=60) as resp:  # noqa: S310 — trusted internal URL
         return json.loads(resp.read())
 
 
 def fetch_r2_result(r2_url: str) -> dict | None:
     """Fetch full result JSON from R2 public CDN."""
-    req = Request(r2_url, headers={"Accept": "application/json"})
+    req = Request(r2_url, headers={"Accept": "application/json", "User-Agent": UA})
     try:
         with urlopen(req, timeout=30) as resp:  # noqa: S310 — trusted CDN URL
             return json.loads(resp.read())
