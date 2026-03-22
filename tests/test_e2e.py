@@ -239,7 +239,7 @@ class TestFullPipeline:
         mock_critique = {"overall_score": 9, "recommendation": "publish"}
         mock_lit = {"literature_score": 8, "confidence_in_finding": "high"}
 
-        with patch("reviewer.claude_reviewer.ClaudeReviewer.critique", return_value=mock_critique), \
+        with patch("reviewer.grok_reviewer.GrokReviewer.critique", return_value=mock_critique), \
              patch("reviewer.grok_reviewer.GrokReviewer.review_literature", return_value=mock_lit), \
              patch("agentiq_labclaw.db.critique_log.log_critique", return_value=1), \
              patch("agentiq_labclaw.db.experiment_results.store_result", return_value=1), \

@@ -125,10 +125,17 @@ function hexToBytes(hex: string): Uint8Array {
     return bytes;
 }
 
-async function verifySignature(
+/**
+ * Verify an Ed25519 signature against raw body bytes.
+ *
+ * The Python client signs json.dumps(payload, sort_keys=True, separators=(",",":"))
+ * and sends exactly those bytes as the request body.  We verify against
+ * the raw body to avoid any parse/re-serialize mismatch (e.g. 42.0 vs 42).
+ */
+async function verifySignatureRaw(
     publicKeyHex: string,
     signatureB64: string,
-    payload: unknown
+    rawBody: string
 ): Promise<boolean> {
     try {
         const keyBytes = hexToBytes(publicKeyHex);
@@ -141,34 +148,12 @@ async function verifySignature(
         );
 
         const signatureBytes = Uint8Array.from(atob(signatureB64), (c) => c.charCodeAt(0));
-        const canonical = JSON.stringify(payload, Object.keys(payload as Record<string, unknown>).sort(), undefined);
-        // Match Python's separators=(",", ":") — no spaces
-        const canonicalCompact = canonicalJsonEncode(payload as Record<string, unknown>);
-        const payloadBytes = new TextEncoder().encode(canonicalCompact);
+        const payloadBytes = new TextEncoder().encode(rawBody);
 
         return await crypto.subtle.verify("Ed25519", key, signatureBytes, payloadBytes);
     } catch {
         return false;
     }
-}
-
-/** Canonical JSON matching Python's json.dumps(obj, sort_keys=True, separators=(",", ":")) */
-function canonicalJsonEncode(obj: unknown): string {
-    if (obj === null || obj === undefined) return "null";
-    if (typeof obj === "boolean") return obj ? "true" : "false";
-    if (typeof obj === "number") return JSON.stringify(obj);
-    if (typeof obj === "string") return JSON.stringify(obj);
-    if (Array.isArray(obj)) {
-        return "[" + obj.map(canonicalJsonEncode).join(",") + "]";
-    }
-    if (typeof obj === "object") {
-        const keys = Object.keys(obj as Record<string, unknown>).sort();
-        const pairs = keys.map(
-            (k) => JSON.stringify(k) + ":" + canonicalJsonEncode((obj as Record<string, unknown>)[k])
-        );
-        return "{" + pairs.join(",") + "}";
-    }
-    return JSON.stringify(obj);
 }
 
 // ── POST /results ─────────────────────────────────────────────────────────────
@@ -197,16 +182,21 @@ async function handlePost(request: Request, env: Env): Promise<Response> {
         return json({ error: "Contributor suspended" }, 403);
     }
 
+    // Read raw body BEFORE parsing — signature must be verified against the exact
+    // bytes the client signed, not a re-serialised version (JS and Python differ
+    // on float formatting e.g. 42.0 vs 42).
+    let rawBody: string;
     let payload: IngestPayload;
 
     try {
-        payload = (await request.json()) as IngestPayload;
+        rawBody = await request.text();
+        payload = JSON.parse(rawBody) as IngestPayload;
     } catch {
         return json({ error: "Invalid JSON body" }, 400);
     }
 
-    // Verify Ed25519 signature
-    const valid = await verifySignature(contributorKey, signature, payload);
+    // Verify Ed25519 signature against the raw bytes
+    const valid = await verifySignatureRaw(contributorKey, signature, rawBody);
     if (!valid) {
         return json({ error: "Invalid signature" }, 403);
     }

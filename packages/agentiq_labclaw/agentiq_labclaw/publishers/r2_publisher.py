@@ -13,6 +13,7 @@ Contributor ID:
     in D1 without affecting other contributors. Never returned in public GET responses.
 """
 
+import json
 import logging
 import os
 import uuid
@@ -118,17 +119,23 @@ class R2Publisher:
         headers = {
             "X-Contributor-Key": self._verify_key_hex,
             "X-Signature": signature,
+            "Content-Type": "application/json",
         }
+
+        # Send the canonical JSON (sorted keys, no whitespace) as the body.
+        # This is the exact byte string that was signed, avoiding any
+        # parse/re-serialize mismatch between Python and JS (e.g. 42.0 vs 42).
+        canonical_body = json.dumps(payload, sort_keys=True, separators=(",", ":"))
 
         url = f"{self.ingest_url}/results" if not self.ingest_url.endswith("/results") else self.ingest_url
 
         try:
-            resp = requests.post(url, json=payload, headers=headers, timeout=15)
+            resp = requests.post(url, data=canonical_body, headers=headers, timeout=15)
 
             # Auto-register on first contribution (401 = unknown contributor)
             if resp.status_code == 401:
                 self._register_contributor()
-                resp = requests.post(url, json=payload, headers=headers, timeout=15)
+                resp = requests.post(url, data=canonical_body, headers=headers, timeout=15)
 
             resp.raise_for_status()
             return resp.json()
