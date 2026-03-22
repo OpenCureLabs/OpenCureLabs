@@ -40,6 +40,16 @@ logger = logging.getLogger("labclaw.reviewer.sweep")
 INGEST_URL = os.environ.get("INGEST_URL", "https://ingest.opencurelabs.ai")
 PUBLIC_URL = os.environ.get("PUBLIC_URL", "https://pub.opencurelabs.ai")
 UA = "OpenCureLabs-Sweep/1.0"
+_CONTRIBUTOR_ID_PATH = os.path.expanduser("~/.opencurelabs/contributor_id")
+
+
+def _get_contributor_id() -> str | None:
+    """Read this machine's contributor ID (set by R2Publisher on first run)."""
+    try:
+        with open(_CONTRIBUTOR_ID_PATH) as f:
+            return f.read().strip() or None
+    except FileNotFoundError:
+        return None
 
 
 def api_get(path: str, params: dict | None = None) -> dict:
@@ -74,9 +84,12 @@ def fetch_r2_result(r2_url: str) -> dict | None:
         return None
 
 
-def get_unreviewed_results(limit: int = 50) -> list[dict]:
+def get_unreviewed_results(limit: int = 50, contributor_id: str | None = None) -> list[dict]:
     """Fetch results from D1 that have not been reviewed yet."""
-    data = api_get("/results", {"limit": str(limit)})
+    params: dict[str, str] = {"limit": str(limit)}
+    if contributor_id:
+        params["contributor_id"] = contributor_id
+    data = api_get("/results", params)
     all_results = data.get("results", [])
 
     # Filter to those without reviewed_at
@@ -134,10 +147,13 @@ def publish_critique(result_id: str, reviewer_name: str, critique: dict) -> str 
         return None
 
 
-def sweep_once(limit: int = 50, reviewer_filter: str | None = None) -> int:
+def sweep_once(limit: int = 50, reviewer_filter: str | None = None, contributor_id: str | None = None) -> int:
     """Run one sweep pass. Returns number of critiques published."""
-    logger.info("Fetching unreviewed results (limit=%d)...", limit)
-    unreviewed = get_unreviewed_results(limit=limit)
+    if contributor_id:
+        logger.info("Fetching unreviewed results (limit=%d, contributor=%s...)...", limit, contributor_id[:8])
+    else:
+        logger.info("Fetching ALL unreviewed results (limit=%d, --all mode)...", limit)
+    unreviewed = get_unreviewed_results(limit=limit, contributor_id=contributor_id)
 
     if not unreviewed:
         logger.info("No unreviewed results found.")
@@ -191,11 +207,20 @@ def main():
     parser.add_argument("--limit", type=int, default=50, help="Max results to review per sweep")
     parser.add_argument("--reviewer", choices=["claude", "grok"], help="Only run one reviewer")
     parser.add_argument("--interval", type=int, default=60, help="Poll interval in seconds (watch mode)")
+    parser.add_argument("--all", action="store_true", help="Sweep ALL contributors (default: this machine only)")
     args = parser.parse_args()
+
+    contributor_id: str | None = None
+    if not args.all:
+        contributor_id = _get_contributor_id()
+        if contributor_id:
+            logger.info("Sweeping results for this machine: %s...", contributor_id[:8])
+        else:
+            logger.warning("No contributor_id found at %s — sweeping all results", _CONTRIBUTOR_ID_PATH)
 
     while True:
         try:
-            count = sweep_once(limit=args.limit, reviewer_filter=args.reviewer)
+            count = sweep_once(limit=args.limit, reviewer_filter=args.reviewer, contributor_id=contributor_id)
             logger.info("Sweep complete: %d critique(s) published", count)
         except Exception as e:
             logger.error("Sweep error: %s", e)

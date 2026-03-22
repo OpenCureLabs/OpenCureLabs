@@ -209,6 +209,11 @@ async function handleGet(request: Request, env: Env): Promise<Response> {
         query += " AND species = ?";
         bindings.push(speciesParam);
     }
+    const contributorParam = url.searchParams.get("contributor_id");
+    if (contributorParam) {
+        query += " AND contributor_id = ?";
+        bindings.push(contributorParam);
+    }
 
     query += " ORDER BY created_at DESC LIMIT ?";
     bindings.push(limit);
