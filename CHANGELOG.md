@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - CI pipeline with tests, ruff, and bandit
 - Commitizen conventional commits enforcement
 
+## v0.32.3 (2026-03-22)
+
+### Fix
+
+- **config**: add vet skill keys to research_tasks.yaml distribution
+
 ## v0.32.2 (2026-03-22)
 
 ### Fix
