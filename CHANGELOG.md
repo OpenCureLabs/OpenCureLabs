@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - CI pipeline with tests, ruff, and bandit
 - Commitizen conventional commits enforcement
 
+## v0.35.0 (2026-03-22)
+
+### Feat
+
+- add Run All option to each domain's task submenu
+
 ## v0.34.1 (2026-03-22)
 
 ### Fix
