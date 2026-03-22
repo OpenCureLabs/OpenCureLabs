@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - CI pipeline with tests, ruff, and bandit
 - Commitizen conventional commits enforcement
 
+## v0.36.2 (2026-03-22)
+
+### Fix
+
+- sweep loads .env for API keys + sets User-Agent to avoid Cloudflare 403
+
 ## v0.36.1 (2026-03-22)
 
 ### Fix
