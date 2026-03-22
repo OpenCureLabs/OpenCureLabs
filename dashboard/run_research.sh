@@ -237,7 +237,9 @@ collect_details() {
     # Determine if there are non-file questions for this task
     local has_questions=true
     case "$label" in
-        "Find Tumor Mutations"|"Map Immune Landscape"|"Check Data Quality"|"Find New Mutations")
+        "Find Tumor Mutations"|"Map Immune Landscape"|"Check Data Quality"|"Find New Mutations"|\
+        "Find Canine Tumor Mutations"|"Check Canine Data Quality"|\
+        "Find Feline Tumor Mutations"|"Check Feline Data Quality")
             # File-only tasks: skip entirely in public mode
             [[ "${DATA_MODE:-public}" == "public" ]] && has_questions=false
             ;;
@@ -319,6 +321,64 @@ collect_details() {
             parents=$(ask_data_file "Parents' sequencing files:" "e.g. data/mother.vcf, data/father.vcf")
             [[ -n "$child" ]]   && details+=" Child: $child."
             [[ -n "$parents" ]] && details+=" Parents: $parents."
+            ;;
+        # ── Canine veterinary tasks ──────────────────────────────────
+        "Find Canine Tumor Mutations")
+            local tumor normal
+            tumor=$(ask_data_file "Canine tumor sample file:" "e.g. data/dog/tumor.vcf")
+            normal=$(ask_data_file "Canine normal sample file:" "e.g. data/dog/normal.bam")
+            [[ -n "$tumor" ]]  && details+=" Tumor sample: $tumor."
+            [[ -n "$normal" ]] && details+=" Normal sample: $normal."
+            ;;
+        "Predict Canine Neoantigens")
+            local vcf dla
+            vcf=$(ask_data_file "Canine somatic variants file:" "e.g. data/dog/somatic.vcf")
+            dla=$(ask_input "DLA type (if known, or leave blank):" "e.g. DLA-88*001:01")
+            [[ -n "$vcf" ]] && details+=" Variants file: $vcf."
+            [[ -n "$dla" ]] && details+=" DLA type: $dla."
+            ;;
+        "Assess Canine Variant Danger")
+            local variant
+            if [[ "${DATA_MODE:-public}" == "mydata" ]]; then
+                variant=$(ask_file "Canine variant file or ID:" "e.g. data/dog/variants.vcf")
+            else
+                variant=$(ask_input "Canine variant (gene or OMIA ID):" "e.g. BRAF V595E, MDR1")
+            fi
+            [[ -n "$variant" ]] && details+=" Variant: $variant."
+            ;;
+        "Check Canine Data Quality")
+            local reads
+            reads=$(ask_data_file "Canine sequencing data file:" "e.g. data/dog/reads.fastq.gz")
+            [[ -n "$reads" ]] && details+=" Sequencing data: $reads."
+            ;;
+        # ── Feline veterinary tasks ──────────────────────────────────
+        "Find Feline Tumor Mutations")
+            local tumor normal
+            tumor=$(ask_data_file "Feline tumor sample file:" "e.g. data/cat/tumor.vcf")
+            normal=$(ask_data_file "Feline normal sample file:" "e.g. data/cat/normal.bam")
+            [[ -n "$tumor" ]]  && details+=" Tumor sample: $tumor."
+            [[ -n "$normal" ]] && details+=" Normal sample: $normal."
+            ;;
+        "Predict Feline Neoantigens")
+            local vcf fla
+            vcf=$(ask_data_file "Feline somatic variants file:" "e.g. data/cat/somatic.vcf")
+            fla=$(ask_input "FLA type (if known, or leave blank):" "e.g. FLA-K*00101")
+            [[ -n "$vcf" ]] && details+=" Variants file: $vcf."
+            [[ -n "$fla" ]] && details+=" FLA type: $fla."
+            ;;
+        "Assess Feline Variant Danger")
+            local variant
+            if [[ "${DATA_MODE:-public}" == "mydata" ]]; then
+                variant=$(ask_file "Feline variant file or ID:" "e.g. data/cat/variants.vcf")
+            else
+                variant=$(ask_input "Feline variant (gene or OMIA ID):" "e.g. PKD1, HCM")
+            fi
+            [[ -n "$variant" ]] && details+=" Variant: $variant."
+            ;;
+        "Check Feline Data Quality")
+            local reads
+            reads=$(ask_data_file "Feline sequencing data file:" "e.g. data/cat/reads.fastq.gz")
+            [[ -n "$reads" ]] && details+=" Sequencing data: $reads."
             ;;
     esac
 

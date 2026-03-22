@@ -16,6 +16,7 @@ from __future__ import annotations
 import importlib.resources
 import logging
 import math
+import os
 import random
 import shutil
 import tempfile
@@ -117,8 +118,14 @@ def fetch_chembl_csv(
             })
 
     if not rows:
-        logger.warning("No bioactivity data returned for %s — generating synthetic CSV", target_chembl_id)
-        rows = _synthetic_chembl_rows(target_col, count=50)
+        if os.environ.get("LABCLAW_ALLOW_SYNTHETIC", "").lower() in ("true", "1", "yes"):
+            logger.warning("No bioactivity data returned for %s — generating synthetic CSV", target_chembl_id)
+            rows = _synthetic_chembl_rows(target_col, count=50)
+        else:
+            raise ValueError(
+                f"No bioactivity data found for ChEMBL target '{target_chembl_id}'. "
+                "Verify the target ID is correct or provide a local CSV with bioactivity data."
+            )
 
     df = pd.DataFrame(rows)
     dest.parent.mkdir(parents=True, exist_ok=True)
