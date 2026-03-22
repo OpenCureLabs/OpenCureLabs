@@ -455,7 +455,7 @@ if $HAS_GUM; then
                 "  🚀  G E N E S I S   M O D E" \
                 "" \
                 "  $TOTAL tasks across 5 domains" \
-                "  3 agents — continuous until budget exhausted" \
+                "  Continuous until budget exhausted" \
                 "  Vast.ai cloud GPU burst — enabled" \
                 "  Public databases — TCGA, ClinVar, ChEMBL" \
                 "" \
@@ -1277,7 +1277,7 @@ select domain in "${DOMAINS[@]}"; do
             echo -e "${YELLOW}══════════════════════════════════════════════════${RESET}"
             echo -e "${YELLOW}  🚀 G E N E S I S   M O D E${RESET}"
             echo -e "${YELLOW}══════════════════════════════════════════════════${RESET}"
-            echo -e "  $TOTAL tasks · 5 domains · 3 agents · Vast.ai burst"
+            echo -e "  $TOTAL tasks · 5 domains · Vast.ai burst"
             echo ""
 
             echo -e "${BOLD}Execution mode:${RESET}"
