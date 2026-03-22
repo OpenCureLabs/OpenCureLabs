@@ -395,7 +395,7 @@ if $HAS_GUM; then
         "💊 Drug Discovery — Screen molecules, predict effectiveness" \
         "🐾 Veterinary — Cancer & variants for dogs and cats" \
         "⌨️  Custom Task — Type your own research question" \
-        "🚀 Genesis Mode — Run EVERY task across ALL domains (12 runs, full send)" \
+        "🚀 Genesis Mode — Run EVERY task across ALL domains (20 runs, full send)" \
     ) || { echo "Cancelled."; read -r; exit 0; }
 
     echo ""
@@ -417,7 +417,7 @@ if $HAS_GUM; then
             _BACK_FROM_3=1; _STEP=3 ;;
         *"Genesis"*)
             # ── Genesis Mode ─────────────────────────────────────────────
-            # Run EVERY task across ALL domains: 12 runs, full agents, Vast.ai
+            # Run EVERY task across ALL domains: 20 runs, full agents, Vast.ai
             ALL_TASKS=()
             ALL_LABELS=()
             ALL_DOMAINS=()
@@ -436,6 +436,16 @@ if $HAS_GUM; then
                 ALL_LABELS+=("${t%%|*}")
                 ALL_DOMAINS+=("Rare Disease")
             done
+            for t in "${CANINE_TASKS[@]}"; do
+                ALL_TASKS+=("${t#*|}")
+                ALL_LABELS+=("${t%%|*}")
+                ALL_DOMAINS+=("Veterinary 🐕")
+            done
+            for t in "${FELINE_TASKS[@]}"; do
+                ALL_TASKS+=("${t#*|}")
+                ALL_LABELS+=("${t%%|*}")
+                ALL_DOMAINS+=("Veterinary 🐈")
+            done
 
             TOTAL=${#ALL_TASKS[@]}
 
@@ -444,7 +454,7 @@ if $HAS_GUM; then
                 "" \
                 "  🚀  G E N E S I S   M O D E" \
                 "" \
-                "  $TOTAL tasks across 3 domains" \
+                "  $TOTAL tasks across 5 domains" \
                 "  3 agents — continuous until budget exhausted" \
                 "  Vast.ai cloud GPU burst — enabled" \
                 "  Public databases — TCGA, ClinVar, ChEMBL" \
@@ -457,6 +467,12 @@ if $HAS_GUM; then
                 "  │  Optimize Lead · Target Shape             │" \
                 "  ├─ Rare Disease (3 tasks) ──────────────────┤" \
                 "  │  Variant Danger · New Mutations · Data QC │" \
+                "  ├─ Veterinary 🐕 Canine (4 tasks) ──────────┤" \
+                "  │  Tumor Mutations · Neoantigens · Variants │" \
+                "  │  · Data QC                                │" \
+                "  ├─ Veterinary 🐈 Feline (4 tasks) ──────────┤" \
+                "  │  Tumor Mutations · Neoantigens · Variants │" \
+                "  │  · Data QC                                │" \
                 "  └───────────────────────────────────────────┘" \
                 "" \
             | (gum style \
@@ -1197,7 +1213,7 @@ echo -e "${BOLD}What do you want to research?${RESET}"
 echo ""
 
 LABCLAW_SPECIES="human"
-DOMAINS=("Cancer — Find mutations, predict immune targets" "Rare Disease — Analyze genetic variants for diagnosis" "Drug Discovery — Screen molecules, predict effectiveness" "Veterinary — Cancer & variants for dogs and cats" "Custom Task — Type your own question" "Genesis Mode — Run EVERY task across ALL domains (12 runs)")
+DOMAINS=("Cancer — Find mutations, predict immune targets" "Rare Disease — Analyze genetic variants for diagnosis" "Drug Discovery — Screen molecules, predict effectiveness" "Veterinary — Cancer & variants for dogs and cats" "Custom Task — Type your own question" "Genesis Mode — Run EVERY task across ALL domains (20 runs)")
 select domain in "${DOMAINS[@]}"; do
     case "$REPLY" in
         1) ITEMS=("${CANCER_TASKS[@]}"); break ;;
@@ -1245,13 +1261,23 @@ select domain in "${DOMAINS[@]}"; do
                 raw="${t%%|*}"; ALL_LABELS+=("${raw%% ~*}")
                 ALL_DOMAINS+=("Rare Disease")
             done
+            for t in "${CANINE_TASKS[@]}"; do
+                ALL_TASKS+=("${t#*|}")
+                raw="${t%%|*}"; ALL_LABELS+=("${raw%% ~*}")
+                ALL_DOMAINS+=("Veterinary 🐕")
+            done
+            for t in "${FELINE_TASKS[@]}"; do
+                ALL_TASKS+=("${t#*|}")
+                raw="${t%%|*}"; ALL_LABELS+=("${raw%% ~*}")
+                ALL_DOMAINS+=("Veterinary 🐈")
+            done
             TOTAL=${#ALL_TASKS[@]}
 
             echo ""
             echo -e "${YELLOW}══════════════════════════════════════════════════${RESET}"
             echo -e "${YELLOW}  🚀 G E N E S I S   M O D E${RESET}"
             echo -e "${YELLOW}══════════════════════════════════════════════════${RESET}"
-            echo -e "  $TOTAL tasks · 3 domains · 3 agents · Vast.ai burst"
+            echo -e "  $TOTAL tasks · 5 domains · 3 agents · Vast.ai burst"
             echo ""
 
             echo -e "${BOLD}Execution mode:${RESET}"
