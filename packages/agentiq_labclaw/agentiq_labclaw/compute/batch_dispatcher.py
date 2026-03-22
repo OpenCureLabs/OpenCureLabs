@@ -595,7 +595,7 @@ def main():
     parser.add_argument("--count", type=int, default=100, help="Number of tasks (default: 100)")
     parser.add_argument("--pool-size", type=int, default=10, help="Instance pool size (default: 10)")
     parser.add_argument("--max-cost", type=float, default=0.50, help="Max $/hr per instance (default: 0.50)")
-    parser.add_argument("--domain", choices=["cancer", "drug_discovery", "rare_disease"])
+    parser.add_argument("--domain", choices=["cancer", "drug_discovery", "rare_disease", "canine", "feline"])
     parser.add_argument("--config", help="Path to research_tasks.yaml")
     parser.add_argument("--image", help="Docker image for Vast.ai instances (default: labclaw-gpu)")
     parser.add_argument("--seed", type=int, help="Random seed for task generation")
