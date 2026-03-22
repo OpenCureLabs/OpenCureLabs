@@ -115,11 +115,11 @@ def print_summary(cur, species=None):
     else:
         print(f"\n  {DIM}No experiment_results table{RESET}")
 
-    # Critiques
+    # Reviews
     if table_exists(cur, "critique_log"):
         cur.execute("SELECT COUNT(*) FROM critique_log")
         total = cur.fetchone()[0]
-        print(f"\n  {BOLD}Critiques:{RESET}   {total} total")
+        print(f"\n  {BOLD}Reviews:{RESET}    {total} total (Grok)")
 
         cur.execute(
             "SELECT id, reviewer, critique_json, timestamp FROM critique_log"
@@ -231,7 +231,7 @@ def print_agents(cur):
 
 def print_critiques(cur):
     """Print critique log."""
-    print_header("Critique Log")
+    print_header("Grok Review Log")
 
     if not table_exists(cur, "critique_log"):
         print(f"  {DIM}No critique_log table{RESET}\n")
@@ -245,7 +245,7 @@ def print_critiques(cur):
     )
     rows = cur.fetchall()
     if not rows:
-        print(f"  {DIM}No critiques recorded.{RESET}\n")
+        print(f"  {DIM}No reviews recorded.{RESET}\n")
         return
 
     for cid, reviewer, crit, ts, pipeline in rows:
