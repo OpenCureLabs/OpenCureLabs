@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - CI pipeline with tests, ruff, and bandit
 - Commitizen conventional commits enforcement
 
+## v0.36.1 (2026-03-22)
+
+### Fix
+
+- remove misleading '3 agents' from Genesis banner — actual count chosen later
+
 ## v0.36.0 (2026-03-22)
 
 ### Feat
