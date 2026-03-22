@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - CI pipeline with tests, ruff, and bandit
 - Commitizen conventional commits enforcement
 
+## v0.29.0 (2026-03-22)
+
+### Feat
+
+- **docker**: bake canine/feline Ensembl 112 annotations into GPU image
+
 ## v0.28.0 (2026-03-22)
 
 ### Feat
