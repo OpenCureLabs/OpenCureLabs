@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "agentiq_labclaw"
-version = "0.38.2"
+version = "0.38.3"
 description = "LabClaw — Scientific skill layer for OpenCure Labs, built on NVIDIA NeMo AgentIQ"
 requires-python = ">=3.10"
 dependencies = [

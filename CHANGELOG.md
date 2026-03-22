@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - CI pipeline with tests, ruff, and bandit
 - Commitizen conventional commits enforcement
 
+## v0.38.3 (2026-03-22)
+
+### Fix
+
+- add vet data collection + gate synthetic fallback behind LABCLAW_ALLOW_SYNTHETIC
+
 ## v0.38.2 (2026-03-22)
 
 ### Fix
