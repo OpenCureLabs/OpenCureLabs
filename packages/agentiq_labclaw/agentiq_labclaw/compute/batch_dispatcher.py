@@ -193,26 +193,29 @@ def run_batch(
     # ── 5. Launch worker threads ─────────────────────────────────────────
     workers, threads = _launch_workers(pool, queue, batch_id)
 
-    # ── 6. Monitor progress ──────────────────────────────────────────────
+    # ── 6–8. Monitor, reclaim, teardown — wrapped in try-finally to
+    #         guarantee instance cleanup if the orchestrator crashes ───────
     try:
-        _monitor_loop(batch_id, queue, pool, workers, threads, progress_callback)
-    except KeyboardInterrupt:
-        _log("Interrupted — stopping workers...")
-        for w in workers:
-            w.stop()
+        try:
+            _monitor_loop(batch_id, queue, pool, workers, threads, progress_callback)
+        except KeyboardInterrupt:
+            _log("Interrupted — stopping workers...")
+            for w in workers:
+                w.stop()
 
-    # Wait for workers to finish
-    for t in threads:
-        t.join(timeout=30)
+        # Wait for workers to finish
+        for t in threads:
+            t.join(timeout=30)
 
-    # ── 7. Reclaim any stale jobs ────────────────────────────────────────
-    reclaimed = queue.reclaim_stale_jobs(stale_minutes=5)
-    if reclaimed:
-        _log("Reclaimed %d stale jobs", reclaimed)
+        # ── 7. Reclaim any stale jobs ────────────────────────────────
+        reclaimed = queue.reclaim_stale_jobs(stale_minutes=5)
+        if reclaimed:
+            _log("Reclaimed %d stale jobs", reclaimed)
 
-    # ── 8. Teardown pool ─────────────────────────────────────────────────
-    _log("Tearing down instance pool...")
-    pool.teardown()
+    finally:
+        # ── 8. Teardown pool — always runs even on crash ─────────────
+        _log("Tearing down instance pool...")
+        pool.teardown()
 
     # ── 9. Summary ───────────────────────────────────────────────────────
     summary = _make_summary(batch_id, queue, pool, start_time)

@@ -18,36 +18,37 @@ ENV DEBIAN_FRONTEND=noninteractive
 
 # ── System packages ──────────────────────────────────────────────────────────
 RUN apt-get update && apt-get install -y --no-install-recommends \
-        openbabel \
-        fastp \
-        autodock-vina \
-        wget \
-        curl \
-        openssh-client \
-        git \
+    openbabel \
+    fastp \
+    autodock-vina \
+    wget \
+    curl \
+    openssh-client \
+    git \
     && rm -rf /var/lib/apt/lists/*
 
 # ── Conda packages (heavy C++ tools) ────────────────────────────────────────
 # rdkit for cheminformatics (SMILES parsing, molecular descriptors)
 RUN conda install -y -c conda-forge \
-        rdkit \
+    rdkit \
     && conda clean -afy
 
 # ── Python packages ─────────────────────────────────────────────────────────
 RUN pip install --no-cache-dir \
-        pydantic>=2.0 \
-        psycopg2-binary>=2.9 \
-        requests>=2.28 \
-        mhcflurry>=2.1 \
-        pysam>=0.22 \
-        pyensembl>=2.3 \
-        biopython>=1.83 \
-        reportlab>=4.1 \
-        openai>=1.20 \
-        joblib>=1.3 \
-        numpy \
-        pandas \
-        scikit-learn
+    pydantic>=2.0 \
+    psycopg2-binary>=2.9 \
+    requests>=2.28 \
+    mhcflurry>=2.1 \
+    pysam>=0.22 \
+    pyensembl>=2.3 \
+    biopython>=1.83 \
+    reportlab>=4.1 \
+    openai>=1.20 \
+    joblib>=1.3 \
+    numpy \
+    pandas \
+    scikit-learn \
+    tensorflow[and-cuda]>=2.16
 
 # ── Pre-fetch model data (baked into image, avoids 10+ min first-run) ───────
 # MHCflurry pan-allele binding prediction models (~200 MB)

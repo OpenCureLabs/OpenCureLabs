@@ -104,6 +104,7 @@ class Worker:
                 result = self._execute_remote(skill_name, job["input_data"])
                 queue.complete_job(job_id, result)
                 self.jobs_completed += 1
+                self._touch_heartbeat()
                 logger.info(
                     "Worker %d: job %d complete (%s)",
                     self.instance_id, job_id, label,
@@ -112,6 +113,7 @@ class Worker:
                 error_msg = str(e)[:2000]
                 queue.fail_job(job_id, error_msg)
                 self.jobs_failed += 1
+                self._touch_heartbeat()
                 logger.error(
                     "Worker %d: job %d failed (%s): %s",
                     self.instance_id, job_id, label, error_msg,
@@ -125,6 +127,24 @@ class Worker:
             "Worker %d finished: %d completed, %d failed",
             self.instance_id, self.jobs_completed, self.jobs_failed,
         )
+
+    def _touch_heartbeat(self):
+        """Touch the heartbeat file on the remote instance to reset the self-destruct timer."""
+        try:
+            subprocess.run(
+                [
+                    "ssh", "-o", "StrictHostKeyChecking=no",
+                    "-o", "ConnectTimeout=5",
+                    "-i", SSH_KEY_PATH,
+                    "-p", str(self.ssh_port),
+                    f"root@{self.ssh_host}",
+                    "touch /tmp/labclaw_heartbeat",
+                ],
+                capture_output=True,
+                timeout=10,
+            )
+        except Exception:
+            pass  # Best-effort — don't crash the worker over a heartbeat
 
     def _execute_remote(self, skill_name: str, input_data: dict) -> dict:
         """SSH into the Vast.ai instance and execute a skill."""

@@ -203,6 +203,7 @@ def _find_offers(gpu_required: bool, max_cost_hr: float, count: int = 20) -> lis
     if gpu_required:
         query["gpu_ram"] = {"gte": 8}
         query["num_gpus"] = {"gte": 1}
+        query["cuda_max_good"] = {"gte": 12.0}
 
     resp = requests.get(
         f"{VAST_API}/bundles/",

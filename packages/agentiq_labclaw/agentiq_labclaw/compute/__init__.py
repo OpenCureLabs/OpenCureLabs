@@ -83,8 +83,10 @@ def build_onstart_script(wheel_url: str | None = None) -> str:
     # The custom Docker image already has these pre-installed.
     core_deps = "pydantic>=2.0 psycopg2-binary>=2.9 requests>=2.28"
 
-    # Self-destruct TTL: instance shuts itself down after this many seconds.
-    # Prevents orphaned instances from burning budget if the orchestrator crashes.
+    # Heartbeat-based self-destruct: instance shuts itself down if no
+    # heartbeat file is touched within TTL seconds.  Workers touch the file
+    # after each completed job, so long-running workloads stay alive while
+    # orphaned instances (crashed orchestrator) still get cleaned up.
     ttl = os.environ.get("LABCLAW_INSTANCE_TTL", "3600")  # default 60 min
 
     return (
@@ -92,10 +94,14 @@ def build_onstart_script(wheel_url: str | None = None) -> str:
         "set -e\n"
         "exec > /tmp/labclaw_setup.log 2>&1\n"
         "echo '[labclaw] Starting setup...'\n"
-        f"# Self-destruct timer: instance halts after {ttl}s if still alive\n"
-        f"(sleep {ttl} && echo '[labclaw] TTL expired — self-destructing' "
-        ">> /tmp/labclaw_setup.log && shutdown -h now) &\n"
-        "echo \"[labclaw] Self-destruct armed (" + ttl + "s)\"\n"
+        "# Heartbeat-based self-destruct: shuts down if heartbeat stale for TTL\n"
+        "touch /tmp/labclaw_heartbeat\n"
+        f"(while true; do sleep 60; "
+        f"age=$(($(date +%s) - $(stat -c %Y /tmp/labclaw_heartbeat))); "
+        f"if [ \"$age\" -gt {ttl} ]; then "
+        "echo '[labclaw] Heartbeat stale — self-destructing' "
+        ">> /tmp/labclaw_setup.log; shutdown -h now; fi; done) &\n"
+        "echo \"[labclaw] Heartbeat self-destruct armed (" + ttl + "s idle TTL)\"\n"
         "# Install core deps only if not already present (custom image skips this)\n"
         "python -c 'import pydantic; import psycopg2; import requests' 2>/dev/null || "
         f"{{ pip install --quiet {core_deps} && "

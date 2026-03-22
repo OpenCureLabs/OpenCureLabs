@@ -76,7 +76,7 @@ layout {
                 args "-c" "cd /root/opencurelabs && source .venv/bin/activate 2>/dev/null; clear; echo '── AGENT RUNNER ──'; echo 'Run: nat run --config_file coordinator/labclaw_workflow.yaml --input \"task\"'; exec bash"
             }
             pane name="REVIEWER" command="bash" {
-                args "-c" "cd /root/opencurelabs && clear; echo '── REVIEWER CONFIGS ──'; echo; ls -la reviewer/*.yaml; echo; echo 'Use: cat reviewer/<name>.yaml to inspect'; exec bash"
+                args "-c" "cd /root/opencurelabs && source .venv/bin/activate 2>/dev/null; clear; echo '── REVIEWER SWEEP ──'; echo 'Claude Opus (critic) + Grok (literature) — polling every 60s'; echo ''; python3 reviewer/sweep.py --watch --interval 60; echo ''; echo 'Sweep exited. Press Enter to restart.'; read; exec bash"
             }
         }
     }
