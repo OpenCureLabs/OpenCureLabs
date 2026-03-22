@@ -1,8 +1,13 @@
-# 🧬 OpenCure Labs — Autonomous AI-for-Science Platform
+# 🧬 OpenCure Labs
+Autonomous AI agents running real science — so every researcher can fight cancer like a funded lab.
 
 [![CI](https://github.com/OpenCureLabs/OpenCureLabs/actions/workflows/ci.yml/badge.svg)](https://github.com/OpenCureLabs/OpenCureLabs/actions/workflows/ci.yml)
 
-> An open, transparent, multi-agent computational research lab — running real scientific pipelines, iterating autonomously, and sharing every step live with the world.
+## 🎯 The Mission
+
+Paul Conyngham used open-source tools to design a personalized cancer vaccine that saved his dog Rosie. He proved one person with the right pipeline can do what takes an institution months.
+
+We're building the infrastructure so anyone, anywhere can run that same pipeline — and push it further. Personalized medicine shouldn't require a grant and a team of 50.
 
 ---
 
@@ -15,6 +20,8 @@
 - [Compute Infrastructure](#compute-infrastructure)
 - [Reviewer Agents](#reviewer-agents)
 - [Outputs & Publishing](#outputs--publishing)
+- [Global Dataset](#global-dataset)
+- [My Data / Solo Mode](#my-data--solo-mode)
 - [Dashboard & Monitoring](#dashboard--monitoring)
 - [Scientific Capabilities](#scientific-capabilities)
 - [Roadmap](#roadmap)
@@ -32,7 +39,7 @@ OpenCure Labs is an autonomous AI-for-Science environment built to explore **com
 
 Rather than a traditional research pipeline with manual handoffs, OpenCure Labs runs **agents that coordinate, critique, and iterate** — analyzing genomics data, predicting protein structures, running docking simulations, and publishing findings, all with minimal human bottlenecking.
 
-Everything is logged publicly to **Discord** in real time so anyone can follow the reasoning, question the methods, and engage with the science as it happens.
+Every result is published to a public global dataset at **[opencurelabs.ai](https://opencurelabs.ai)** — researchers anywhere can browse findings, download raw result objects, and build on what the agents discover.
 
 ---
 
@@ -94,11 +101,11 @@ Everything is logged publicly to **Discord** in real time so anyone can follow t
                               │
               ┌───────────────┼───────────────┐
               ▼               ▼               ▼
-         ┌────────┐     ┌──────────┐    ┌──────────┐
-         │ GitHub │     │ Discord  │    │   PDF    │
-         │Pipelines│    │  Live    │    │ Reports  │
-         │ + code │     │  Logs    │    │Findings  │
-         └────────┘     └──────────┘    └──────────┘
+         ┌────────┐     ┌──────────┐    ┌───────────────────────┐
+         │ GitHub │     │   PDF    │    │ R2 / opencurelabs.ai  │
+         │Pipelines│    │ Reports  │    │   Global Dataset      │
+         │ + code │     │Findings  │    │ pub.opencurelabs.ai   │
+         └────────┘     └──────────┘    └───────────────────────┘
 ```
 
 ---
@@ -146,7 +153,7 @@ The coordinator is responsible for:
 - **Task routing** — dispatching jobs to the correct domain agent based on input type and objective
 - **Skill invocation** — calling specific scientific skill modules (e.g., structure prediction, neoantigen scoring)
 - **Guardrail enforcement** — validating outputs before downstream consumption
-- **Publishing** — coordinating delivery to GitHub, Discord, and PDF reports
+- **Publishing** — coordinating delivery to GitHub, PDF reports, and the R2 global dataset
 
 ### Specialist Agents
 
@@ -188,8 +195,7 @@ Configure these in `.env` (never committed to git):
 | `GENAI_API_KEY` | Google Gemini | NemoClaw coordinator | Yes |
 | `ANTHROPIC_API_KEY` | Anthropic Claude | Scientific critic (reviewer) | No |
 | `XAI_API_KEY` | xAI Grok | Literature monitor (reviewer) | No |
-| `DISCORD_WEBHOOK_URL_AGENT_LOGS` | Discord | Optional — agent traces (#agent-logs) | Yes |
-| `DISCORD_WEBHOOK_URL_RESULTS` | Discord | Optional — findings (#results) | Yes |
+| `OPENCURELABS_INGEST_URL` | Cloudflare Worker | Optional — contribute results to global dataset | Yes |
 | `VAST_AI_KEY` | Vast.ai | Optional — cloud burst compute | No |
 
 At minimum, you need **`GENAI_API_KEY`** to run the coordinator. Add reviewer keys (`ANTHROPIC_API_KEY`, `XAI_API_KEY`) to enable the full critique loop.
@@ -244,11 +250,49 @@ This dual-role design means Grok is not just a passive critic but an **active la
 
 | Channel | Content |
 |---|---|
-| **GitHub** | All pipelines, code, analysis notebooks, and reproducibility artifacts |
-| **Discord (Live)** | Real-time agent logs — reasoning traces, intermediate results, critique exchanges |
+| **R2 / pub.opencurelabs.ai** | All published results as JSON — public download, no auth required |
+| **opencurelabs.ai** | Live discovery feed — browse findings from all contributors |
+| **GitHub** | Pipelines, code, analysis artifacts, and reproducibility artifacts |
 | **PDF Reports** | Formal findings documents with methodology, results, and reviewer notes |
 
-The Discord stream is designed to be human-readable: anyone, regardless of technical background, can follow what the agents are doing and why.
+---
+
+## Global Dataset
+
+All results published in `contribute` mode land in a public Cloudflare R2 bucket and D1 database — no account required to read or download.
+
+| Endpoint | Purpose |
+|---|---|
+| `https://pub.opencurelabs.ai/latest.json` | Rolling 100 most-recent results — public, no auth |
+| `https://pub.opencurelabs.ai/results/{skill}/{date}/{uuid}.json` | Individual result objects |
+| `https://ingest.opencurelabs.ai/results?skill=&novel=` | Query results by skill, novelty flag, or date |
+| `https://opencurelabs.ai` | Live discovery feed — auto-refreshes, filterable by skill |
+
+**Privacy:** each contributing instance generates a random UUID at `~/.opencurelabs/contributor_id`. This ID is stored in R2 metadata for moderation purposes only and is never returned in query responses.
+
+**Contribution is automatic** when `OPENCURELABS_MODE=contribute` (the default). Set `OPENCURELABS_MODE=solo` to run privately — see [My Data / Solo Mode](#my-data--solo-mode) below.
+
+---
+
+## My Data / Solo Mode
+
+Run private analysis on your own files (tumor VCF, FASTQ, FASTA, SDF, PDB) with no external calls.
+
+```bash
+# Quickstart — auto-detects file type and routes to the right skill
+./scripts/solo_run.sh data/tumor.vcf
+
+# Or set solo mode permanently in .env
+OPENCURELABS_MODE=solo
+nat run --config_file coordinator/labclaw_workflow.yaml --input "analyze my variant file"
+```
+
+In solo mode:
+- **PDF output only** — results saved locally to `reports/`
+- **No R2, GitHub, or external publishing**
+- After the run, you'll be offered an opt-in prompt to contribute anonymized findings
+
+See **[docs/QUICKSTART.md](docs/QUICKSTART.md)** for full file-type routing, HLA input, and privacy model details.
 
 ---
 
@@ -320,11 +364,12 @@ OpenCure Labs is currently capable of or actively building toward:
 
 ## Roadmap
 
-**Phase 1 — Foundation** *(current)*
+**Phase 1 — Foundation** ✓
 - Coordinator architecture (NemoClaw/LabClaw)
 - Data ingestion from TCGA, ClinVar, ChEMBL
 - Local RTX 5070 compute environment
-- Discord live logging
+- R2 global dataset + opencurelabs.ai discovery feed
+- Solo mode for private / personal data analysis
 
 **Phase 2 — Scale**
 - Vast.ai burst compute integration
@@ -349,6 +394,8 @@ OpenCure Labs is built on three principles:
 **Autonomous but Accountable.** Agents run independently, but every result passes through structured critique before publication. Speed and rigor are not in tension.
 
 **Infrastructure as Research.** The platform itself is a research output. Building reliable, reproducible, agent-native scientific workflows is as valuable as any single finding it produces.
+
+**Citizen Science.** You don't need a lab or a grant to run real computational biology. Every run that contributes to our global dataset grows the commons — and every finding brings us closer to treatments that shouldn't take decades to reach patients.
 
 ---
 
@@ -387,7 +434,6 @@ See [docs/QUICKSTART.md](docs/QUICKSTART.md) for manual setup and troubleshootin
 - xAI API key (Grok researcher)
 - CUDA 12.x (optional — for local GPU compute)
 - Vast.ai account (optional — for burst compute)
-- Discord webhook URL (optional — for live logging)
 
 ### Running the Coordinator (NVIDIA NeMo Agent Toolkit)
 

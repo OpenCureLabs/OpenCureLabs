@@ -49,14 +49,17 @@ stored and published.
 │                    ▼                                                  │
 │         ┌──────────────────────┐                                     │
 │         │     Publishers       │                                     │
-│         │ GitHub · Discord · PDF│                                    │
+│         │  GitHub · PDF · R2   │                                    │
 │         └──────────┬───────────┘                                     │
 └────────────────────┼────────────────────────────────────────────────┘
                      ▼
 ┌─────────────────────────────────────────────────────────────────────┐
-│                        PostgreSQL                                    │
-│  agent_runs │ pipeline_runs │ experiment_results │ critique_log      │
-│  discovered_sources                                                  │
+│                     Storage & Publishing                             │
+│  PostgreSQL: agent_runs · pipeline_runs · experiment_results        │
+│  critique_log · discovered_sources                                   │
+│                                                                      │
+│  R2 (pub.opencurelabs.ai): results/{skill}/{date}/{uuid}.json       │
+│  D1 (opencurelabs): results table — queryable via ingest Worker     │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
