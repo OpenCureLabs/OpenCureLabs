@@ -212,8 +212,9 @@ R175H, all tests pass.
 bash dashboard/lab.sh
 ```
 
-This opens a 6-pane Zellij session:
+This opens a multi-tab Zellij session:
 
+**Lab tab** (Alt+1):
 ```
 ┌──────────────┬──────────────┐
 │ COORDINATOR  │    GROK      │
@@ -224,6 +225,9 @@ This opens a 6-pane Zellij session:
 └──────────────┴──────────────┘
 ```
 
+**Agents tab** (Alt+2) — includes the **REVIEWER** pane which auto-starts the
+scientific review sweep.
+
 | Pane | Purpose |
 |---|---|
 | **COORDINATOR** | Run `nat run` commands here |
@@ -232,6 +236,7 @@ This opens a 6-pane Zellij session:
 | **POSTGRES** | Auto-refreshing view of recent agent runs |
 | **DASHBOARD** | Live findings CLI (auto-refreshing) |
 | **SHELL** | General purpose terminal with venv activated |
+| **REVIEWER** | Claude Opus + Grok reviewer sweep (auto-starts, polls every 60s) |
 
 **Keyboard shortcuts:**
 - `Ctrl+p` then arrow keys — switch between panes
@@ -526,6 +531,64 @@ The script is idempotent — running it again skips steps that are already compl
 
 ---
 
+## Reviewer Sweep (Claude Opus + Grok)
+
+Every experiment result is reviewed by two AI critics:
+
+- **Claude Opus** — structured scientific critique (scoring, reproducibility,
+  novelty assessment)
+- **Grok** — literature search for corroborating/contradicting evidence
+
+### Automatic (via Zellij)
+
+If you launch via `bash dashboard/lab.sh`, the **REVIEWER** pane in the
+**Agents tab** (Alt+2) auto-starts `sweep.py --watch`, which polls for
+unreviewed results every 60 seconds. No manual setup needed.
+
+The sweep runs continuously — it picks up new results from batch runs, solo
+mode, or manual pipeline runs without restarting.
+
+### Automatic (via systemd — for servers/deployments)
+
+On a deployed server (e.g. DigitalOcean droplet), the setup script installs
+a systemd service that runs the sweep independently of Zellij:
+
+```bash
+# Check status
+sudo systemctl status opencurelabs-sweep
+
+# View logs
+sudo journalctl -u opencurelabs-sweep -f
+
+# Restart if needed
+sudo systemctl restart opencurelabs-sweep
+```
+
+### Manual
+
+To run the sweep manually (e.g. for debugging):
+
+```bash
+source .venv/bin/activate
+
+# One-shot: review all unreviewed results and exit
+python3 reviewer/sweep.py
+
+# Watch mode: poll every 60s (same as Zellij pane)
+python3 reviewer/sweep.py --watch --interval 60
+```
+
+### Requirements
+
+The sweep requires API keys in `.env`:
+- `ANTHROPIC_API_KEY` — for Claude Opus critiques
+- `XAI_API_KEY` — for Grok literature reviews
+
+If either key is missing, that reviewer is skipped (the other still runs).
+Critiques are stored in the `critique_log` table and shown on the dashboard.
+
+---
+
 ## Stopping
 
 ```bash
@@ -564,6 +627,7 @@ session.
 | `scripts/solo_run.sh` | Private analysis on your own files (solo mode) |
 | `dashboard/lab.sh` | Launch Zellij control panel |
 | `dashboard/stop.sh` | Shutdown and auto-commit |
+| `reviewer/sweep.py` | Claude Opus + Grok scientific review sweep |
 | `.env.example` | Template for API keys |
 | `requirements.txt` | Python dependencies |
 | `db/schema.sql` | PostgreSQL schema |
