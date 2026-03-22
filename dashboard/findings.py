@@ -295,7 +295,7 @@ def print_sources(cur):
     for sid, url, domain, by, at, validated, notes in rows:
         ts = at.strftime("%Y-%m-%d %H:%M") if at else "—"
         status = f"{GREEN}✓ validated{RESET}" if validated else f"{YELLOW}○ pending{RESET}"
-        print(f"  #{sid:<4} {status}  {domain or '—':<16} {DIM}{by or '—'}{RESET}")
+        print(f"  #{sid:<4} {status}  {domain or '—':<16} {ts}  {DIM}{by or '—'}{RESET}")
         if url:
             print(f"         {CYAN}{url[:70]}{RESET}")
         if notes:

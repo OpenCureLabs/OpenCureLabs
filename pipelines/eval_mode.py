@@ -270,7 +270,7 @@ def print_summary(results: list[EvalResult]):
     failed = total - passed
 
     print(f"\n{'=' * 60}")
-    print(f"  OpenCure Labs Eval Summary")
+    print("  OpenCure Labs Eval Summary")
     print(f"{'=' * 60}")
     print(f"  Total: {total}  |  Passed: {passed}  |  Failed: {failed}")
     print(f"{'─' * 60}")

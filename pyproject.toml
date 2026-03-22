@@ -16,3 +16,19 @@ update_changelog_on_bump = true
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "--cov=packages/agentiq_labclaw --cov-report=term-missing"
+
+[tool.ruff]
+target-version = "py311"
+line-length = 120
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "S", "B", "UP"]
+ignore = ["S101"]  # allow assert in tests
+[tool.ruff.lint.per-file-ignores]
+# Subprocess calls in compute workers are by design (SSH, vastai CLI)
+"packages/agentiq_labclaw/agentiq_labclaw/compute/*.py" = ["S603", "S607", "S110"]
+"packages/agentiq_labclaw/agentiq_labclaw/skills/*.py" = ["S603", "S110"]
+"packages/agentiq_labclaw/agentiq_labclaw/nat_specialists.py" = ["S110"]
+"packages/agentiq_labclaw/agentiq_labclaw/task_generator.py" = ["S311", "E501", "F841", "B007"]
+# Dashboard and pipelines: pre-existing style issues, not security-critical
+"dashboard/*.py" = ["E501", "S110", "B007", "I001", "S605", "S607", "S608", "S104", "S105", "S108"]
+"pipelines/*.py" = ["E501", "S108", "S110", "S605", "S608", "F841", "I001"]

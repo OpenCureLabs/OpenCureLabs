@@ -68,8 +68,6 @@ class EnsemblVEPConnector:
             Returns an empty-results dict on failure.
         """
         chrom_clean = chrom.replace("chr", "")
-        # Ensembl VEP HGVS-style region notation
-        variant_str = f"{chrom_clean}:{pos} {pos} 1 {ref}/{alt}"
 
         try:
             url = f"{ENSEMBL_REST}/vep/{species}/region/{chrom_clean}:{pos}-{pos}/{alt}"
