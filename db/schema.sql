@@ -47,6 +47,7 @@ CREATE TABLE IF NOT EXISTS experiment_results (
   result_type TEXT,
   result_data JSONB,
   novel BOOLEAN DEFAULT FALSE,
+  species TEXT NOT NULL DEFAULT 'human',
   status TEXT DEFAULT 'published',
   timestamp TIMESTAMP DEFAULT NOW()
 );
@@ -71,6 +72,7 @@ CREATE INDEX IF NOT EXISTS idx_agent_runs_started_at ON agent_runs(started_at);
 CREATE INDEX IF NOT EXISTS idx_pipeline_runs_status ON pipeline_runs(status);
 CREATE INDEX IF NOT EXISTS idx_pipeline_runs_started_at ON pipeline_runs(started_at);
 CREATE INDEX IF NOT EXISTS idx_experiment_results_novel ON experiment_results(novel);
+CREATE INDEX IF NOT EXISTS idx_experiment_results_species ON experiment_results(species);
 CREATE INDEX IF NOT EXISTS idx_experiment_results_pipeline_run_id ON experiment_results(pipeline_run_id);
 CREATE INDEX IF NOT EXISTS idx_experiment_results_timestamp ON experiment_results(timestamp);
 CREATE INDEX IF NOT EXISTS idx_critique_log_run_id ON critique_log(run_id);

@@ -80,6 +80,14 @@ export default {
             return handleGet(request, env);
         }
 
+        if (request.method === "POST" && url.pathname === "/critiques") {
+            return handlePostCritique(request, env);
+        }
+
+        if (request.method === "GET" && url.pathname === "/critiques") {
+            return handleGetCritiques(request, env);
+        }
+
         return json({ error: "Not found" }, 404);
     },
 };
@@ -213,6 +221,118 @@ async function handleGet(request: Request, env: Env): Promise<Response> {
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
+
+interface CritiquePayload {
+    result_id: string;
+    reviewer: string;
+    overall_score?: number;
+    recommendation?: string;
+    critique_data: unknown;
+}
+
+// ── POST /critiques ───────────────────────────────────────────────────────────
+
+async function handlePostCritique(request: Request, env: Env): Promise<Response> {
+    let payload: CritiquePayload;
+
+    try {
+        payload = (await request.json()) as CritiquePayload;
+    } catch {
+        return json({ error: "Invalid JSON body" }, 400);
+    }
+
+    if (!payload.result_id || !payload.reviewer || payload.critique_data === undefined) {
+        return json({ error: "Missing required fields: result_id, reviewer, critique_data" }, 400);
+    }
+
+    // Verify result exists
+    const result = await env.RESULTS_DB.prepare("SELECT id, skill, date FROM results WHERE id = ?")
+        .bind(payload.result_id)
+        .first();
+
+    if (!result) {
+        return json({ error: `Result '${payload.result_id}' not found` }, 404);
+    }
+
+    const id = crypto.randomUUID();
+    const now = new Date();
+    const createdAt = now.toISOString();
+
+    // Write full critique to R2
+    const key = `critiques/${result.skill}/${result.date}/${payload.reviewer}/${id}.json`;
+    const r2Url = `${PUBLIC_BASE_URL}/${key}`;
+
+    const critiqueObject = {
+        id,
+        result_id: payload.result_id,
+        reviewer: payload.reviewer,
+        overall_score: payload.overall_score ?? null,
+        recommendation: payload.recommendation ?? null,
+        critique_data: payload.critique_data,
+        created_at: createdAt,
+    };
+
+    await env.RESULTS_BUCKET.put(key, JSON.stringify(critiqueObject, null, 2), {
+        httpMetadata: { contentType: "application/json" },
+    });
+
+    // Index in D1
+    await env.RESULTS_DB.prepare(
+        `INSERT INTO critiques (id, result_id, reviewer, overall_score, recommendation, critique_data, r2_url, created_at)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    )
+        .bind(
+            id,
+            payload.result_id,
+            payload.reviewer,
+            payload.overall_score ?? null,
+            payload.recommendation ?? null,
+            JSON.stringify(payload.critique_data),
+            r2Url,
+            createdAt
+        )
+        .run();
+
+    // Mark result as reviewed
+    await env.RESULTS_DB.prepare("UPDATE results SET reviewed_at = ? WHERE id = ?")
+        .bind(createdAt, payload.result_id)
+        .run();
+
+    return json({ id, url: r2Url }, 201);
+}
+
+// ── GET /critiques ────────────────────────────────────────────────────────────
+
+async function handleGetCritiques(request: Request, env: Env): Promise<Response> {
+    const url = new URL(request.url);
+    const resultId = url.searchParams.get("result_id");
+    const reviewer = url.searchParams.get("reviewer");
+    const limit = Math.min(parseInt(url.searchParams.get("limit") ?? "50", 10), 200);
+
+    let query =
+        "SELECT id, result_id, reviewer, overall_score, recommendation, critique_data, r2_url, created_at FROM critiques WHERE 1=1";
+    const bindings: (string | number)[] = [];
+
+    if (resultId) {
+        query += " AND result_id = ?";
+        bindings.push(resultId);
+    }
+    if (reviewer) {
+        query += " AND reviewer = ?";
+        bindings.push(reviewer);
+    }
+
+    query += " ORDER BY created_at DESC LIMIT ?";
+    bindings.push(limit);
+
+    const result = await env.RESULTS_DB.prepare(query)
+        .bind(...bindings)
+        .all();
+
+    return json({ critiques: result.results, count: result.results.length });
+}
+
+// ── Latest Feed + JSON Helper ─────────────────────────────────────────────────
 
 async function updateLatest(env: Env, entry: LatestEntry): Promise<void> {
     let entries: LatestEntry[] = [];

@@ -20,3 +20,5 @@ docs/DEPLOYMENT.md
 .wiki/
 build/
 workers/*/node_modules/
+.wrangler/
+reports/last_result.json

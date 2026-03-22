@@ -32,6 +32,8 @@ BOLD = "\033[1m"
 DIM = "\033[2m"
 RESET = "\033[0m"
 
+SPECIES_EMOJI = {"human": "🧬", "dog": "🐕", "cat": "🐈"}
+
 
 def get_conn():
     try:
@@ -59,9 +61,10 @@ def print_header(title):
     print(f"{BOLD}{CYAN}{'─' * w}{RESET}")
 
 
-def print_summary(cur):
+def print_summary(cur, species=None):
     """Print a one-screen summary dashboard."""
-    print_header("OpenCure Labs — Findings Dashboard")
+    sp_label = f" ({SPECIES_EMOJI.get(species, '')} {species})" if species else ""
+    print_header(f"OpenCure Labs — Findings Dashboard{sp_label}")
 
     # Agent runs
     if table_exists(cur, "agent_runs"):
@@ -83,22 +86,32 @@ def print_summary(cur):
 
     # Experiment results
     if table_exists(cur, "experiment_results"):
+        species_filter = ""
+        params = []
+        if species:
+            species_filter = "WHERE species = %s"
+            params = [species]
         cur.execute(
-            "SELECT COUNT(*), COUNT(*) FILTER (WHERE novel = TRUE) FROM experiment_results"
+            f"SELECT COUNT(*), COUNT(*) FILTER (WHERE novel = TRUE) FROM experiment_results {species_filter}",
+            params,
         )
         total, novel = cur.fetchone()
-        print(f"\n  {BOLD}Results:{RESET}     {total} total, {GREEN}{novel} novel{RESET}")
+        sp_label = f" ({SPECIES_EMOJI.get(species, '')} {species})" if species else ""
+        print(f"\n  {BOLD}Results:{RESET}     {total} total, {GREEN}{novel} novel{RESET}{sp_label}")
 
         cur.execute(
-            "SELECT id, result_type, novel, timestamp FROM experiment_results"
-            " ORDER BY timestamp DESC LIMIT 5"
+            f"SELECT id, result_type, novel, timestamp, COALESCE(species, 'human') as species FROM experiment_results"
+            f" {species_filter}"
+            f" ORDER BY timestamp DESC LIMIT 5",
+            params,
         )
         rows = cur.fetchall()
         if rows:
-            for rid, rtype, novel, ts in rows:
+            for rid, rtype, novel, ts, sp in rows:
                 marker = f"{GREEN}🆕 NOVEL{RESET}" if novel else f"{BLUE}📊 repl{RESET}"
                 ts_str = ts.strftime("%Y-%m-%d %H:%M") if ts else "—"
-                print(f"    #{rid:<4} {rtype:<30} {marker}  {DIM}{ts_str}{RESET}")
+                sp_icon = SPECIES_EMOJI.get(sp, "🧬")
+                print(f"    #{rid:<4} {sp_icon} {rtype:<28} {marker}  {DIM}{ts_str}{RESET}")
     else:
         print(f"\n  {DIM}No experiment_results table{RESET}")
 
@@ -141,7 +154,7 @@ def print_summary(cur):
     print()
 
 
-def print_novel(cur):
+def print_novel(cur, species=None):
     """Print novel findings in detail."""
     print_header("Novel Findings")
 
@@ -149,21 +162,28 @@ def print_novel(cur):
         print(f"  {DIM}No experiment_results table{RESET}\n")
         return
 
+    species_filter = ""
+    params = []
+    if species:
+        species_filter = "AND e.species = %s"
+        params = [species]
     cur.execute(
-        "SELECT e.id, e.result_type, e.result_data, e.timestamp, p.pipeline_name"
-        " FROM experiment_results e"
-        " LEFT JOIN pipeline_runs p ON e.pipeline_run_id = p.id"
-        " WHERE e.novel = TRUE"
-        " ORDER BY e.timestamp DESC"
+        f"SELECT e.id, e.result_type, e.result_data, e.timestamp, p.pipeline_name, COALESCE(e.species, 'human') as species"
+        f" FROM experiment_results e"
+        f" LEFT JOIN pipeline_runs p ON e.pipeline_run_id = p.id"
+        f" WHERE e.novel = TRUE {species_filter}"
+        f" ORDER BY e.timestamp DESC",
+        params,
     )
     rows = cur.fetchall()
     if not rows:
         print(f"  {DIM}No novel findings yet.{RESET}\n")
         return
 
-    for rid, rtype, rdata, ts, pipeline in rows:
+    for rid, rtype, rdata, ts, pipeline, sp in rows:
         ts_str = ts.strftime("%Y-%m-%d %H:%M") if ts else "—"
-        print(f"\n  {GREEN}🆕 #{rid}{RESET}  {BOLD}{rtype}{RESET}  {DIM}({pipeline or 'unknown pipeline'}) {ts_str}{RESET}")
+        sp_icon = SPECIES_EMOJI.get(sp, "🧬")
+        print(f"\n  {GREEN}🆕 #{rid}{RESET}  {sp_icon} {BOLD}{rtype}{RESET}  {DIM}({pipeline or 'unknown pipeline'}) {ts_str}{RESET}")
         if isinstance(rdata, dict):
             data = rdata
         elif isinstance(rdata, str):
@@ -289,11 +309,13 @@ def main():
     parser.add_argument("--agents", action="store_true", help="Show agent run history")
     parser.add_argument("--critiques", action="store_true", help="Show critique log")
     parser.add_argument("--sources", action="store_true", help="Show discovered sources")
+    parser.add_argument("--species", choices=["human", "dog", "cat"], help="Filter by species")
     parser.add_argument("--all", action="store_true", help="Show everything")
     parser.add_argument("--watch", action="store_true", help="Auto-refresh every 10s")
     args = parser.parse_args()
 
     show_all = args.all or not (args.novel or args.agents or args.critiques or args.sources)
+    species = args.species
 
     while True:
         conn = get_conn()
@@ -303,9 +325,9 @@ def main():
             os.system("clear")
 
         if show_all and not (args.novel or args.agents or args.critiques or args.sources):
-            print_summary(cur)
+            print_summary(cur, species=species)
         if args.novel or args.all:
-            print_novel(cur)
+            print_novel(cur, species=species)
         if args.agents or args.all:
             print_agents(cur)
         if args.critiques or args.all:

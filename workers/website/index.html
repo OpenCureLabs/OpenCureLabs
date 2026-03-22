@@ -320,6 +320,40 @@
             font-size: 0.8rem;
             color: var(--accent);
         }
+
+        .critique-badges {
+            display: flex;
+            gap: 0.35rem;
+            margin-top: 0.35rem;
+            flex-wrap: wrap;
+        }
+
+        .critique-badge {
+            font-size: 0.68rem;
+            padding: 0.15rem 0.5rem;
+            border-radius: 9999px;
+            font-weight: 600;
+        }
+
+        .critique-badge.publish {
+            background: rgba(52, 211, 153, 0.12);
+            color: #34d399;
+        }
+
+        .critique-badge.revise {
+            background: rgba(251, 191, 36, 0.12);
+            color: #fbbf24;
+        }
+
+        .critique-badge.reject {
+            background: rgba(248, 113, 113, 0.12);
+            color: #f87171;
+        }
+
+        .critique-badge.awaiting {
+            background: rgba(100, 116, 139, 0.12);
+            color: #64748b;
+        }
     </style>
 </head>
 
@@ -428,6 +462,7 @@
         };
 
         let allResults = [];
+        let allCritiques = {};  // keyed by result_id
         let activeSkill = 'all';
         let activeSpecies = 'all';
 
@@ -467,6 +502,20 @@
             return `<span class="species-badge ${species}">${label}</span>`;
         }
 
+        function critiqueBadges(resultId) {
+            const crits = allCritiques[resultId];
+            if (!crits || !crits.length) {
+                return '<div class="critique-badges"><span class="critique-badge awaiting">⏳ Awaiting review</span></div>';
+            }
+            return '<div class="critique-badges">' + crits.map(c => {
+                const rec = c.recommendation || 'revise';
+                const score = c.overall_score != null ? `${c.overall_score}/10` : '';
+                const label = c.reviewer === 'claude_opus' ? 'Opus' : c.reviewer === 'grok_literature' ? 'Grok' : c.reviewer;
+                const icon = rec === 'publish' ? '✓' : rec === 'reject' ? '✗' : '↻';
+                return `<span class="critique-badge ${rec}">${label}: ${score} ${icon} ${rec}</span>`;
+            }).join('') + '</div>';
+        }
+
         function renderFeed(results) {
             const feed = document.getElementById('feed');
             let filtered = results;
@@ -502,6 +551,7 @@
           <span class="meta-item">Date: <span>${r.date}</span></span>
           <span class="meta-item">Status: <span>${r.status}</span></span>
         </div>
+        ${critiqueBadges(r.id)}
       </div>
       <div class="card-time">${timeAgo(r.created_at)}</div>
     </a>
@@ -518,9 +568,23 @@
 
         async function loadResults() {
             try {
-                const resp = await fetch(`${INGEST_URL}/results?limit=100`);
-                const data = await resp.json();
-                allResults = data.results || [];
+                const [resultsResp, critiquesResp] = await Promise.all([
+                    fetch(`${INGEST_URL}/results?limit=100`),
+                    fetch(`${INGEST_URL}/critiques?limit=200`),
+                ]);
+                const resultsData = await resultsResp.json();
+                allResults = resultsData.results || [];
+
+                // Index critiques by result_id
+                allCritiques = {};
+                try {
+                    const critiquesData = await critiquesResp.json();
+                    for (const c of (critiquesData.critiques || [])) {
+                        if (!allCritiques[c.result_id]) allCritiques[c.result_id] = [];
+                        allCritiques[c.result_id].push(c);
+                    }
+                } catch { /* critiques are optional */ }
+
                 updateStats(allResults);
                 renderFeed(allResults);
                 document.getElementById('last-updated').textContent =

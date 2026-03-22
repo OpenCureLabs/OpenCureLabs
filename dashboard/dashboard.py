@@ -393,6 +393,14 @@ def render_dashboard(stats, runs, findings, critiques, sources, activity=None, v
             return '<span class="badge" style="background:#2ea04320;color:#2ea043;border:1px solid #2ea04340">🆕 NOVEL</span>'
         return '<span class="badge" style="background:#5865F220;color:#5865F2;border:1px solid #5865F240">📊 replication</span>'
 
+    def species_badge(species):
+        icons = {"human": "🧬", "dog": "🐕", "cat": "🐈"}
+        colors = {"human": "#5865F2", "dog": "#E67E22", "cat": "#9B59B6"}
+        icon = icons.get(species, "🧬")
+        c = colors.get(species, "#5865F2")
+        label = species.title()
+        return f'<span class="badge" style="background:{c}20;color:{c};border:1px solid {c}40">{icon} {label}</span>'
+
     def rec_badge(rec):
         colors = {"publish": "#2ea043", "revise": "#FEE75C", "reject": "#ED4245"}
         c = colors.get(rec, "#5865F2")
@@ -428,6 +436,7 @@ def render_dashboard(stats, runs, findings, critiques, sources, activity=None, v
         <tr>
             <td>{f['id']}</td>
             <td><strong>{f['type']}</strong></td>
+            <td>{species_badge(f.get('species', 'human'))}</td>
             <td>{status_badge(f.get('status', 'published'))}</td>
             <td>{novel_badge(f['novel'])}</td>
             <td>{f['pipeline']}</td>
@@ -677,7 +686,7 @@ def render_dashboard(stats, runs, findings, critiques, sources, activity=None, v
     <button onclick="window.location='/api/export/findings?fmt=json'">⬇ JSON</button>
   </div>
   <table id="findings-table">
-    <thead><tr><th>ID</th><th>Type</th><th>Status</th><th>Novelty</th><th>Pipeline</th><th>Time</th><th>Data</th></tr></thead>
+    <thead><tr><th>ID</th><th>Type</th><th>Species</th><th>Status</th><th>Novelty</th><th>Pipeline</th><th>Time</th><th>Data</th></tr></thead>
     <tbody>{finding_rows or no_findings}</tbody>
   </table>
 </div>

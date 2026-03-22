@@ -14,11 +14,22 @@
 # ──────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
+# ── Error trap: catch crashes in Zellij floating panes ────────────────────────
+# Without this, set -e + close_on_exit causes "flash and close" with no output.
+_on_error() {
+    local exit_code=$?
+    echo ""
+    echo -e "\033[1;91m── Script error on line $1 (exit code $exit_code) ──\033[0m"
+    echo -e "\033[2mPress Enter to close\033[0m"
+    read -r
+}
+trap '_on_error $LINENO' ERR
+
 PROJECT_DIR="/root/opencurelabs"
 CONFIG="coordinator/labclaw_workflow.yaml"
 LOG="logs/agent.log"
 
-cd "$PROJECT_DIR"
+cd "$PROJECT_DIR" || { echo "Cannot cd to $PROJECT_DIR"; read -r; exit 1; }
 source .venv/bin/activate 2>/dev/null || true
 
 # Source .env for API keys (VAST_AI_KEY, VAST_AI_BUDGET, GENAI_API_KEY, etc.)
@@ -159,10 +170,10 @@ offer_r2_contribution() {
 
     echo ""
     if $HAS_GUM; then
-        gum style --foreground 39 --bold "🌐 Contribute to OpenCure Labs?"
+        gum style --foreground 39 --bold "🌐 Contribute to OpenCure Labs?" 2>/dev/null || true
         echo ""
-        gum style --foreground 242 "Results saved locally in reports/.  Optionally share anonymized"
-        gum style --foreground 242 "scientific findings with the global dataset — no personal data included."
+        gum style --foreground 242 "Results saved locally in reports/.  Optionally share anonymized" 2>/dev/null || true
+        gum style --foreground 242 "scientific findings with the global dataset — no personal data included." 2>/dev/null || true
         echo ""
         if gum confirm "Contribute anonymized findings to pub.opencurelabs.ai?" \
             --affirmative "Yes, contribute" --negative "No, keep private" \
@@ -179,8 +190,8 @@ data = json.loads(f.read_text())
 result = R2Publisher().publish_result(data['skill_name'], data['result'], novel=data['result'].get('novel', False), status='published')
 if result: print(result.get('url', ''))
 PYEOF
-            && gum style --foreground 46 "✅ Contributed! View at https://opencurelabs.ai" \
-            || gum style --foreground 196 "Could not reach ingest server — results are safe locally."
+            && (gum style --foreground 46 "✅ Contributed! View at https://opencurelabs.ai" 2>/dev/null || true) \
+            || (gum style --foreground 196 "Could not reach ingest server — results are safe locally." 2>/dev/null || true)
         fi
     else
         echo -e "${CYAN}── Contribute to OpenCure Labs? ──${RESET}"
@@ -348,7 +359,7 @@ if $HAS_GUM; then
         --padding "0 2" \
         --margin "0 0" \
         --bold \
-        "🧬  OpenCure Labs — Research Launcher"
+        "🧬  OpenCure Labs — Research Launcher" 2>/dev/null || true
 
     echo ""
 
@@ -460,13 +471,13 @@ if $HAS_GUM; then
                 "  │  Variant Danger · New Mutations · Data QC │" \
                 "  └───────────────────────────────────────────┘" \
                 "" \
-            | gum style \
+            | (gum style \
                 --border double \
                 --border-foreground 214 \
                 --foreground 214 \
                 --bold \
                 --padding "0 1" \
-                --margin "0 0"
+                --margin "0 0" 2>/dev/null || cat)
 
             # ── Throughput mode ───────────────────────────────────────
             echo ""
@@ -539,12 +550,12 @@ if $HAS_GUM; then
                         "  Loops until budget exhausted or Ctrl+C" \
                         "  Est. cost per cycle: ~\$$EST_COST" \
                         "" \
-                    | gum style \
+                    | (gum style \
                         --border double \
                         --border-foreground 214 \
                         --foreground 214 \
                         --bold \
-                        --padding "0 1"
+                        --padding "0 1" 2>/dev/null || cat)
                 else
                     printf '%s\n' \
                         "" \
@@ -553,12 +564,12 @@ if $HAS_GUM; then
                         "  $BATCH_COUNT tasks → $POOL_SIZE Vast.ai instances" \
                         "  Estimated cost: ~\$$EST_COST (at \$0.50/hr, ~30min)" \
                         "" \
-                    | gum style \
+                    | (gum style \
                         --border rounded \
                         --border-foreground 46 \
                         --foreground 46 \
                         --bold \
-                        --padding "0 1"
+                        --padding "0 1" 2>/dev/null || cat)
                 fi
             else
                 BATCH_MODE=0
@@ -580,12 +591,12 @@ if $HAS_GUM; then
                     "SELECT COALESCE(SUM(total_cost), 0) FROM vast_spend" 2>/dev/null || echo "0")
                 VAST_REMAINING=$(python3 -c "print(f'{max(0, float(\"$VAST_BUDGET\") - float(\"$VAST_SPENT\")):.2f}')" 2>/dev/null || echo "?")
                 gum style --foreground 214 \
-                    "  💰 Vast.ai balance: \$$API_BALANCE — budget: \$$VAST_BUDGET (spent: \$$VAST_SPENT)"
+                    "  💰 Vast.ai balance: \$$API_BALANCE — budget: \$$VAST_BUDGET (spent: \$$VAST_SPENT)" 2>/dev/null || true
                 gum style --foreground 46 \
-                    "  🔄 Continuous mode — loops until budget exhausted"
+                    "  🔄 Continuous mode — loops until budget exhausted" 2>/dev/null || true
             else
                 gum style --foreground 196 \
-                    "  ⚠️  No Vast.ai balance or budget — will run once"
+                    "  ⚠️  No Vast.ai balance or budget — will run once" 2>/dev/null || true
             fi
 
             echo ""
@@ -595,7 +606,7 @@ if $HAS_GUM; then
 
             # ── Genesis Continuous Loop ───────────────────────────────────
             echo ""
-            gum style --foreground 214 --bold "🚀 Genesis Mode activated — $TOTAL tasks, $MODE_LABEL, continuous"
+            gum style --foreground 214 --bold "🚀 Genesis Mode activated — $TOTAL tasks, $MODE_LABEL, continuous" 2>/dev/null || true
             echo ""
 
             GENESIS_TOTAL_OK=0
@@ -783,13 +794,13 @@ if $HAS_GUM; then
                 "  💰 Spent:   \$$GENESIS_SPENT" \
                 "  📁 Logs:    $PROJECT_DIR/logs/genesis-*" \
                 "" \
-            | gum style \
+            | (gum style \
                 --border double \
                 --border-foreground "$( [[ $GENESIS_TOTAL_FAILED -eq 0 ]] && echo 46 || echo 196 )" \
                 --foreground "$( [[ $GENESIS_TOTAL_FAILED -eq 0 ]] && echo 46 || echo 214 )" \
                 --bold \
                 --padding "0 2" \
-                --margin "0 0"
+                --margin "0 0" 2>/dev/null || cat)
 
             echo ""
             echo -e "${DIM}Press Enter to close${RESET}"
@@ -908,12 +919,12 @@ if $HAS_GUM; then
         "$([[ "$DATA_MODE" == "public" ]] && echo "📡 Data: Public databases" || echo "📁 Data: My files")" \
         "🤖 Agents: ${AGENT_NUM:-1}" \
         "$([[ "$USE_VAST" == "yes" ]] && echo "☁️  Compute: Vast.ai cloud GPU" || echo "🖥️  Compute: Local GPU")" \
-    | gum style \
+    | (gum style \
         --border rounded \
         --border-foreground 46 \
         --padding "0 2" \
         --margin "0 0" \
-        --foreground 255
+        --foreground 255 2>/dev/null || cat)
 
     # ── Run mode ─────────────────────────────────────────────────────────
     if ! $LOOP_MODE; then

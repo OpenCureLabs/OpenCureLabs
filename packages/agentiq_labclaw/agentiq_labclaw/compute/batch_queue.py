@@ -209,12 +209,13 @@ class BatchQueue:
 
             # Mirror into experiment_results for the findings dashboard
             novel = result_data.get("novel", False) if isinstance(result_data, dict) else False
+            species = result_data.get("species", "human") if isinstance(result_data, dict) else "human"
             cur.execute(
                 """
-                INSERT INTO experiment_results (result_type, result_data, novel)
-                VALUES (%s, %s, %s)
+                INSERT INTO experiment_results (result_type, result_data, novel, species)
+                VALUES (%s, %s, %s, %s)
                 """,
-                (skill_name, json.dumps(result_data, default=str), bool(novel)),
+                (skill_name, json.dumps(result_data, default=str), bool(novel), species),
             )
 
             conn.commit()
