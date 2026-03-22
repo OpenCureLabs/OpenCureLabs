@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - CI pipeline with tests, ruff, and bandit
 - Commitizen conventional commits enforcement
 
+## v0.32.2 (2026-03-22)
+
+### Fix
+
+- **task_generator**: remove duplicate RARE_DISEASE_VARIANTS, add canine/feline to DEFAULT_DISTRIBUTION
+
 ## v0.32.1 (2026-03-22)
 
 ### Fix
