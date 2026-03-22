@@ -178,7 +178,7 @@ offer_r2_contribution() {
         if gum confirm "Contribute anonymized findings to pub.opencurelabs.ai?" \
             --affirmative "Yes, contribute" --negative "No, keep private" \
             --default=false; then
-            gum spin --spinner dot --title "Publishing to global dataset..." -- \
+            if gum spin --spinner dot --title "Publishing to global dataset..." -- \
                 python3 - <<'PYEOF' 2>/dev/null
 import sys, json, os
 sys.path.insert(0, os.environ.get('PROJECT_DIR', '/root/opencurelabs') + '/packages/agentiq_labclaw')
@@ -190,8 +190,11 @@ data = json.loads(f.read_text())
 result = R2Publisher().publish_result(data['skill_name'], data['result'], novel=data['result'].get('novel', False), status='published')
 if result: print(result.get('url', ''))
 PYEOF
-            && (gum style --foreground 46 "✅ Contributed! View at https://opencurelabs.ai" 2>/dev/null || true) \
-            || (gum style --foreground 196 "Could not reach ingest server — results are safe locally." 2>/dev/null || true)
+            then
+                gum style --foreground 46 "✅ Contributed! View at https://opencurelabs.ai" 2>/dev/null || true
+            else
+                gum style --foreground 196 "Could not reach ingest server — results are safe locally." 2>/dev/null || true
+            fi
         fi
     else
         echo -e "${CYAN}── Contribute to OpenCure Labs? ──${RESET}"
