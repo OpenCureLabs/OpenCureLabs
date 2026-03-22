@@ -259,6 +259,67 @@
             color: var(--accent);
             text-decoration: none;
         }
+
+        .species-filters {
+            border-top: 1px solid var(--border);
+            background: rgba(17, 24, 39, 0.6);
+        }
+
+        .filter-btn.vet-active {
+            border-color: #f59e0b;
+            color: #f59e0b;
+            background: rgba(245, 158, 11, 0.08);
+        }
+
+        .species-badge {
+            font-size: 0.7rem;
+            padding: 0.2rem 0.55rem;
+            border-radius: 9999px;
+            font-weight: 600;
+        }
+
+        .species-badge.dog {
+            background: rgba(245, 158, 11, 0.12);
+            color: #f59e0b;
+        }
+
+        .species-badge.cat {
+            background: rgba(168, 85, 247, 0.12);
+            color: #a855f7;
+        }
+
+        .empty-vet {
+            text-align: center;
+            padding: 3rem 1rem;
+            color: var(--muted);
+        }
+
+        .empty-vet .empty-icon {
+            font-size: 3rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .empty-vet h3 {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 0.4rem;
+        }
+
+        .empty-vet p {
+            font-size: 0.85rem;
+            max-width: 380px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+
+        .empty-vet code {
+            background: var(--tag-bg);
+            padding: 0.1rem 0.4rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            color: var(--accent);
+        }
     </style>
 </head>
 
@@ -295,20 +356,28 @@
     </div>
 
     <div class="filters">
-        <span style="font-size:0.8rem;color:var(--muted);margin-right:0.5rem">Filter:</span>
-        <button class="filter-btn active" data-skill="all" onclick="setFilter(this,'all')">All</button>
+        <span style="font-size:0.8rem;color:var(--muted);margin-right:0.5rem">Skill:</span>
+        <button class="filter-btn active" data-skill="all" onclick="setSkillFilter(this,'all')">All</button>
         <button class="filter-btn" data-skill="neoantigen_prediction"
-            onclick="setFilter(this,'neoantigen_prediction')">Neoantigen</button>
+            onclick="setSkillFilter(this,'neoantigen_prediction')">Neoantigen</button>
         <button class="filter-btn" data-skill="variant_pathogenicity"
-            onclick="setFilter(this,'variant_pathogenicity')">Variant</button>
+            onclick="setSkillFilter(this,'variant_pathogenicity')">Variant</button>
         <button class="filter-btn" data-skill="molecular_docking"
-            onclick="setFilter(this,'molecular_docking')">Docking</button>
-        <button class="filter-btn" data-skill="qsar" onclick="setFilter(this,'qsar')">QSAR</button>
+            onclick="setSkillFilter(this,'molecular_docking')">Docking</button>
+        <button class="filter-btn" data-skill="qsar" onclick="setSkillFilter(this,'qsar')">QSAR</button>
         <button class="filter-btn" data-skill="structure_prediction"
-            onclick="setFilter(this,'structure_prediction')">Structure</button>
-        <button class="filter-btn" data-skill="sequencing_qc" onclick="setFilter(this,'sequencing_qc')">QC</button>
+            onclick="setSkillFilter(this,'structure_prediction')">Structure</button>
+        <button class="filter-btn" data-skill="sequencing_qc" onclick="setSkillFilter(this,'sequencing_qc')">QC</button>
         <button class="filter-btn" data-skill="grok_research"
-            onclick="setFilter(this,'grok_research')">Literature</button>
+            onclick="setSkillFilter(this,'grok_research')">Literature</button>
+    </div>
+
+    <div class="filters species-filters">
+        <span style="font-size:0.8rem;color:var(--muted);margin-right:0.5rem">Species:</span>
+        <button class="filter-btn active" data-species="all" onclick="setSpeciesFilter(this,'all')">All Species</button>
+        <button class="filter-btn" data-species="human" onclick="setSpeciesFilter(this,'human')">🧬 Human</button>
+        <button class="filter-btn" data-species="dog" onclick="setSpeciesFilter(this,'dog')">🐕 Dog (Canine)</button>
+        <button class="filter-btn" data-species="cat" onclick="setSpeciesFilter(this,'cat')">🐈 Cat (Feline)</button>
     </div>
 
     <div class="feed" id="feed">
@@ -345,13 +414,40 @@
             report_generator: 'Report',
         };
 
-        let allResults = [];
-        let activeFilter = 'all';
+        const SPECIES_EMPTY = {
+            dog: {
+                icon: '🐕',
+                title: 'No canine results yet',
+                msg: 'Canine (DLA-88) neoantigen and variant pipelines are ready. Start a run with <code>./dashboard/lab.sh</code> and select Dog as the species — results will appear here automatically.',
+            },
+            cat: {
+                icon: '🐈',
+                title: 'No feline results yet',
+                msg: 'Feline (FLA) neoantigen and variant pipelines are ready. Start a run with <code>./dashboard/lab.sh</code> and select Cat as the species — results will appear here automatically.',
+            },
+        };
 
-        function setFilter(btn, skill) {
-            document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+        let allResults = [];
+        let activeSkill = 'all';
+        let activeSpecies = 'all';
+
+        function setSkillFilter(btn, skill) {
+            document.querySelectorAll('[data-skill]').forEach(b => b.classList.remove('active'));
             btn.classList.add('active');
-            activeFilter = skill;
+            activeSkill = skill;
+            renderFeed(allResults);
+        }
+
+        function setSpeciesFilter(btn, species) {
+            document.querySelectorAll('[data-species]').forEach(b => {
+                b.classList.remove('active', 'vet-active');
+            });
+            if (species === 'dog' || species === 'cat') {
+                btn.classList.add('vet-active');
+            } else {
+                btn.classList.add('active');
+            }
+            activeSpecies = species;
             renderFeed(allResults);
         }
 
@@ -365,12 +461,29 @@
             return `${Math.floor(h / 24)}d ago`;
         }
 
+        function speciesBadge(species) {
+            if (!species || species === 'human') return '';
+            const label = species === 'dog' ? '🐕 Canine' : species === 'cat' ? '🐈 Feline' : species;
+            return `<span class="species-badge ${species}">${label}</span>`;
+        }
+
         function renderFeed(results) {
             const feed = document.getElementById('feed');
-            const filtered = activeFilter === 'all' ? results : results.filter(r => r.skill === activeFilter);
+            let filtered = results;
+            if (activeSkill !== 'all') filtered = filtered.filter(r => r.skill === activeSkill);
+            if (activeSpecies !== 'all') filtered = filtered.filter(r => (r.species || 'human') === activeSpecies);
 
             if (!filtered.length) {
-                feed.innerHTML = '<div class="loading">No results yet for this filter.</div>';
+                const vetEmpty = SPECIES_EMPTY[activeSpecies];
+                if (vetEmpty) {
+                    feed.innerHTML = `<div class="empty-vet">
+                        <div class="empty-icon">${vetEmpty.icon}</div>
+                        <h3>${vetEmpty.title}</h3>
+                        <p>${vetEmpty.msg}</p>
+                    </div>`;
+                } else {
+                    feed.innerHTML = '<div class="loading">No results yet for this filter.</div>';
+                }
                 return;
             }
 
@@ -381,6 +494,7 @@
         <div class="card-top">
           <span class="skill-tag">${SKILL_LABELS[r.skill] || r.skill}</span>
           ${r.novel ? '<span class="novel-badge">✨ Novel</span>' : ''}
+          ${speciesBadge(r.species)}
         </div>
         <div class="card-title">${r.gene ? `Gene: <strong>${r.gene}</strong>` : r.skill.replace(/_/g, ' ')}</div>
         <div class="card-meta">
