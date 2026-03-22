@@ -155,7 +155,6 @@ class NetMHCpanPredictor(MHCPredictor):
             pep_file.write_text("\n".join(peptides) + "\n")
 
             # Group by allele to minimize subprocess calls
-            from itertools import groupby
             allele_to_indices: dict[str, list[int]] = {}
             for i, allele in enumerate(alleles):
                 allele_to_indices.setdefault(allele, []).append(i)

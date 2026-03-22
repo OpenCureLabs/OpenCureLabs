@@ -45,6 +45,7 @@ class PoolInstance:
     cost_per_hr: float = 0.0
     status: str = "provisioning"  # provisioning | setup | ready | busy | failed | destroyed
     jobs_done: int = 0
+    provisioned_at: float = 0.0  # time.monotonic() when created
 
 
 # ── DB helpers ───────────────────────────────────────────────────────────────
@@ -127,6 +128,35 @@ def _db_increment_jobs(instance_id: int):
         conn.close()
 
 
+def _db_record_instance_spend(instance_id: int):
+    """Record spend for a batch-mode instance into vast_spend.
+
+    Calculates cost from vast_pool created_at → NOW() × cost_per_hr.
+    """
+    conn = _get_conn()
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            """
+            INSERT INTO vast_spend (instance_id, skill_name, gpu_name, cost_per_hour, started_at, ended_at, total_cost)
+            SELECT instance_id, 'batch_pool', gpu_name, cost_per_hr,
+                   created_at, NOW(),
+                   ROUND((EXTRACT(EPOCH FROM (NOW() - created_at)) / 3600.0 * cost_per_hr)::numeric, 4)
+            FROM vast_pool
+            WHERE instance_id = %s AND created_at IS NOT NULL
+            ON CONFLICT DO NOTHING
+            """,
+            (instance_id,),
+        )
+        conn.commit()
+        cur.close()
+    except Exception as e:
+        logger.warning("Failed to record spend for instance %d: %s", instance_id, e)
+        conn.rollback()
+    finally:
+        conn.close()
+
+
 def _db_get_pool() -> list[dict]:
     """Get all non-destroyed instances from vast_pool."""
     conn = _get_conn()
@@ -161,13 +191,14 @@ def _vast_headers() -> dict:
 
 
 def _find_offers(gpu_required: bool, max_cost_hr: float, count: int = 20) -> list[dict]:
-    """Search Vast.ai for cheap GPU offers."""
+    """Search Vast.ai for cheap GPU offers with good reliability."""
     query: dict = {
         "verified": {"eq": True},
         "rentable": {"eq": True},
         "disk_space": {"gte": 20},
         "inet_down": {"gte": 100},
         "dph_total": {"lte": max_cost_hr},
+        "reliability2": {"gte": 0.95},
     }
     if gpu_required:
         query["gpu_ram"] = {"gte": 8}
@@ -180,7 +211,23 @@ def _find_offers(gpu_required: bool, max_cost_hr: float, count: int = 20) -> lis
         timeout=30,
     )
     resp.raise_for_status()
-    return resp.json().get("offers", [])
+    offers = resp.json().get("offers", [])
+
+    # If too few reliable offers, relax to 0.90
+    if len(offers) < count:
+        query["reliability2"] = {"gte": 0.90}
+        resp = requests.get(
+            f"{VAST_API}/bundles/",
+            headers=_vast_headers(),
+            params={"q": json.dumps(query), "order": "dph_total", "limit": count},
+            timeout=30,
+        )
+        resp.raise_for_status()
+        offers = resp.json().get("offers", [])
+        if offers:
+            logger.info("Relaxed reliability to 0.90 — found %d offers", len(offers))
+
+    return offers
 
 
 def _provision_one(offer_id: int, image: str = "pytorch/pytorch:latest", onstart: str | None = None) -> int:
@@ -268,6 +315,26 @@ def _check_setup_ready(ssh_host: str, ssh_port: int) -> bool:
         return False
     except Exception as e:
         logger.debug("SSH check for %s:%d exception: %s", ssh_host, ssh_port, e)
+        return False
+
+
+def _check_ssh_alive(ssh_host: str, ssh_port: int) -> bool:
+    """Quick SSH connectivity check — returns True if instance responds."""
+    try:
+        result = subprocess.run(
+            [
+                "ssh", "-o", "StrictHostKeyChecking=no",
+                "-o", "ConnectTimeout=5",
+                "-o", "BatchMode=yes",
+                "-i", SSH_KEY_PATH,
+                "-p", str(ssh_port),
+                f"root@{ssh_host}",
+                "echo alive",
+            ],
+            capture_output=True, text=True, timeout=10,
+        )
+        return "alive" in result.stdout
+    except Exception:
         return False
 
 
@@ -394,6 +461,7 @@ class PoolManager:
                         gpu_name=offer.get("gpu_name", "GPU"),
                         cost_per_hr=offer.get("dph_total", 0),
                         status="provisioning",
+                        provisioned_at=time.monotonic(),
                     )
                     self.instances[instance_id] = inst
                     _db_register_instance(inst)
@@ -492,10 +560,10 @@ class PoolManager:
         if count <= 0:
             return
 
-        # Prefer destroying instances with most jobs done (they've served their purpose)
+        # Prefer destroying instances with FEWEST jobs done (preserve productive workers)
         candidates = sorted(
             [i for i in self.instances.values() if i.status in ("ready", "setup")],
-            key=lambda i: -i.jobs_done,
+            key=lambda i: i.jobs_done,
         )
 
         destroyed = 0
@@ -513,28 +581,141 @@ class PoolManager:
         """Adjust pool size based on queue depth and budget.
 
         Rules:
-        - target = min(pending_jobs, MAX_POOL, budget_allows)
-        - Scale up if pending > 2 × active
-        - Scale down if active > pending + 2 (keep a small buffer)
+        - Scale up if pending > 2 × active and budget allows
+        - Never scale down below target_size (pool is meant to persist,
+          especially in continuous mode where a new batch is imminent)
+        - Only scale down if over budget
         """
         active_instances = [i for i in self.instances.values() if i.status != "destroyed"]
         avg_cost = sum(i.cost_per_hr for i in active_instances) / max(self.active_count, 1)
         budget_allows = int(budget_remaining / max(avg_cost, 0.10))  # how many instances can we afford for 1 hour
 
-        ideal = min(pending_jobs, self.target_size, budget_allows)
         current = self.active_count
 
-        if pending_jobs > 2 * current and current < ideal:
-            self.scale_up(ideal)
-        elif current > pending_jobs + 2 and current > ideal:
-            self.scale_down(current - ideal)
+        # Scale up if lots of pending work and budget permits
+        ideal_up = min(pending_jobs, self.target_size, budget_allows)
+        if pending_jobs > 2 * current and current < ideal_up:
+            self.scale_up(ideal_up)
+
+        # Only scale down if we exceed target AND budget is nearly gone
+        if current > self.target_size and current > budget_allows:
+            self.scale_down(current - self.target_size)
+
+    # ── Health check & self-heal ─────────────────────────────────────────
+
+    def poll_readiness(self):
+        """Single non-blocking pass: transition provisioning→setup→ready.
+
+        Call this periodically (e.g. in _monitor_loop) so new instances
+        become available without waiting for the next cycle.
+
+        Returns number of instances that became ready this pass.
+        """
+        became_ready = 0
+        for inst in list(self.instances.values()):
+            if inst.status == "provisioning":
+                try:
+                    info = _poll_instance(inst.instance_id)
+                    if info is None:
+                        continue
+                    actual = info.get("actual_status") or info.get("status_msg", "")
+                    if actual == "running":
+                        inst.ssh_host = info.get("ssh_host")
+                        inst.ssh_port = info.get("ssh_port", 22)
+                        inst.status = "setup"
+                        _db_update_status(
+                            inst.instance_id, "setup",
+                            ssh_host=inst.ssh_host,
+                            ssh_port=inst.ssh_port,
+                        )
+                        logger.info(
+                            "Instance %d (%s) booted → setup",
+                            inst.instance_id, inst.gpu_name,
+                        )
+                except Exception as e:
+                    logger.warning("Poll failed for %d: %s", inst.instance_id, e)
+
+            if inst.status == "setup" and inst.ssh_host:
+                if _check_setup_ready(inst.ssh_host, inst.ssh_port):
+                    inst.status = "ready"
+                    _db_update_status(inst.instance_id, "ready")
+                    became_ready += 1
+                    logger.info(
+                        "Instance %d (%s) READY  [%d/%d]",
+                        inst.instance_id, inst.gpu_name,
+                        self.ready_count, self.active_count,
+                    )
+        return became_ready
+
+    def health_check(self, progress_fn=None) -> int:
+        """Check all active instances via SSH, replace dead ones.
+
+        Returns number of instances replaced.
+        """
+        # First, try to advance any provisioning instances
+        self.poll_readiness()
+
+        dead = []
+        for inst in list(self.instances.values()):
+            if inst.status in ("destroyed", "failed"):
+                continue
+            # Quick SSH ping — if it can't connect in 5s, it's dead
+            if inst.ssh_host and inst.status in ("ready", "busy", "setup"):
+                alive = _check_ssh_alive(inst.ssh_host, inst.ssh_port)
+                if not alive:
+                    dead.append(inst)
+            elif inst.status == "provisioning":
+                # Only kill provisioning instances stuck for >8 minutes
+                age_min = (time.monotonic() - inst.provisioned_at) / 60 if inst.provisioned_at else 999
+                if age_min < 8:
+                    continue  # give it time to boot
+                try:
+                    info = _poll_instance(inst.instance_id)
+                    api_status = info.get("actual_status", "") if info else ""
+                    if api_status in ("", "exited", "offline", "created", "loading"):
+                        dead.append(inst)
+                        logger.info("Instance %d stuck in '%s' for %.1f min", inst.instance_id, api_status, age_min)
+                except Exception:
+                    dead.append(inst)
+
+        if not dead:
+            return 0
+
+        msg = "Health check: %d dead instances detected — replacing"
+        logger.warning(msg, len(dead))
+        if progress_fn:
+            progress_fn(msg, len(dead))
+
+        for inst in dead:
+            _db_record_instance_spend(inst.instance_id)
+            _destroy_instance(inst.instance_id)
+            inst.status = "destroyed"
+            _db_update_status(inst.instance_id, "destroyed")
+            msg = "Removed dead instance %d (%s)"
+            logger.info(msg, inst.instance_id, inst.gpu_name)
+            if progress_fn:
+                progress_fn(msg, inst.instance_id, inst.gpu_name)
+
+        # Scale back up to target
+        if self.active_count < self.target_size:
+            try:
+                self.scale_up()
+                self.wait_for_ready(min_ready=1, timeout=600, progress_fn=progress_fn)
+            except (RuntimeError, TimeoutError) as e:
+                msg = "Self-heal scale_up failed: %s"
+                logger.warning(msg, e)
+                if progress_fn:
+                    progress_fn(msg, e)
+
+        return len(dead)
 
     # ── Teardown ─────────────────────────────────────────────────────────
 
     def teardown(self):
-        """Destroy ALL instances in the pool."""
+        """Destroy ALL instances in the pool and record spend."""
         for inst in list(self.instances.values()):
             if inst.status not in ("destroyed", "failed"):
+                _db_record_instance_spend(inst.instance_id)
                 _destroy_instance(inst.instance_id)
                 inst.status = "destroyed"
                 _db_update_status(inst.instance_id, "destroyed")

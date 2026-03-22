@@ -40,6 +40,7 @@ class Worker:
         queue=None,
         pool_manager=None,
         batch_id: str | None = None,
+        idle_timeout: int = 0,
     ):
         self.instance_id = instance_id
         self.ssh_host = ssh_host
@@ -47,6 +48,7 @@ class Worker:
         self._queue = queue
         self._pool = pool_manager
         self.batch_id = batch_id
+        self.idle_timeout = idle_timeout
         self.jobs_completed = 0
         self.jobs_failed = 0
         self._stop = threading.Event()
@@ -57,6 +59,8 @@ class Worker:
 
     def run(self):
         """Main worker loop — claim and execute jobs until queue empty or stopped."""
+        import time
+
         from agentiq_labclaw.compute.batch_queue import BatchQueue
 
         queue = self._queue or BatchQueue()
@@ -68,8 +72,21 @@ class Worker:
         while not self._stop.is_set():
             job = queue.claim_job(self.instance_id, batch_id=self.batch_id)
             if job is None:
-                logger.info("Worker %d: queue empty, stopping", self.instance_id)
-                break
+                # In continuous mode, idle-poll for new jobs instead of stopping
+                if self.idle_timeout > 0:
+                    waited = 0
+                    while waited < self.idle_timeout and not self._stop.is_set():
+                        time.sleep(5)
+                        waited += 5
+                        job = queue.claim_job(self.instance_id, batch_id=self.batch_id)
+                        if job is not None:
+                            break
+                    if job is None:
+                        logger.info("Worker %d: queue empty after %ds idle, stopping", self.instance_id, waited)
+                        break
+                else:
+                    logger.info("Worker %d: queue empty, stopping", self.instance_id)
+                    break
 
             # Mark instance busy
             if self._pool:
