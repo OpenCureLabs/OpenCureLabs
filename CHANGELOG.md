@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - CI pipeline with tests, ruff, and bandit
 - Commitizen conventional commits enforcement
 
+## v0.25.0 (2026-03-22)
+
+### Feat
+
+- discovery feed website deployed to Cloudflare Pages
+
 ## v0.24.0 (2026-03-22)
 
 ### Feat
