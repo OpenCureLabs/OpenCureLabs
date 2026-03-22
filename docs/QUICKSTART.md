@@ -8,6 +8,68 @@ platform** with all agents, pipelines, and the Zellij control panel.
 
 ---
 
+## My Data — Personal / Private Analysis
+
+> **Inspired by Paul Conyngham**, who used open-source bioinformatics tools to
+> design a personalized cancer vaccine that saved his dog Rosie — proving one
+> person with the right pipeline can do what takes an institution months.
+
+If you have your own data (biopsy VCF, sequencing FASTQ, protein FASTA, etc.)
+and want to run it privately, OpenCure Labs has a **solo mode** built for this.
+
+### Quick start (no dashboard needed)
+
+```bash
+# Drop your file into data/
+cp ~/tumor_sample.vcf data/
+
+# Run the auto-detecting solo launcher
+bash scripts/solo_run.sh
+
+# Or point directly at a file
+bash scripts/solo_run.sh data/tumor_sample.vcf
+```
+
+The launcher auto-detects the file type, suggests the right pipeline, and asks
+you to confirm before running. Results are saved to `reports/` as PDF + JSON.
+
+### File type routing
+
+| File type | Pipeline triggered |
+|---|---|
+| `.vcf` | Variant pathogenicity (ClinVar + CADD scoring) |
+| `.fastq` / `.bam` | Sequencing QC → Neoantigen prediction |
+| `.fasta` | Protein structure prediction (ESMFold / AlphaFold) |
+| `.pdb` | Molecular docking — screen ligands |
+| `.sdf` | QSAR — predict bioactivity |
+
+### Privacy and contribution
+
+Solo mode sets `OPENCURELABS_MODE=solo` automatically. In this mode:
+
+- ✅ PDF report generated locally in `reports/`
+- ❌ R2 global dataset — **skipped** (your data stays on your machine)
+- ❌ GitHub commit — **skipped**
+- ❌ Discord — **skipped**
+
+After the run completes, you are offered a single opt-in prompt:
+
+```
+Contribute anonymized findings to OpenCure Labs dataset? [y/N]
+```
+
+If you choose **yes**, only the scientific result summary (skill name, gene,
+confidence score, novelty flag) is uploaded — never your raw files. This feeds
+the public dataset at [pub.opencurelabs.ai](https://pub.opencurelabs.ai) and
+the discovery feed at [opencurelabs.ai](https://opencurelabs.ai).
+
+### Via the dashboard (gum menu)
+
+If you prefer the full Zellij dashboard, select **"My data"** at the data source
+prompt. The same solo mode applies automatically.
+
+---
+
 ## Option A: Automated Setup (Recommended)
 
 ```bash
@@ -499,6 +561,7 @@ session.
 | File | Purpose |
 |---|---|
 | `scripts/setup.sh` | Automated full setup |
+| `scripts/solo_run.sh` | Private analysis on your own files (solo mode) |
 | `dashboard/lab.sh` | Launch Zellij control panel |
 | `dashboard/stop.sh` | Shutdown and auto-commit |
 | `.env.example` | Template for API keys |

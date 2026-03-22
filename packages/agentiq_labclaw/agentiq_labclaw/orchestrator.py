@@ -67,7 +67,14 @@ def _guardrails_enabled(name: str) -> bool:
 
 
 def _publisher_enabled(name: str) -> bool:
-    """Check if a publisher is enabled in config (falls back to defaults)."""
+    """Check if a publisher is enabled in config (falls back to defaults).
+
+    Solo mode (OPENCURELABS_MODE=solo): only PDF runs locally.
+    R2, GitHub, and Discord are silenced so personal data never leaves the machine.
+    """
+    # Solo mode: only PDF (local file). All external publishers are silenced.
+    if os.environ.get("OPENCURELABS_MODE") == "solo":
+        return name == "pdf"
     config = _get_config()
     publishers = config.get("publishers", PUBLISHER_DEFAULTS)
     pub_config = publishers.get(name, PUBLISHER_DEFAULTS.get(name, {}))
@@ -245,6 +252,18 @@ async def post_execute(
             )
         except Exception as e:
             logger.warning("Failed to store result in DB: %s", e)
+
+    # ── Always write reports/last_result.json ────────────────────────────
+    # Used by the solo-mode post-run R2 opt-in prompt in run_research.sh
+    try:
+        import pathlib
+        reports_dir = pathlib.Path(os.path.dirname(__file__)).parent.parent.parent / "reports"
+        reports_dir.mkdir(parents=True, exist_ok=True)
+        last_result_path = reports_dir / "last_result.json"
+        with open(last_result_path, "w") as _f:
+            json.dump({"skill_name": skill_name, "result": result_dict}, _f, indent=2, default=str)
+    except Exception as e:
+        logger.debug("Could not write last_result.json: %s", e)
 
     # ── Step 6: Publishers ───────────────────────────────────────────────
     # Discord

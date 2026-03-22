@@ -118,6 +118,82 @@ detect_data_files() {
         2>/dev/null || true
 }
 
+# Classify the most relevant file in data/ and return: "path|skill|label"
+classify_data_files() {
+    local vcf fastq bam fasta pdb sdf
+    vcf=$(find "$PROJECT_DIR/data" -type f -name "*.vcf" 2>/dev/null | head -1)
+    fastq=$(find "$PROJECT_DIR/data" -type f \( -name "*.fastq" -o -name "*.fastq.gz" -o -name "*.fq.gz" \) 2>/dev/null | head -1)
+    bam=$(find "$PROJECT_DIR/data" -type f -name "*.bam" 2>/dev/null | head -1)
+    fasta=$(find "$PROJECT_DIR/data" -type f \( -name "*.fasta" -o -name "*.fa" \) 2>/dev/null | head -1)
+    pdb=$(find "$PROJECT_DIR/data" -type f -name "*.pdb" 2>/dev/null | head -1)
+    sdf=$(find "$PROJECT_DIR/data" -type f -name "*.sdf" 2>/dev/null | head -1)
+
+    if [[ -n "$vcf" ]];   then echo "$vcf|variant_pathogenicity|Assess Variant Danger"
+    elif [[ -n "$fastq" ]]; then echo "$fastq|sequencing_qc+neoantigen|Check Data Quality → Predict Neoantigens"
+    elif [[ -n "$bam" ]];   then echo "$bam|sequencing_qc+neoantigen|Check Data Quality → Predict Neoantigens"
+    elif [[ -n "$fasta" ]]; then echo "$fasta|structure_prediction|Predict Protein Shape"
+    elif [[ -n "$pdb" ]];   then echo "$pdb|molecular_docking|Screen Drug Candidates"
+    elif [[ -n "$sdf" ]];   then echo "$sdf|qsar|Train Drug Predictor"
+    fi
+}
+
+# Offer to contribute anonymized findings to the OpenCure Labs public dataset.
+# Called after a successful solo mode run. Reads reports/last_result.json.
+offer_r2_contribution() {
+    local last_result="$PROJECT_DIR/reports/last_result.json"
+    [[ -f "$last_result" ]] || return 0
+
+    echo ""
+    if $HAS_GUM; then
+        gum style --foreground 39 --bold "🌐 Contribute to OpenCure Labs?"
+        echo ""
+        gum style --foreground 242 "Results saved locally in reports/.  Optionally share anonymized"
+        gum style --foreground 242 "scientific findings with the global dataset — no personal data included."
+        echo ""
+        if gum confirm "Contribute anonymized findings to pub.opencurelabs.ai?" \
+            --affirmative "Yes, contribute" --negative "No, keep private" \
+            --default=false; then
+            gum spin --spinner dot --title "Publishing to global dataset..." -- \
+                python3 - <<'PYEOF' 2>/dev/null
+import sys, json, os
+sys.path.insert(0, os.environ.get('PROJECT_DIR', '/root/opencurelabs') + '/packages/agentiq_labclaw')
+os.environ['OPENCURELABS_MODE'] = 'contribute'
+from agentiq_labclaw.publishers.r2_publisher import R2Publisher
+import pathlib
+f = pathlib.Path(os.environ.get('PROJECT_DIR', '/root/opencurelabs')) / 'reports' / 'last_result.json'
+data = json.loads(f.read_text())
+result = R2Publisher().publish_result(data['skill_name'], data['result'], novel=data['result'].get('novel', False), status='published')
+if result: print(result.get('url', ''))
+PYEOF
+            && gum style --foreground 46 "✅ Contributed! View at https://opencurelabs.ai" \
+            || gum style --foreground 196 "Could not reach ingest server — results are safe locally."
+        fi
+    else
+        echo -e "${CYAN}── Contribute to OpenCure Labs? ──${RESET}"
+        echo "Results saved locally in reports/."
+        echo "You can optionally share anonymized scientific findings (no personal data)."
+        echo ""
+        read -rp "Contribute findings to opencurelabs.ai? [y/N] " _contrib
+        case "$_contrib" in
+            [yY]*)
+                echo "Publishing..."
+                PROJECT_DIR="$PROJECT_DIR" python3 - <<'PYEOF' 2>/dev/null
+import sys, json, os
+sys.path.insert(0, os.environ.get('PROJECT_DIR', '/root/opencurelabs') + '/packages/agentiq_labclaw')
+os.environ['OPENCURELABS_MODE'] = 'contribute'
+from agentiq_labclaw.publishers.r2_publisher import R2Publisher
+import pathlib
+f = pathlib.Path(os.environ.get('PROJECT_DIR', '/root/opencurelabs')) / 'reports' / 'last_result.json'
+data = json.loads(f.read_text())
+result = R2Publisher().publish_result(data['skill_name'], data['result'], novel=data['result'].get('novel', False), status='published')
+if result: print('Published:', result.get('url', ''))
+PYEOF
+                echo -e "${GREEN}✅ Contributed! View at https://opencurelabs.ai${RESET}"
+                ;;
+        esac
+    fi
+}
+
 # Ask for a file only in "my data" mode; returns empty in public mode
 ask_data_file() {
     if [[ "${DATA_MODE:-public}" == "mydata" ]]; then
@@ -371,10 +447,13 @@ if $HAS_GUM; then
                 "6 — Max throughput" \
                 "12 — All at once" \
                 "100 — Batch mode (Vast.ai pool)" \
+                "999 — Continuous batch (Vast.ai pool, loops until budget exhausted)" \
             ) || { echo "Cancelled."; read -r; exit 0; }
             PARALLEL="${VAST_INSTANCES%%[[:space:]]*}"
-            if [[ $PARALLEL -eq 100 ]]; then
+            if [[ $PARALLEL -ge 100 ]]; then
                 BATCH_MODE=1
+                CONTINUOUS_BATCH=0
+                [[ $PARALLEL -eq 999 ]] && CONTINUOUS_BATCH=1
                 # Prompt for batch parameters before confirmation
                 BATCH_COUNT=$(gum input \
                     --header "How many tasks? (max 500)" \
@@ -407,24 +486,45 @@ if $HAS_GUM; then
                 fi
 
                 TOTAL="$BATCH_COUNT"
-                MODE_LABEL="batch ($POOL_SIZE instances)"
+                if [[ "${CONTINUOUS_BATCH:-0}" -eq 1 ]]; then
+                    MODE_LABEL="continuous batch ($POOL_SIZE instances, loops until budget)"
+                else
+                    MODE_LABEL="batch ($POOL_SIZE instances)"
+                fi
 
                 # Show updated batch summary
                 echo ""
                 EST_COST=$(python3 -c "print(f'\${(int(\"$POOL_SIZE\") * 0.50 * 0.5):.2f}')" 2>/dev/null || echo "?")
-                printf '%s\n' \
-                    "" \
-                    "  📦  B A T C H   M O D E" \
-                    "" \
-                    "  $BATCH_COUNT tasks → $POOL_SIZE Vast.ai instances" \
-                    "  Estimated cost: ~\$$EST_COST (at \$0.50/hr, ~30min)" \
-                    "" \
-                | gum style \
-                    --border rounded \
-                    --border-foreground 46 \
-                    --foreground 46 \
-                    --bold \
-                    --padding "0 1"
+                if [[ "${CONTINUOUS_BATCH:-0}" -eq 1 ]]; then
+                    printf '%s\n' \
+                        "" \
+                        "  🔄  C O N T I N U O U S   B A T C H" \
+                        "" \
+                        "  $BATCH_COUNT tasks/cycle → $POOL_SIZE Vast.ai instances" \
+                        "  Loops until budget exhausted or Ctrl+C" \
+                        "  Est. cost per cycle: ~\$$EST_COST" \
+                        "" \
+                    | gum style \
+                        --border double \
+                        --border-foreground 214 \
+                        --foreground 214 \
+                        --bold \
+                        --padding "0 1"
+                else
+                    printf '%s\n' \
+                        "" \
+                        "  📦  B A T C H   M O D E" \
+                        "" \
+                        "  $BATCH_COUNT tasks → $POOL_SIZE Vast.ai instances" \
+                        "  Estimated cost: ~\$$EST_COST (at \$0.50/hr, ~30min)" \
+                        "" \
+                    | gum style \
+                        --border rounded \
+                        --border-foreground 46 \
+                        --foreground 46 \
+                        --bold \
+                        --padding "0 1"
+                fi
             else
                 BATCH_MODE=0
                 [[ $PARALLEL -eq 1 ]] && MODE_LABEL="sequential" || MODE_LABEL="$PARALLEL parallel"
@@ -473,17 +573,32 @@ if $HAS_GUM; then
             # ── BATCH MODE: dispatch to Vast.ai instance pool ─────────────
             if [[ "${BATCH_MODE:-0}" -eq 1 ]]; then
                 echo ""
-                gum style --foreground 214 --bold \
-                    "  📦 Batch dispatch: $BATCH_COUNT tasks → $POOL_SIZE Vast.ai instances"
+                if [[ "${CONTINUOUS_BATCH:-0}" -eq 1 ]]; then
+                    gum style --foreground 214 --bold \
+                        "  🔄 Continuous batch: $BATCH_COUNT tasks/cycle → $POOL_SIZE instances (until budget exhausted)"
+                else
+                    gum style --foreground 214 --bold \
+                        "  📦 Batch dispatch: $BATCH_COUNT tasks → $POOL_SIZE Vast.ai instances"
+                fi
                 echo ""
 
                 BATCH_LOG="$PROJECT_DIR/logs/batch-$(date +%Y%m%d-%H%M%S).log"
-                python3 -m agentiq_labclaw.compute.batch_dispatcher \
-                    --count "$BATCH_COUNT" \
-                    --pool-size "$POOL_SIZE" \
-                    --max-cost 0.50 \
-                    --config "$PROJECT_DIR/config/research_tasks.yaml" \
-                    2>&1 | tee "$BATCH_LOG"
+
+                BATCH_CMD=(python3 -m agentiq_labclaw.compute.batch_dispatcher
+                    --count "$BATCH_COUNT"
+                    --pool-size "$POOL_SIZE"
+                    --max-cost 0.50
+                    --config "$PROJECT_DIR/config/research_tasks.yaml"
+                )
+                if [[ "${CONTINUOUS_BATCH:-0}" -eq 1 ]]; then
+                    BATCH_CMD+=(--continuous)
+                    # Pass budget if set
+                    if [[ -n "${VAST_AI_BUDGET:-}" ]] && [[ "$VAST_AI_BUDGET" != "0" ]]; then
+                        BATCH_CMD+=(--budget "$VAST_AI_BUDGET")
+                    fi
+                fi
+
+                "${BATCH_CMD[@]}" 2>&1 | tee "$BATCH_LOG"
 
                 export LABCLAW_COMPUTE=local
                 echo ""
@@ -790,6 +905,8 @@ if $HAS_GUM; then
 
     # ── Launch ───────────────────────────────────────────────────────────
     [[ "$USE_VAST" == "yes" ]] && export LABCLAW_COMPUTE=vast_ai || export LABCLAW_COMPUTE=local
+    # Solo mode: My Data runs are private — only PDF publisher fires locally.
+    [[ "$DATA_MODE" == "mydata" ]] && export OPENCURELABS_MODE=solo || export OPENCURELABS_MODE=contribute
 
     RUN_COUNT=0
     while true; do
@@ -800,12 +917,17 @@ if $HAS_GUM; then
         else
             gum style --foreground 46 --bold "▶ Launching research pipeline..."
         fi
+        [[ "$DATA_MODE" == "mydata" ]] && \
+            gum style --foreground 242 --italic "  🔒 Solo mode — results stay local by default"
         echo ""
 
         nat run --config_file "$CONFIG" --input "$TASK" 2>&1 | tee -a "$LOG"
 
         echo ""
         gum style --foreground 46 "✅ Run #$RUN_COUNT complete."
+
+        # Offer R2 contribution for My Data private runs
+        [[ "${DATA_MODE:-public}" == "mydata" ]] && offer_r2_contribution
 
         if ! $LOOP_MODE; then
             echo ""
@@ -890,17 +1012,19 @@ select domain in "${DOMAINS[@]}"; do
             echo ""
 
             echo -e "${BOLD}Execution mode:${RESET}"
-            PARALLEL_OPTS=("1 — Sequential" "3 — Fast parallel" "6 — Max throughput" "12 — All at once" "100 — Batch mode (Vast.ai pool)")
+            PARALLEL_OPTS=("1 — Sequential" "3 — Fast parallel" "6 — Max throughput" "12 — All at once" "100 — Batch mode (Vast.ai pool)" "999 — Continuous batch (Vast.ai pool, loops until budget)")
             select po in "${PARALLEL_OPTS[@]}"; do
                 case "$REPLY" in
                     1) PARALLEL=1; break ;; 2) PARALLEL=3; break ;;
                     3) PARALLEL=6; break ;; 4) PARALLEL=12; break ;;
-                    5) PARALLEL=100; break ;;
+                    5) PARALLEL=100; break ;; 6) PARALLEL=999; break ;;
                     *) echo "Invalid choice." ;;
                 esac
             done
-            if [[ $PARALLEL -eq 100 ]]; then
+            if [[ $PARALLEL -ge 100 ]]; then
                 BATCH_MODE=1
+                CONTINUOUS_BATCH=0
+                [[ $PARALLEL -eq 999 ]] && CONTINUOUS_BATCH=1
                 echo ""
                 read -rp "How many tasks? (1-500) [100] " BATCH_COUNT
                 BATCH_COUNT="${BATCH_COUNT:-100}"
@@ -920,10 +1044,18 @@ select domain in "${DOMAINS[@]}"; do
                     echo -e "${RED}  ⚠️  Capped to 20 instances (budget protection)${RESET}"
                 fi
                 TOTAL="$BATCH_COUNT"
-                MODE_LABEL="batch ($POOL_SIZE instances)"
+                if [[ "${CONTINUOUS_BATCH:-0}" -eq 1 ]]; then
+                    MODE_LABEL="continuous batch ($POOL_SIZE instances, loops until budget)"
+                else
+                    MODE_LABEL="batch ($POOL_SIZE instances)"
+                fi
                 EST_COST=$(python3 -c "print(f'\${(int(\"$POOL_SIZE\") * 0.50 * 0.5):.2f}')" 2>/dev/null || echo "?")
                 echo ""
-                echo -e "${YELLOW}  📦 $BATCH_COUNT tasks → $POOL_SIZE instances (est. ~\$$EST_COST)${RESET}"
+                if [[ "${CONTINUOUS_BATCH:-0}" -eq 1 ]]; then
+                    echo -e "${YELLOW}  🔄 Continuous: $BATCH_COUNT tasks/cycle → $POOL_SIZE instances (est. ~\$$EST_COST/cycle)${RESET}"
+                else
+                    echo -e "${YELLOW}  📦 $BATCH_COUNT tasks → $POOL_SIZE instances (est. ~\$$EST_COST)${RESET}"
+                fi
             else
                 BATCH_MODE=0
                 [[ $PARALLEL -eq 1 ]] && MODE_LABEL="sequential" || MODE_LABEL="$PARALLEL parallel"
@@ -956,19 +1088,31 @@ select domain in "${DOMAINS[@]}"; do
 
                     export LABCLAW_COMPUTE=vast_ai
 
-                    # ── BATCH MODE: dispatch to Vast.ai instance pool ────
                     if [[ "${BATCH_MODE:-0}" -eq 1 ]]; then
                         echo ""
-                        echo -e "${YELLOW}  📦 Batch dispatch: $BATCH_COUNT tasks → $POOL_SIZE Vast.ai instances${RESET}"
+                        if [[ "${CONTINUOUS_BATCH:-0}" -eq 1 ]]; then
+                            echo -e "${YELLOW}  🔄 Continuous batch: $BATCH_COUNT tasks/cycle → $POOL_SIZE instances${RESET}"
+                        else
+                            echo -e "${YELLOW}  📦 Batch dispatch: $BATCH_COUNT tasks → $POOL_SIZE Vast.ai instances${RESET}"
+                        fi
                         echo ""
 
                         BATCH_LOG="$PROJECT_DIR/logs/batch-$(date +%Y%m%d-%H%M%S).log"
-                        python3 -m agentiq_labclaw.compute.batch_dispatcher \
-                            --count "$BATCH_COUNT" \
-                            --pool-size "$POOL_SIZE" \
-                            --max-cost 0.50 \
-                            --config "$PROJECT_DIR/config/research_tasks.yaml" \
-                            2>&1 | tee "$BATCH_LOG"
+
+                        BATCH_CMD=(python3 -m agentiq_labclaw.compute.batch_dispatcher
+                            --count "$BATCH_COUNT"
+                            --pool-size "$POOL_SIZE"
+                            --max-cost 0.50
+                            --config "$PROJECT_DIR/config/research_tasks.yaml"
+                        )
+                        if [[ "${CONTINUOUS_BATCH:-0}" -eq 1 ]]; then
+                            BATCH_CMD+=(--continuous)
+                            if [[ -n "${VAST_AI_BUDGET:-}" ]] && [[ "$VAST_AI_BUDGET" != "0" ]]; then
+                                BATCH_CMD+=(--budget "$VAST_AI_BUDGET")
+                            fi
+                        fi
+
+                        "${BATCH_CMD[@]}" 2>&1 | tee "$BATCH_LOG"
 
                         export LABCLAW_COMPUTE=local
                         echo ""
@@ -1229,6 +1373,8 @@ case "$confirm" in
 esac
 
 [[ "$USE_VAST" == "yes" ]] && export LABCLAW_COMPUTE=vast_ai || export LABCLAW_COMPUTE=local
+# Solo mode: My Data runs are private — only PDF publisher fires locally.
+[[ "$DATA_MODE" == "mydata" ]] && export OPENCURELABS_MODE=solo || export OPENCURELABS_MODE=contribute
 
 RUN_COUNT=0
 while true; do
@@ -1239,12 +1385,16 @@ while true; do
     else
         echo -e "${GREEN}▶ Launching research pipeline...${RESET}"
     fi
+    [[ "$DATA_MODE" == "mydata" ]] && echo -e "${DIM}  🔒 Solo mode — results stay local by default${RESET}"
     echo ""
 
     nat run --config_file "$CONFIG" --input "$TASK" 2>&1 | tee -a "$LOG"
 
     echo ""
     echo -e "${GREEN}✅ Run #$RUN_COUNT complete.${RESET}"
+
+    # Offer R2 contribution for My Data private runs
+    [[ "${DATA_MODE:-public}" == "mydata" ]] && offer_r2_contribution
 
     if ! $LOOP_MODE; then
         echo ""
