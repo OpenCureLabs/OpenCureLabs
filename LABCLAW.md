@@ -44,7 +44,7 @@ Think of the relationship like this:
 | **Skill invocation** | Calls skill modules with validated inputs and returns structured outputs |
 | **Guardrail enforcement** | Validates outputs before they reach downstream agents or publishing |
 | **Data registration** | Accepts newly discovered sources from Grok and queues them for ingestion |
-| **Result routing** | Sends novel results to reviewer agents (Claude Opus, Grok) |
+| **Result routing** | Sends novel results to the Grok reviewer agent (two-tier critique) |
 | **Publishing coordination** | Triggers GitHub commits and PDF report generation |
 
 ---
@@ -345,7 +345,7 @@ grok --max-tool-rounds 200 --prompt "search bioRxiv for new neoantigen datasets 
 | Ollama local LLM | ❌ Removed (coordinator uses Gemini API) |
 | Data connectors (TCGA, ClinVar, ChEMBL) | ✅ Scaffold (API calls TODO) |
 | Agent configs (cancer, rare-disease, drug-response) | ✅ Implemented |
-| Reviewer configs (Claude Opus, Grok) | ✅ Implemented |
+| Reviewer configs (Grok two-tier) | ✅ Implemented |
 
 ---
 

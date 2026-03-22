@@ -96,7 +96,7 @@ sudo -u postgres psql -p 5433 -d opencurelabs -f db/schema.sql
 
 # Environment variables
 cp .env.example .env
-# Edit .env — minimum required: ANTHROPIC_API_KEY, XAI_API_KEY
+# Edit .env — minimum required: XAI_API_KEY (ANTHROPIC_API_KEY is optional)
 
 # Verify your setup — run the neoantigen test
 python tests/test_neoantigen.py
@@ -178,7 +178,7 @@ Schemas serve three purposes:
 
 ### When to set `critique_required=True`
 
-Set it to `True` when the output contains a novel scientific finding that should be reviewed by Claude Opus or Grok before publication. If the output is purely informational or replicates known results, set it to `False`.
+Set it to `True` when the output contains a novel scientific finding that should be reviewed by Grok before publication. If the output is purely informational or replicates known results, set it to `False`.
 
 ### Writing a test
 
@@ -404,5 +404,16 @@ If you've read this far and want to contribute but aren't sure where to start:
 2. Read through [`neoantigen.py`](packages/agentiq_labclaw/agentiq_labclaw/skills/neoantigen.py) to understand how a skill works
 3. Pick a scaffold skill from [LABCLAW.md](LABCLAW.md) and start building
 4. Open an issue if you get stuck — we'd rather help you contribute than have you give up
+
+### Contributing Results to the Global Dataset
+
+When running in `contribute` mode (the default), your results are signed with an Ed25519 keypair and submitted to the ingest worker:
+
+1. **First run** generates `~/.opencurelabs/signing_key` (Ed25519 keypair) and registers you as a contributor at `~/.opencurelabs/contributor_id`.
+2. Each result is serialized as **canonical JSON** (sorted keys, compact separators), signed with your private key, and sent with `X-Signature-Ed25519` and `X-Contributor-Id` headers.
+3. The ingest worker verifies your signature against your registered public key — invalid signatures are rejected.
+4. Results land with `status: pending` and go through the **two-tier Grok review** before publication.
+
+> **Backup `~/.opencurelabs/signing_key`** — if lost, you must re-register as a new contributor.
 
 The goal is simple: **democratize personalized medicine infrastructure so any researcher, anywhere, can run the pipeline that helped Rosie** — and apply it to human cancer, rare diseases, and drug discovery. Every contribution moves that goal closer.

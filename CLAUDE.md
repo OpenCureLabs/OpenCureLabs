@@ -12,8 +12,8 @@ orchestration. It runs computational biology pipelines — genomics analysis,
 protein structure prediction, molecular docking, QSAR modeling — through
 specialist agents coordinated by NVIDIA NeMo Agent Toolkit (AgentIQ).
 
-Results are reviewed by Claude Opus 4.6 (scientific critic) and Grok (literature
-monitor), then published to GitHub and PDF reports.
+Results are reviewed by Grok (scientific critic + literature monitor) through a
+two-tier review process, then published to GitHub, PDF reports, and R2.
 
 Full details: see README.md (source of truth — never overwrite it).
 Architecture spec: see LABCLAW.md.
@@ -29,7 +29,7 @@ Architecture spec: see LABCLAW.md.
 ├── skills/          # LabClaw scientific skill modules
 ├── pipelines/       # Genomics, docking, QSAR, structure prediction pipelines
 ├── data/            # Ingestion connectors (TCGA, GEO, ClinVar, ChEMBL)
-├── reviewer/        # Claude Opus + Grok reviewer agent configs
+├── reviewer/        # Grok reviewer agent (two-tier critique + literature)
 ├── reports/         # Generated PDF outputs
 ├── logs/            # Agent run logs
 ├── db/              # PostgreSQL schemas and migrations
@@ -39,8 +39,7 @@ Architecture spec: see LABCLAW.md.
 ├── .env             # API keys — NEVER commit this file
 ├── .gitignore       # Excludes .env, .venv, caches, etc.
 ├── README.md        # Source of truth — do not overwrite
-├── LABCLAW.md       # LabClaw scientific skill layer spec
-└── AGENT_INSTRUCTIONS.md  # Bootstrap playbook
+└── LABCLAW.md       # LabClaw scientific skill layer spec
 ```
 
 ---
@@ -86,8 +85,7 @@ Architecture spec: see LABCLAW.md.
 | **Cancer Agent** | Tumor immunology, neoantigen prediction | RTX 5070 |
 | **Rare Disease Agent** | Variant pathogenicity analysis | RTX 5070 |
 | **Drug Response Agent** | QSAR + molecular docking | RTX 5070 / Vast.ai |
-| **Claude Opus 4.6** | Scientific critic — structured JSON critique | API |
-| **Grok** | VM-resident researcher + literature reviewer | VM + xAI API |
+| **Grok** | Scientific critic (two-tier review) + researcher + literature monitor | VM + xAI API |
 
 ---
 

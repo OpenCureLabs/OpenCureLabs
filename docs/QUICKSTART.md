@@ -181,13 +181,13 @@ nano .env
 | Key | Where to get it | Used by |
 |---|---|---|
 | `GENAI_API_KEY` | [aistudio.google.com](https://aistudio.google.com) | Gemini coordinator LLM |
-| `ANTHROPIC_API_KEY` | [console.anthropic.com](https://console.anthropic.com) | Claude Opus 4.6 reviewer |
-| `XAI_API_KEY` | [console.x.ai](https://console.x.ai) | Grok researcher agent |
+| `XAI_API_KEY` | [console.x.ai](https://console.x.ai) | Grok reviewer + researcher agent |
 
 **Optional keys:**
 
 | Key | Where to get it | Used by |
 |---|---|---|
+| `ANTHROPIC_API_KEY` | [console.anthropic.com](https://console.anthropic.com) | Archived Claude Opus reviewer (not active) |
 | `NVIDIA_API_KEY` | [build.nvidia.com](https://build.nvidia.com) | NIM endpoints (optional) |
 | `VAST_AI_KEY` | [vast.ai](https://vast.ai) | Burst GPU compute |
 
@@ -233,7 +233,7 @@ scientific review sweep.
 | **POSTGRES** | Auto-refreshing view of recent agent runs |
 | **DASHBOARD** | Live findings CLI (auto-refreshing) |
 | **SHELL** | General purpose terminal with venv activated |
-| **REVIEWER** | Claude Opus + Grok reviewer sweep (auto-starts, polls every 60s) |
+| **REVIEWER** | Grok two-tier reviewer sweep (auto-starts, polls every 60s) |
 
 **Keyboard shortcuts:**
 - `Ctrl+p` then arrow keys — switch between panes
@@ -255,7 +255,7 @@ The coordinator will:
 1. Route the task to the neoantigen prediction skill
 2. Run the VCF → pyensembl → MHCflurry pipeline
 3. Validate output through guardrails
-4. Send novel results to Claude Opus for scientific critique
+4. Send novel results to Grok for scientific critique
 5. Log everything to PostgreSQL
 
 ---
@@ -528,13 +528,20 @@ The script is idempotent — running it again skips steps that are already compl
 
 ---
 
-## Reviewer Sweep (Claude Opus + Grok)
+## Reviewer Sweep (Grok Two-Tier)
 
-Every experiment result is reviewed by two AI critics:
+Every experiment result is reviewed by Grok in a two-tier process:
 
-- **Claude Opus** — structured scientific critique (scoring, reproducibility,
-  novelty assessment)
-- **Grok** — literature search for corroborating/contradicting evidence
+- **Tier 1 — Local critique** — the orchestrator calls `GrokReviewer.critique()`
+  at submission time, embedding a structured JSON critique in the result payload
+- **Tier 2 — Sweep verification** — `sweep.py` fetches pending results from the
+  ingest worker and runs a fresh Grok review to independently verify the
+  contributor's local critique. Results scoring ≥ 7.0 are published; < 5.0 are
+  blocked; 5.0–7.0 are deferred for manual review.
+
+> **Note:** A Claude Opus module exists (`reviewer/claude_reviewer.py`) but is
+> not active in the current pipeline. It can be re-enabled locally if you have
+> an `ANTHROPIC_API_KEY`.
 
 ### Automatic (via Zellij)
 
@@ -577,11 +584,10 @@ python3 reviewer/sweep.py --watch --interval 60
 
 ### Requirements
 
-The sweep requires API keys in `.env`:
-- `ANTHROPIC_API_KEY` — for Claude Opus critiques
-- `XAI_API_KEY` — for Grok literature reviews
+The sweep requires these environment variables:
+- `XAI_API_KEY` — for Grok scientific critiques and literature reviews
+- `OPENCURELABS_ADMIN_KEY` — for admin PATCH access to update result status
 
-If either key is missing, that reviewer is skipped (the other still runs).
 Critiques are stored in the `critique_log` table and shown on the dashboard.
 
 ---
@@ -624,7 +630,7 @@ session.
 | `scripts/solo_run.sh` | Private analysis on your own files (solo mode) |
 | `dashboard/lab.sh` | Launch Zellij control panel |
 | `dashboard/stop.sh` | Shutdown and auto-commit |
-| `reviewer/sweep.py` | Claude Opus + Grok scientific review sweep |
+| `reviewer/sweep.py` | Grok two-tier scientific review sweep |
 | `.env.example` | Template for API keys |
 | `requirements.txt` | Python dependencies |
 | `db/schema.sql` | PostgreSQL schema |

@@ -83,21 +83,19 @@ Every result is published to a public global dataset at **[opencurelabs.ai](http
         └─────┬──────┘             └──────┬──────┘
               │                           │
               ▼                           ▼
-        ┌──────────────┐           ┌──────────────────────────────┐
-        │ Claude       │           │  Grok (VM resident)          │
-        │ Opus 4.6     │           │  grok-cli / xAI API          │
-        │ Scientific   │           │  ┌────────────────────────┐  │
-        │ logic · stats│           │  │ Researcher role:       │  │
-        │ Returns JSON │           │  │ · Hunt new datasets    │  │
-        │ critique     │           │  │ · Scrape bioRxiv/EBI   │  │
-        └──────┬───────┘           │  │ · Monitor ClinTrials   │  │
-               │                   │  │ · Find GEO accessions  │  │
-               │                   │  │ · DeepSearch (xAI)     │  │
-               │                   │  │ · Execute bash on VM   │  │
-               │                   │  └────────────────────────┘  │
-               │                   └──────────────┬───────────────┘
-               │                                  │
-               └──────────────┬───────────────────┘
+        ┌──────────────────────────────────────────────────────┐
+        │  Grok (VM resident) — grok-cli / xAI API             │
+        │  ┌───────────────────────┐ ┌────────────────────────┐│
+        │  │ Reviewer roles:       │ │ Researcher role:       ││
+        │  │ · Scientific critique │ │ · Hunt new datasets    ││
+        │  │   (logic, stats, JSON)│ │ · Scrape bioRxiv/EBI   ││
+        │  │ · Tier 1: local review│ │ · Monitor ClinTrials   ││
+        │  │   at submission time  │ │ · Find GEO accessions  ││
+        │  │ · Tier 2: sweep       │ │ · DeepSearch (xAI)     ││
+        │  │   verification batch  │ │ · Execute bash on VM   ││
+        │  └───────────────────────┘ └────────────────────────┘│
+        └──────────────────────────┬───────────────────────────┘
+                                   │
                               │
               ┌───────────────┼───────────────┐
               ▼               ▼               ▼
@@ -193,12 +191,13 @@ Configure these in `.env` (never committed to git):
 | Key | Service | Required for | Free tier? |
 |---|---|---|---|
 | `GENAI_API_KEY` | Google Gemini | NemoClaw coordinator | Yes |
-| `ANTHROPIC_API_KEY` | Anthropic Claude | Scientific critic (reviewer) | No |
-| `XAI_API_KEY` | xAI Grok | Literature monitor (reviewer) | No |
+| `XAI_API_KEY` | xAI Grok | Reviewer agent (scientific critique + literature) | No |
 | `OPENCURELABS_INGEST_URL` | Cloudflare Worker | Optional — contribute results to global dataset | Yes |
+| `OPENCURELABS_ADMIN_KEY` | Ingest Worker | Optional — admin PATCH for sweep verification | N/A |
+| `ANTHROPIC_API_KEY` | Anthropic Claude | Optional — archived reviewer module | No |
 | `VAST_AI_KEY` | Vast.ai | Optional — cloud burst compute | No |
 
-At minimum, you need **`GENAI_API_KEY`** to run the coordinator. Add reviewer keys (`ANTHROPIC_API_KEY`, `XAI_API_KEY`) to enable the full critique loop.
+At minimum, you need **`GENAI_API_KEY`** to run the coordinator. Add **`XAI_API_KEY`** to enable the Grok critique loop.
 
 ### Current Lab Setup
 
@@ -218,14 +217,21 @@ Best suited for: **large-scale QSAR training, multi-GPU docking sweeps, distribu
 
 ---
 
-## Reviewer Agents
+## Reviewer Agent — Grok (Two-Tier)
 
-All novel results pass through two independent reviewer agents before publication:
+All novel results pass through a **two-tier Grok review** before publication:
 
-### Claude Opus 4.6 — Scientific Critic
+### Tier 1 — Local Critique (at submission)
+- The orchestrator calls `GrokReviewer.critique()` on every non-trivial result
 - Evaluates scientific logic, statistical methodology, and interpretive validity
 - Returns structured JSON critique objects that downstream agents can parse and act on
-- Triggers on every non-trivial result
+- Critique is embedded in the signed result payload before it is sent to the ingest worker
+
+### Tier 2 — Sweep Verification (batch)
+- `reviewer/sweep.py` periodically fetches pending results from the ingest worker
+- A fresh Grok instance re-reviews each result independently ("verify a contributor's local Grok critique")
+- Results scoring ≥ 7.0 are published; results scoring < 5.0 are blocked; scores 5.0–7.0 are deferred for manual review
+- Only runs when `OPENCURELABS_ADMIN_KEY` is set (admin PATCH auth)
 
 ### Grok — VM Resident Researcher & Literature Monitor
 
@@ -237,12 +243,14 @@ Grok lives on the VM as a persistent agent, running via **[grok-cli](https://git
 - Uses xAI's DeepSearch to scan X and the live web for emerging data and findings
 - Registers discovered sources with the coordinator for validation
 
-**Reviewer role (reactive):**
+**Literature reviewer role (reactive):**
 - Monitors recent publications and preprint servers for findings relevant to current experiments
 - Only fires on **novel results** — suppressed when findings replicate known literature
 - Surfaces contradicting evidence and related recent work for researcher review
 
-This dual-role design means Grok is not just a passive critic but an **active lab member** — expanding the data surface area of the platform continuously while also keeping results anchored in the current state of the literature.
+This triple-role design means Grok is not just a passive critic but an **active lab member** — expanding the data surface area of the platform continuously while also keeping results anchored in the current state of the literature.
+
+> **Note:** A Claude Opus module (`reviewer/claude_reviewer.py`) exists in the codebase but is not active in the current pipeline. Contributors who have an `ANTHROPIC_API_KEY` can re-enable it for local experimentation.
 
 ---
 
@@ -271,6 +279,24 @@ All results published in `contribute` mode land in a public Cloudflare R2 bucket
 **Privacy:** each contributing instance generates a random UUID at `~/.opencurelabs/contributor_id`. This ID is stored in R2 metadata for moderation purposes only and is never returned in query responses.
 
 **Contribution is automatic** when `OPENCURELABS_MODE=contribute` (the default). Set `OPENCURELABS_MODE=solo` to run privately — see [My Data / Solo Mode](#my-data--solo-mode) below.
+
+### Result Signing (Ed25519)
+
+Every result submitted to the global dataset is signed with an Ed25519 keypair to ensure authenticity and integrity:
+
+1. **First run** — the platform auto-generates an Ed25519 keypair at `~/.opencurelabs/signing_key` and registers a contributor UUID at `~/.opencurelabs/contributor_id` via the ingest worker's `POST /contributors` endpoint.
+2. **On submission** — the result payload is serialized as canonical JSON (`sorted keys, compact separators`) and signed with the private key. The signature and contributor ID are sent as `X-Signature-Ed25519` and `X-Contributor-Id` headers.
+3. **Server-side verification** — the ingest worker verifies the Ed25519 signature against the contributor's registered public key before accepting the result. Invalid or missing signatures are rejected with `403`.
+
+```bash
+# Your signing keypair (auto-generated, keep private)
+~/.opencurelabs/signing_key
+
+# Your contributor UUID (auto-registered on first submission)
+~/.opencurelabs/contributor_id
+```
+
+> **Backup your signing key.** If lost, you'll need to re-register as a new contributor. The keypair is never transmitted — only the public key is stored server-side.
 
 ---
 
@@ -371,9 +397,10 @@ OpenCure Labs is currently capable of or actively building toward:
 - R2 global dataset + opencurelabs.ai discovery feed
 - Solo mode for private / personal data analysis
 
-**Phase 2 — Scale**
+**Phase 2 — Scale** ✓
 - Vast.ai burst compute integration
-- Dual reviewer agent deployment (Claude Opus 4.6 + Grok 4.2)
+- Two-tier Grok reviewer deployment (local critique + sweep verification)
+- Ed25519 result signing and contributor registration
 - Automated PDF report generation
 - GitHub Actions–based pipeline CI/CD
 
@@ -430,8 +457,7 @@ See [docs/QUICKSTART.md](docs/QUICKSTART.md) for manual setup and troubleshootin
 - Python 3.11+
 - Root access
 - ~5 GB free disk space
-- Anthropic API key (Claude Opus 4.6 reviewer)
-- xAI API key (Grok researcher)
+- xAI API key (Grok reviewer + researcher)
 - CUDA 12.x (optional — for local GPU compute)
 - Vast.ai account (optional — for burst compute)
 

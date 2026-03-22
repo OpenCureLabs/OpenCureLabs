@@ -120,13 +120,13 @@ Stores computed scientific results with novelty tracking for deduplication.
 
 ### critique_log
 
-Archives scientific critique JSON from Claude Opus and Grok reviewers.
+Archives scientific critique JSON from the Grok reviewer (and historically from Claude Opus).
 
 | Column | Type | Constraints | Description |
 |---|---|---|---|
 | `id` | `SERIAL` | PRIMARY KEY | Auto-incrementing critique ID |
 | `run_id` | `INTEGER` | FK → pipeline_runs(id) | Which pipeline run is being critiqued |
-| `reviewer` | `TEXT` | nullable | Reviewer identifier: `claude_opus` or `grok` |
+| `reviewer` | `TEXT` | nullable | Reviewer identifier: `grok` (active) or `claude_opus` (historical) |
 | `critique_json` | `JSONB` | nullable | Full critique payload (see Critique Schema below) |
 | `timestamp` | `TIMESTAMP` | DEFAULT NOW() | When the critique was recorded |
 
@@ -134,7 +134,7 @@ Archives scientific critique JSON from Claude Opus and Grok reviewers.
 - `log_critique(run_id, reviewer, critique_json)` → returns `critique_id`
 - `get_critiques_for_run(run_id)` → returns list of critique rows
 
-#### Claude Opus Critique Schema
+#### Grok Critique Schema
 
 ```json
 {

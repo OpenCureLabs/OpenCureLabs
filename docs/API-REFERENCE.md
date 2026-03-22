@@ -239,6 +239,88 @@ path = pub.generate_report("Title", sections=[...], critique={...})
 
 ---
 
+### R2Publisher (Result Signing & Ingestion)
+
+**File:** `agentiq_labclaw/publishers/r2_publisher.py`  
+**Signing module:** `agentiq_labclaw/publishers/signing.py`
+
+Publishes results to the global dataset via the ingest worker at `ingest.opencurelabs.ai`. Every submission is signed with an Ed25519 keypair.
+
+```python
+from agentiq_labclaw.publishers.r2_publisher import R2Publisher
+
+pub = R2Publisher()
+pub.publish(result_dict)
+```
+
+**Signing workflow:**
+
+1. On first call, auto-generates Ed25519 keypair at `~/.opencurelabs/signing_key`
+2. Registers contributor via `POST /contributors` (stores public key + gets UUID)
+3. Serializes result as canonical JSON: `json.dumps(payload, sort_keys=True, separators=(",", ":"))`
+4. Signs canonical body with Ed25519 private key
+5. POSTs to `/results` with headers:
+   - `X-Signature-Ed25519` — hex-encoded Ed25519 signature
+   - `X-Contributor-Id` — contributor UUID
+
+---
+
+### Ingest Worker (Cloudflare Worker)
+
+**Base URL:** `https://ingest.opencurelabs.ai`  
+**Source:** `workers/ingest/index.ts`
+
+#### `POST /results`
+
+Submit a signed result to the global dataset.
+
+| Header | Required | Description |
+|---|---|---|
+| `X-Signature-Ed25519` | Yes | Hex-encoded Ed25519 signature of the request body |
+| `X-Contributor-Id` | Yes | Contributor UUID from registration |
+| `Content-Type` | Yes | `application/json` |
+
+Body: canonical JSON result payload. Returns `201` on success, `403` on invalid signature.
+
+#### `GET /results`
+
+Query published results. Supports query parameters:
+
+| Parameter | Type | Description |
+|---|---|---|
+| `skill` | string | Filter by skill name |
+| `novel` | boolean | Filter by novelty flag |
+| `status` | string | Filter by status: `pending`, `published`, `blocked` |
+
+#### `PATCH /results/:id`
+
+Admin-only endpoint to update result status (used by sweep verification).
+
+| Header | Required | Description |
+|---|---|---|
+| `Authorization` | Yes | `Bearer {OPENCURELABS_ADMIN_KEY}` |
+
+Body: `{ "status": "published" | "blocked" }`
+
+#### `POST /contributors`
+
+Register a new contributor. Called automatically on first submission.
+
+Body:
+```json
+{
+  "public_key": "<hex-encoded Ed25519 public key>"
+}
+```
+
+Returns: `{ "contributor_id": "<uuid>" }`
+
+#### `GET /contributors/:id`
+
+Look up a contributor's public key by UUID (used for signature verification).
+
+---
+
 ## Database Layer
 
 **File:** `agentiq_labclaw/db/`  

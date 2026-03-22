@@ -55,9 +55,10 @@ bash scripts/setup.sh
 
 | Variable | Source | Required | Purpose |
 |---|---|---|---|
-| `ANTHROPIC_API_KEY` | `.env` | Yes | Claude Opus reviewer |
-| `XAI_API_KEY` | `.env` | Yes | Grok agent |
 | `GENAI_API_KEY` | `.env` | Yes | Gemini 2.0 Flash Lite (coordinator LLM) |
+| `XAI_API_KEY` | `.env` | Yes | Grok reviewer + researcher agent |
+| `ANTHROPIC_API_KEY` | `.env` | No | Archived Claude Opus reviewer (not active) |
+| `OPENCURELABS_ADMIN_KEY` | `.env` | No | Admin PATCH for sweep verification |
 | `VAST_AI_KEY` | `.env` | No | Vast.ai GPU burst compute |
 | `POSTGRES_URL` | `.env` or system | No | Default: `postgresql://localhost:5433/opencurelabs` |
 | `LABCLAW_COMPUTE` | `.env` or system | No | `"local"` (default) or `"vast_ai"` |

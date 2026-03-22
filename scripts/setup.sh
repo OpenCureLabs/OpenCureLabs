@@ -319,7 +319,7 @@ if [[ -f "$PROJECT_DIR/.env" ]]; then
     ok ".env file exists"
     # Check for required keys
     MISSING_KEYS=()
-    for key in GENAI_API_KEY ANTHROPIC_API_KEY XAI_API_KEY; do
+    for key in GENAI_API_KEY XAI_API_KEY; do
         val=$(grep "^${key}=" "$PROJECT_DIR/.env" 2>/dev/null | cut -d= -f2-)
         if [[ -z "$val" ]]; then
             MISSING_KEYS+=("$key")
@@ -329,7 +329,8 @@ if [[ -f "$PROJECT_DIR/.env" ]]; then
         warn "Missing API keys in .env: ${MISSING_KEYS[*]}"
         info "Edit .env and add your keys."
         info "  GENAI_API_KEY is required for the coordinator (Gemini LLM)."
-        info "  ANTHROPIC_API_KEY and XAI_API_KEY enable the reviewer agents."
+        info "  XAI_API_KEY is required for the Grok reviewer agent."
+        info "  ANTHROPIC_API_KEY is optional (archived Claude Opus reviewer)."
     else
         ok "Required API keys are configured"
     fi
@@ -340,8 +341,8 @@ else
     info "  nano $PROJECT_DIR/.env"
     info ""
     info "  Required:  GENAI_API_KEY (coordinator LLM)"
-    info "  Required:  ANTHROPIC_API_KEY, XAI_API_KEY (reviewer agents)"
-    info "  Optional:  NVIDIA_API_KEY, VAST_AI_KEY"
+    info "  Required:  XAI_API_KEY (Grok reviewer agent)"
+    info "  Optional:  ANTHROPIC_API_KEY, NVIDIA_API_KEY, VAST_AI_KEY"
 fi
 
 # ══════════════════════════════════════════════════════════════════════════════

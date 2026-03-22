@@ -41,12 +41,13 @@ stored and published.
 │   output_validator → novelty_filter → safety_check                  │
 │         │                                                            │
 │         ▼                                                            │
-│   ┌─────────────┐  ┌──────────────────┐                             │
-│   │ Claude Opus  │  │  Grok Reviewer   │  ← called for novel results│
-│   │ (critique)   │  │  (literature)    │                             │
-│   └──────┬───────┘  └──────┬───────────┘                             │
-│          └─────────┬───────┘                                         │
-│                    ▼                                                  │
+│   ┌──────────────────────────────┐                                  │
+│   │   Grok Reviewer (two-tier)   │  ← called for novel results      │
+│   │ T1: local critique at submit │                                   │
+│   │ T2: sweep verification batch │                                   │
+│   └──────────────┬───────────────┘                                   │
+│                  │                                                   │
+│                  ▼                                                   │
 │         ┌──────────────────────┐                                     │
 │         │     Publishers       │                                     │
 │         │  GitHub · PDF · R2   │                                    │
@@ -108,8 +109,8 @@ The system is composed of three nested layers:
 | **Cancer Agent** | Tumor immunology, neoantigen prediction | `specialist_agent` | RTX 5070 (local) | `labclaw_workflow.yaml` → `cancer_agent` |
 | **Rare Disease Agent** | Variant pathogenicity analysis | `specialist_agent` | RTX 5070 (local) | `labclaw_workflow.yaml` → `rare_disease_agent` |
 | **Drug Response Agent** | QSAR modeling + molecular docking | `specialist_agent` | RTX 5070 / Vast.ai | `labclaw_workflow.yaml` → `drug_response_agent` |
-| **Claude Opus 4.6** | Scientific critic — structured JSON critique | reviewer | Anthropic API | `reviewer/claude_opus_config.yaml` |
-| **Grok** | Literature reviewer + dataset discovery | reviewer + skill | xAI API (Grok-3) | `reviewer/grok_config.yaml` |
+| **Claude Opus 4.6** | Scientific critic (archived — not active in pipeline) | reviewer | Anthropic API | `reviewer/claude_opus_config.yaml` |
+| **Grok** | Scientific critic (two-tier review) + literature reviewer + dataset discovery | reviewer + skill | xAI API (Grok-3) | `reviewer/grok_config.yaml` |
 
 ### Coordinator → Specialist → Skill Mapping
 
@@ -361,7 +362,8 @@ with automatic TTL expiration.
                 ──→ safety_check (confidence, completeness)
 
 4. REVIEW (novel results only)
-   Novel result ──→ Claude Opus (scientific critique JSON)
+   Novel result ──→ Grok Tier 1 (local scientific critique JSON)
+                ──→ Grok Tier 2 (sweep verification — independent re-review)
                 ──→ Grok (literature corroboration)
                 ──→ critique_log table
 
@@ -409,8 +411,8 @@ when Grok finds a new dataset, it calls this skill to write to
 | PostgreSQL | 5433 | Database (non-standard to avoid conflicts) |
 | FastAPI Dashboard | 8787 | Web monitoring UI + WebSocket live updates |
 | Gemini API | HTTPS | Coordinator LLM (external) |
-| Anthropic API | HTTPS | Claude Opus reviewer (external) |
 | xAI API | HTTPS | Grok reviewer/researcher (external) |
+| Ingest Worker | HTTPS | `ingest.opencurelabs.ai` — result ingestion + contributor registration |
 
 ---
 
@@ -419,8 +421,9 @@ when Grok finds a new dataset, it calls this skill to write to
 | Variable | Required | Purpose |
 |---|---|---|
 | `GENAI_API_KEY` | Yes | Gemini API — coordinator LLM |
-| `ANTHROPIC_API_KEY` | Yes | Claude Opus 4.6 scientific reviewer |
-| `XAI_API_KEY` | Yes | Grok researcher and literature monitor |
+| `XAI_API_KEY` | Yes | Grok scientific reviewer, researcher, and literature monitor |
+| `ANTHROPIC_API_KEY` | No | Archived Claude Opus reviewer (not active) |
+| `OPENCURELABS_ADMIN_KEY` | No | Admin PATCH for sweep verification |
 | `VAST_AI_KEY` | No | Burst GPU compute (Vast.ai) |
 | `NVIDIA_API_KEY` | No | NIM endpoints (if needed) |
 | `POSTGRES_URL` | No | Database connection (default: `postgresql://localhost:5433/opencurelabs`) |
@@ -459,10 +462,11 @@ when Grok finds a new dataset, it calls this skill to write to
 │   ├── lab.sh           # Zellij 6-pane launcher
 │   └── stop.sh          # Graceful shutdown
 ├── reviewer/            # Reviewer agent configs + code
-│   ├── claude_opus_config.yaml
+│   ├── claude_opus_config.yaml  # Archived — not active
 │   ├── grok_config.yaml
-│   ├── claude_reviewer.py
-│   └── grok_reviewer.py
+│   ├── claude_reviewer.py       # Archived — not active
+│   ├── grok_reviewer.py
+│   └── sweep.py                 # Two-tier sweep verification
 ├── data/                # Data ingestion connectors
 ├── db/                  # PostgreSQL schemas
 │   └── schema.sql
@@ -500,8 +504,9 @@ when Grok finds a new dataset, it calls this skill to write to
 | **Agent Framework** | NVIDIA NeMo Agent Toolkit (AgentIQ) | 1.5.0+ |
 | **Agent Orchestration** | LangGraph + LangChain | 1.0+ |
 | **Coordinator LLM** | Gemini 2.5 Flash Lite | Google AI API |
-| **Scientific Reviewer** | Claude Opus 4.6 | Anthropic API |
+| **Scientific Reviewer** | Grok-3 (two-tier) | xAI API |
 | **Literature Reviewer** | Grok-3 | xAI API |
+| **Result Signing** | Ed25519 (PyNaCl) | Local |
 | **Database** | PostgreSQL | 16 |
 | **Web Dashboard** | FastAPI + uvicorn | 0.110+ |
 | **PDF Generation** | ReportLab | 4.1+ |

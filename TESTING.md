@@ -12,8 +12,9 @@ issues you hit.
 - **RAM:** 8 GB minimum, 16 GB recommended.
 - **Disk:** ~5 GB free.
 - **API keys:** At minimum you need a free **Gemini** key (`GENAI_API_KEY`).
-  The reviewer agents need **Anthropic** and **xAI** keys too — get them at the
-  URLs listed in `.env.example`.
+  The Grok reviewer agent needs an **xAI** key (`XAI_API_KEY`) — get it at
+  [console.x.ai](https://console.x.ai). `ANTHROPIC_API_KEY` is optional (the
+  Claude Opus module is archived and not active in the current pipeline).
 
 ---
 
@@ -99,11 +100,11 @@ bash scripts/solo_run.sh path/to/your/file
 
 ### 6. Reviewer sweep
 
-If you have `ANTHROPIC_API_KEY` set:
+If you have `XAI_API_KEY` set:
 
 ```bash
 source .venv/bin/activate
-python3 dashboard/sweep.py --once
+python3 reviewer/sweep.py --once
 ```
 
 - [ ] Does it find unreviewed results and generate a critique?
