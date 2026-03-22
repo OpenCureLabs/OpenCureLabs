@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - CI pipeline with tests, ruff, and bandit
 - Commitizen conventional commits enforcement
 
+## v0.37.0 (2026-03-22)
+
+### Feat
+
+- sweep filters by contributor_id — only reviews your own results
+
 ## v0.36.2 (2026-03-22)
 
 ### Fix
