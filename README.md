@@ -1,6 +1,6 @@
 <p align="center">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="logos/OpenCure%20Labs%20White%20logo%20Transparent%20bg.svg">
+    <source media="(prefers-color-scheme: dark)" srcset="logos/OpenCure%20Labs%20Inverted%20Color%20Transparent%20bg.svg">
     <source media="(prefers-color-scheme: light)" srcset="logos/OpenCure%20Labs%20Main%20Logo%20Transparent%20bg.svg">
     <img src="logos/OpenCure%20Labs%20Main%20Logo%20Transparent%20bg.svg" alt="OpenCure Labs" width="400">
   </picture>
