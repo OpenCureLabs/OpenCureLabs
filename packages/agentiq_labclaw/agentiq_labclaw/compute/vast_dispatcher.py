@@ -190,15 +190,25 @@ class VastInstance:
 
     def destroy(self):
         """Terminate and delete the instance."""
-        try:
-            requests.delete(
-                f"{VAST_API}/instances/{self.instance_id}/",
-                headers=self._headers,
-                timeout=30,
-            )
-            logger.info("Destroyed Vast.ai instance %d", self.instance_id)
-        except requests.RequestException as e:
-            logger.error("Failed to destroy instance %d: %s", self.instance_id, e)
+        for attempt in range(1, 4):
+            try:
+                resp = requests.delete(
+                    f"{VAST_API}/instances/{self.instance_id}/",
+                    headers=self._headers,
+                    timeout=30,
+                )
+                resp.raise_for_status()
+                logger.info("Destroyed Vast.ai instance %d", self.instance_id)
+                return
+            except requests.RequestException as e:
+                logger.error("Failed to destroy instance %d (attempt %d/3): %s", self.instance_id, attempt, e)
+                if attempt < 3:
+                    time.sleep(2 * attempt)
+        logger.critical(
+            "DESTROY FAILED: instance %d may still be running on Vast.ai! "
+            "Manual cleanup: vastai destroy instance %d",
+            self.instance_id, self.instance_id,
+        )
 
 
 def _find_cheapest_offer(api_key: str, gpu_required: bool) -> dict:

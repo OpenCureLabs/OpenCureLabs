@@ -281,17 +281,23 @@ def _poll_instance(instance_id: int) -> dict:
     return data.get("instances", data)
 
 
-def _destroy_instance(instance_id: int):
-    """Terminate and delete a Vast.ai instance."""
-    try:
-        requests.delete(
-            f"{VAST_API}/instances/{instance_id}/",
-            headers=_vast_headers(),
-            timeout=30,
-        )
-        logger.info("Destroyed instance %d", instance_id)
-    except requests.RequestException as e:
-        logger.error("Failed to destroy instance %d: %s", instance_id, e)
+def _destroy_instance(instance_id: int, retries: int = 3) -> bool:
+    """Terminate and delete a Vast.ai instance. Returns True on success."""
+    for attempt in range(1, retries + 1):
+        try:
+            resp = requests.delete(
+                f"{VAST_API}/instances/{instance_id}/",
+                headers=_vast_headers(),
+                timeout=30,
+            )
+            resp.raise_for_status()
+            logger.info("Destroyed instance %d", instance_id)
+            return True
+        except requests.RequestException as e:
+            logger.error("Failed to destroy instance %d (attempt %d/%d): %s", instance_id, attempt, retries, e)
+            if attempt < retries:
+                time.sleep(2 * attempt)
+    return False
 
 
 def _check_setup_ready(ssh_host: str, ssh_port: int) -> bool:
@@ -568,10 +574,12 @@ class PoolManager:
 
         destroyed = 0
         for inst in candidates[:count]:
-            _destroy_instance(inst.instance_id)
-            inst.status = "destroyed"
-            _db_update_status(inst.instance_id, "destroyed")
-            destroyed += 1
+            if _destroy_instance(inst.instance_id):
+                inst.status = "destroyed"
+                _db_update_status(inst.instance_id, "destroyed")
+                destroyed += 1
+            else:
+                logger.error("Scale down: could not destroy instance %d — leaving in pool", inst.instance_id)
 
         logger.info("Scale down: destroyed %d instances, %d remaining", destroyed, self.active_count)
 
@@ -688,13 +696,18 @@ class PoolManager:
 
         for inst in dead:
             _db_record_instance_spend(inst.instance_id)
-            _destroy_instance(inst.instance_id)
-            inst.status = "destroyed"
-            _db_update_status(inst.instance_id, "destroyed")
-            msg = "Removed dead instance %d (%s)"
-            logger.info(msg, inst.instance_id, inst.gpu_name)
-            if progress_fn:
-                progress_fn(msg, inst.instance_id, inst.gpu_name)
+            if _destroy_instance(inst.instance_id):
+                inst.status = "destroyed"
+                _db_update_status(inst.instance_id, "destroyed")
+                msg = "Removed dead instance %d (%s)"
+                logger.info(msg, inst.instance_id, inst.gpu_name)
+                if progress_fn:
+                    progress_fn(msg, inst.instance_id, inst.gpu_name)
+            else:
+                msg = "WARN: could not destroy instance %d (%s) — will retry next health check"
+                logger.error(msg, inst.instance_id, inst.gpu_name)
+                if progress_fn:
+                    progress_fn(msg, inst.instance_id, inst.gpu_name)
 
         # Scale back up to target
         if self.active_count < self.target_size:
@@ -712,13 +725,39 @@ class PoolManager:
     # ── Teardown ─────────────────────────────────────────────────────────
 
     def teardown(self):
-        """Destroy ALL instances in the pool and record spend."""
+        """Destroy ALL instances in the pool and record spend.
+
+        Only marks instances as 'destroyed' in DB after confirming the
+        Vast.ai API DELETE succeeded.  Runs a verification pass at the
+        end to catch any that slipped through.
+        """
+        orphans = []
         for inst in list(self.instances.values()):
             if inst.status not in ("destroyed", "failed"):
                 _db_record_instance_spend(inst.instance_id)
-                _destroy_instance(inst.instance_id)
-                inst.status = "destroyed"
-                _db_update_status(inst.instance_id, "destroyed")
+                if _destroy_instance(inst.instance_id):
+                    inst.status = "destroyed"
+                    _db_update_status(inst.instance_id, "destroyed")
+                else:
+                    orphans.append(inst)
+                    logger.error("Teardown: instance %d destroy FAILED — will verify", inst.instance_id)
+
+        # Verification pass — confirm nothing is still running on Vast.ai
+        if orphans:
+            logger.warning("Teardown: %d orphan(s) detected, running verification pass...", len(orphans))
+            time.sleep(3)
+            for inst in orphans:
+                if _destroy_instance(inst.instance_id):
+                    inst.status = "destroyed"
+                    _db_update_status(inst.instance_id, "destroyed")
+                    logger.info("Teardown: orphan %d destroyed on retry", inst.instance_id)
+                else:
+                    logger.critical(
+                        "TEARDOWN FAILED: instance %d may still be running on Vast.ai! "
+                        "Manual cleanup required: vastai destroy instance %d",
+                        inst.instance_id, inst.instance_id,
+                    )
+
         logger.info("Pool teardown complete — all instances destroyed")
 
     # ── Info ──────────────────────────────────────────────────────────────
