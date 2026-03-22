@@ -1,5 +1,9 @@
 <p align="center">
-  <img src="logos/OpenCure%20Labs%20Main%20Logo%20Transparent%20bg.svg" alt="OpenCure Labs" width="400">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="logos/OpenCure%20Labs%20White%20logo%20Transparent%20bg.svg">
+    <source media="(prefers-color-scheme: light)" srcset="logos/OpenCure%20Labs%20Main%20Logo%20Transparent%20bg.svg">
+    <img src="logos/OpenCure%20Labs%20Main%20Logo%20Transparent%20bg.svg" alt="OpenCure Labs" width="400">
+  </picture>
   <br><br>
   <a href="https://github.com/OpenCureLabs/OpenCureLabs/actions/workflows/ci.yml"><img src="https://github.com/OpenCureLabs/OpenCureLabs/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
 </p>
