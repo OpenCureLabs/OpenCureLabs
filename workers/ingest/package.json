@@ -1,0 +1,10 @@
+{
+    "name": "opencurelabs-ingest",
+    "version": "1.0.0",
+    "private": true,
+    "devDependencies": {
+        "@cloudflare/workers-types": "^4.20240924.0",
+        "wrangler": "^3.0.0",
+        "typescript": "^5.0.0"
+    }
+}

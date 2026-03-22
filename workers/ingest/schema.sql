@@ -1,0 +1,20 @@
+-- OpenCure Labs — D1 results index schema
+-- Apply with: wrangler d1 execute opencurelabs --file=schema.sql
+
+CREATE TABLE IF NOT EXISTS results (
+    id              TEXT PRIMARY KEY,
+    skill           TEXT NOT NULL,
+    date            TEXT NOT NULL,           -- YYYY-MM-DD
+    novel           INTEGER NOT NULL DEFAULT 0, -- 0/1 (SQLite bool)
+    status          TEXT NOT NULL DEFAULT 'published',
+    r2_url          TEXT NOT NULL,           -- public CDN URL to full object
+    confidence_score REAL,                  -- lightweight summary
+    gene            TEXT,                   -- summary field (neoantigen / variant)
+    contributor_id  TEXT,                   -- machine UUID, admin-only for moderation
+    created_at      TEXT NOT NULL           -- ISO 8601
+);
+
+CREATE INDEX IF NOT EXISTS idx_results_skill        ON results(skill);
+CREATE INDEX IF NOT EXISTS idx_results_date         ON results(date);
+CREATE INDEX IF NOT EXISTS idx_results_novel        ON results(novel);
+CREATE INDEX IF NOT EXISTS idx_results_contributor  ON results(contributor_id);

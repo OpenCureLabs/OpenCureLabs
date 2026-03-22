@@ -1,0 +1,16 @@
+name = "opencurelabs-ingest"
+main = "index.ts"
+compatibility_date = "2026-01-01"
+
+[[r2_buckets]]
+binding     = "RESULTS_BUCKET"
+bucket_name = "opencurelabs-results"
+
+[[d1_databases]]
+binding       = "RESULTS_DB"
+database_name = "opencurelabs"
+database_id   = "2eb3a609-db64-4366-94ca-596002a8cbef"
+
+[[routes]]
+pattern   = "ingest.opencurelabs.ai/*"
+zone_name = "opencurelabs.ai"

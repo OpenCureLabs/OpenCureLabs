@@ -144,3 +144,6 @@ workflow:
 #   pdf:
 #     enabled: true
 #     output_dir: /root/opencurelabs/reports/
+#   r2:
+#     enabled: true
+#     # Users set OPENCURELABS_INGEST_URL in .env — no cloud credentials required

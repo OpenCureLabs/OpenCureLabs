@@ -30,6 +30,7 @@ PUBLISHER_DEFAULTS: dict = {
     "github": {"enabled": True},
     "discord": {"enabled": True},
     "pdf": {"enabled": True},
+    "r2": {"enabled": True},
 }
 
 
@@ -293,5 +294,19 @@ async def post_execute(
             logger.info("Committed %s result to GitHub", skill_name)
         except Exception as e:
             logger.warning("GitHub publish error: %s", e)
+
+    # R2 global dataset — writes to OpenCure Labs' central public bucket via ingest Worker
+    if _publisher_enabled("r2"):
+        try:
+            from agentiq_labclaw.publishers.r2_publisher import R2Publisher
+
+            r2 = R2Publisher()
+            if r2.enabled:
+                r2_result = r2.publish_result(skill_name, result_dict, novel=novel, status="published")
+                if r2_result:
+                    orch["published"].append(f"r2:{r2_result.get('url', '')}")
+                    logger.info("Published %s result to R2: %s", skill_name, r2_result.get("url"))
+        except Exception as e:
+            logger.warning("R2 publish error: %s", e)
 
     return enriched
