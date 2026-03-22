@@ -117,20 +117,6 @@ RARE_DISEASE_VARIANTS = [
     {"variant_id": "chr1:155235843:G>T",  "gene": "GBA",      "hgvs": "p.Asn370Ser", "disease": "Gaucher disease"},
     {"variant_id": "chr5:149433596:C>T",  "gene": "CSF1R",    "hgvs": "p.Arg777Gln", "disease": "Leukoencephalopathy"},
     {"variant_id": "chr2:166850645:C>T",  "gene": "SCN1A",    "hgvs": "p.Arg1648Cys","disease": "Dravet syndrome"},
-# Rare disease — real pathogenic variants from ClinVar
-RARE_DISEASE_VARIANTS = [
-    {"variant_id": "chr7:117559590:A>G",  "gene": "CFTR",     "hgvs": "p.Gly551Asp", "disease": "Cystic fibrosis"},
-    {"variant_id": "chr11:5248232:T>A",   "gene": "HBB",      "hgvs": "p.Glu6Val",   "disease": "Sickle cell disease"},
-    {"variant_id": "chr13:32911463:T>G",  "gene": "BRCA2",    "hgvs": "p.Tyr1894Ter","disease": "Hereditary breast cancer"},
-    {"variant_id": "chr4:3076604:C>T",    "gene": "HTT",      "hgvs": None,           "disease": "Huntington disease"},
-    {"variant_id": "chr17:48275363:C>T",  "gene": "COL1A1",   "hgvs": "p.Gly382Ser", "disease": "Osteogenesis imperfecta"},
-    {"variant_id": "chr1:11856378:G>A",   "gene": "MTHFR",    "hgvs": "p.Ala222Val", "disease": "Homocystinuria"},
-    {"variant_id": "chr12:40740686:G>A",  "gene": "LRRK2",    "hgvs": "p.Gly2019Ser","disease": "Parkinson disease"},
-    {"variant_id": "chr15:89859516:C>T",  "gene": "POLG",     "hgvs": "p.Ala467Thr", "disease": "Mitochondrial DNA depletion"},
-    {"variant_id": "chr6:161006172:G>A",  "gene": "PARK2",    "hgvs": "p.Arg275Trp", "disease": "Juvenile Parkinson"},
-    {"variant_id": "chr1:155235843:G>T",  "gene": "GBA",      "hgvs": "p.Asn370Ser", "disease": "Gaucher disease"},
-    {"variant_id": "chr5:149433596:C>T",  "gene": "CSF1R",    "hgvs": "p.Arg777Gln", "disease": "Leukoencephalopathy"},
-    {"variant_id": "chr2:166850645:C>T",  "gene": "SCN1A",    "hgvs": "p.Arg1648Cys","disease": "Dravet syndrome"},
     {"variant_id": "chr22:42526694:G>A",  "gene": "CYP2D6",   "hgvs": "p.Pro34Ser",  "disease": "Poor drug metabolism"},
     {"variant_id": "chr3:37089131:G>A",   "gene": "MLH1",     "hgvs": "p.Arg226Ter", "disease": "Lynch syndrome"},
     {"variant_id": "chr11:108202608:C>T", "gene": "ATM",      "hgvs": "p.Arg3008Cys","disease": "Ataxia-telangiectasia"},
@@ -406,6 +392,11 @@ DEFAULT_DISTRIBUTION = {
     "variant_pathogenicity": 0.20,   # 20%
     "sequencing_qc_cancer":  0.07,   # 7%
     "sequencing_qc_rare":    0.07,   # 7%
+    # Veterinary (only selected when domain=canine or domain=feline)
+    "neoantigen_dog":        0.40,   # 40% of canine batch
+    "variant_dog":           0.40,   # 40% of canine batch
+    "neoantigen_cat":        0.40,   # 40% of feline batch
+    "variant_cat":           0.40,   # 40% of feline batch
 }
 
 _GENERATORS = {
