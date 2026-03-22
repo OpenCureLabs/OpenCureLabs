@@ -1,11 +1,6 @@
 <p align="center">
   <img src="logos/OpenCure%20Labs%20Main%20Logo%20Transparent%20bg.svg" alt="OpenCure Labs" width="400">
-</p>
-
-<h1 align="center">OpenCure Labs</h1>
-<p align="center">Autonomous AI agents running real science — so every researcher can fight cancer like a funded lab.</p>
-
-<p align="center">
+  <br><br>
   <a href="https://github.com/OpenCureLabs/OpenCureLabs/actions/workflows/ci.yml"><img src="https://github.com/OpenCureLabs/OpenCureLabs/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
 </p>
 
