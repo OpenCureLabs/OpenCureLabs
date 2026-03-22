@@ -5,7 +5,7 @@
 # Build:
 #   docker build -f docker/Dockerfile.gpu -t ghcr.io/opencurelabs/labclaw-gpu:latest .
 #
-# Size estimate: ~10 GB (pytorch base ≈6 GB + biotools ≈4 GB)
+# Size estimate: ~11 GB (pytorch base ≈6 GB + biotools ≈4 GB + vet genomes ≈1 GB)
 # ─────────────────────────────────────────────────────────────────────────────
 
 FROM pytorch/pytorch:latest
@@ -53,8 +53,13 @@ RUN pip install --no-cache-dir \
 # MHCflurry pan-allele binding prediction models (~200 MB)
 RUN mhcflurry-downloads fetch models_class1_pan
 
-# PyEnsembl human genome annotations release 110 (~500 MB)
+# PyEnsembl genome annotations — baked in to avoid cold-download on Vast.ai
+# Human GRCh38 release 110 (~500 MB) — used by all human pipelines
 RUN pyensembl install --release 110 --species human
+# Canine CanFam3.1 release 112 (~400 MB) — used by dog neoantigen/variant pipelines
+RUN pyensembl install --release 112 --species dog
+# Feline felCat9 release 112 (~350 MB) — used by cat neoantigen/variant pipelines
+RUN pyensembl install --release 112 --species cat
 
 # ── Marker for dependency availability ──────────────────────────────────────
 RUN touch /tmp/labclaw_deps_ready
