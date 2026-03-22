@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - CI pipeline with tests, ruff, and bandit
 - Commitizen conventional commits enforcement
 
+## v0.34.0 (2026-03-22)
+
+### Feat
+
+- add ⬅ Back navigation + All Species option to research launcher
+
 ## v0.33.2 (2026-03-22)
 
 ### Fix
