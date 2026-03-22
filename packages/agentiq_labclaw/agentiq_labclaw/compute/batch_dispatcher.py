@@ -267,10 +267,18 @@ def _monitor_loop(batch_id, queue, pool, workers, threads, callback=None, idle_t
             queue.reclaim_stale_jobs(stale_minutes=1)
             break
 
-        # Auto-scale pool based on queue depth
+        # Auto-scale pool based on queue depth + budget floor guard
         from agentiq_labclaw.compute.vast_dispatcher import get_account_balance, get_total_spend
         balance = get_account_balance()
         spent = get_total_spend()
+        budget_floor = float(os.environ.get("LABCLAW_BUDGET_FLOOR", "5.0"))
+        if balance > 0 and balance < budget_floor:
+            _log(
+                "BUDGET FLOOR: Vast.ai balance $%.2f < $%.2f floor — tearing down pool",
+                balance, budget_floor,
+            )
+            _shutdown.set()
+            break
         pool.auto_scale(pending, balance - spent)
 
         # Poll provisioning/setup instances for readiness transitions
