@@ -45,7 +45,7 @@ Think of the relationship like this:
 | **Guardrail enforcement** | Validates outputs before they reach downstream agents or publishing |
 | **Data registration** | Accepts newly discovered sources from Grok and queues them for ingestion |
 | **Result routing** | Sends novel results to reviewer agents (Claude Opus, Grok) |
-| **Publishing coordination** | Triggers GitHub commits, Discord log posts, and PDF report generation |
+| **Publishing coordination** | Triggers GitHub commits and PDF report generation |
 
 ---
 
@@ -76,7 +76,6 @@ packages/
       discovered_sources.py # Handles Grok-registered dynamic sources
     publishers/
       github_publisher.py  # Commits results and code to GitHub
-      discord_publisher.py # Streams logs to Discord webhook
       pdf_publisher.py     # Generates and stores PDF reports
     db/
       agent_runs.py        # PostgreSQL interface for run logging
@@ -185,9 +184,6 @@ publishers:
   github:
     enabled: true
     repo: git@github.com:OpenCureLabs/OpenCureLabs.git
-  discord:
-    enabled: true
-    webhook_url: ${DISCORD_WEBHOOK_URL}
   pdf:
     enabled: true
     output_dir: /path/to/OpenCureLabs/reports/
@@ -258,7 +254,7 @@ Coordinator (NeMo labclaw_react)
     ├── if novel=True → calls grok_literature_reviewer(result)
     │       └── returns LiteratureContext
     │
-    └── publishes to GitHub + Discord + PDF
+    └── publishes to GitHub + PDF
 ```
 
 Grok communicates back to LabClaw via a dedicated `register_discovered_source` skill — when Grok finds a new dataset, it calls this skill with the source URL and domain, which writes to `discovered_sources` in PostgreSQL and queues it for coordinator review.
@@ -343,7 +339,6 @@ grok --max-tool-rounds 200 --prompt "search bioRxiv for new neoantigen datasets 
 | Guardrails layer | ✅ Implemented (output validator, novelty filter, safety check) |
 | PostgreSQL integration | ✅ Implemented (5 DB modules) |
 | Grok source registration | ✅ Implemented |
-| Discord publisher | ✅ Implemented |
 | GitHub publisher | ✅ Implemented |
 | PDF publisher | ✅ Scaffold (Markdown placeholder) |
 | Vast.ai dispatcher | ✅ Scaffold (API integration TODO) |

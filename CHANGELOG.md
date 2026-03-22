@@ -20,7 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Pre-commit and post-commit hook pipeline (docs check, security scan, kanban, wiki sync)
 - FastAPI dashboard with real-time agent monitoring
 - Zellij terminal multiplexer control panel
-- Discord webhook integration for agent logs and discovery feed
+- Discord webhook integration for agent logs and discovery feed *(removed in 0.3.0)*
 - GitHub kanban board automation via post-commit hooks
 - GitHub Wiki auto-sync from docs/
 - PostgreSQL schema for agent runs, pipeline results, and critique logs
@@ -582,7 +582,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - add versioning, commit enforcement, and dev workflow improvements
 - wiki auto-sync + labclaw_react workflow + close issues #31-#35
 - pre-commit docs check + post-commit kanban updater refs #35
-- dual Discord webhooks — #agent-logs (LabClaw) + #results (Discovery Feed)
+- dual Discord webhooks — #agent-logs (LabClaw) + #results (Discovery Feed) *(removed in 0.3.0)*
 - add 3 clickable tabs, status bar hints, Alt+q quit, fix python3
 - replace tmux with Zellij for lab control panel
 - add VS Code Tunnel setup script for remote access

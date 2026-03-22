@@ -58,8 +58,6 @@ bash scripts/setup.sh
 | `ANTHROPIC_API_KEY` | `.env` | Yes | Claude Opus reviewer |
 | `XAI_API_KEY` | `.env` | Yes | Grok agent |
 | `GENAI_API_KEY` | `.env` | Yes | Gemini 2.0 Flash Lite (coordinator LLM) |
-| `DISCORD_WEBHOOK_URL_AGENT_LOGS` | `.env` | No | Discord #agent-logs |
-| `DISCORD_WEBHOOK_URL_RESULTS` | `.env` | No | Discord #results |
 | `VAST_AI_KEY` | `.env` | No | Vast.ai GPU burst compute |
 | `POSTGRES_URL` | `.env` or system | No | Default: `postgresql://localhost:5433/opencurelabs` |
 | `LABCLAW_COMPUTE` | `.env` or system | No | `"local"` (default) or `"vast_ai"` |
@@ -272,11 +270,10 @@ static:
 # Basic scan
 python security/security_scan.py --profile security/profiles/opencurelabs.yaml
 
-# Scan with safe autofix + Discord notification
+# Scan with safe autofix
 python security/security_scan.py \
   --profile security/profiles/opencurelabs.yaml \
-  --autofix safe \
-  --discord
+  --autofix safe
 
 # Save baseline for drift detection
 python security/security_scan.py \
@@ -314,7 +311,7 @@ Or automatically via `scripts/setup.sh` (Step 7).
 
 ### Behavior
 
-1. Runs `security_scan.py` with `--autofix safe --discord`
+1. Runs `security_scan.py` with `--autofix safe`
 2. **Pass** (grade A–C): commit proceeds
 3. **Fail** (grade D–F): commit blocked with report reference
 4. **Emergency bypass:** `git commit --no-verify` (not recommended)

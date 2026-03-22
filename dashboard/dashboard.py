@@ -527,12 +527,6 @@ def render_dashboard(stats, runs, findings, critiques, sources, activity=None, v
   .header-logo {{ width: 96px; height: 96px; border-radius: 50%; }}
   .header .ts {{ color: #484f58; font-size: 13px; margin-left: auto; }}
   .header .refresh {{ color: #484f58; font-size: 12px; }}
-  .discord-link {{
-    background: #5865F220; color: #5865F2; border: 1px solid #5865F240;
-    padding: 4px 12px; border-radius: 2px; font-size: 13px; font-weight: 600;
-    text-decoration: none; transition: background 0.2s;
-  }}
-  .discord-link:hover {{ background: #5865F240; }}
   .stats {{
     display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
     gap: 16px; margin-bottom: 32px;
@@ -647,7 +641,6 @@ def render_dashboard(stats, runs, findings, critiques, sources, activity=None, v
 <div class="header">
   <img src="/logo-v3.png" alt="OpenCure Labs" class="header-logo">
   <h1>OpenCure Labs</h1>
-  <a href="https://discord.com/channels/1484240467477659941/1484241124104081680" target="_blank" class="discord-link" title="Discord Server">💬 Discord</a>
   <span class="ts">Dashboard · {now}</span>
   <span class="refresh"><span class="ws-dot" id="ws-dot"></span>live</span>
 </div>

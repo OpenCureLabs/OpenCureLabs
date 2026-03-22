@@ -50,7 +50,6 @@ Solo mode sets `OPENCURELABS_MODE=solo` automatically. In this mode:
 - ✅ PDF report generated locally in `reports/`
 - ❌ R2 global dataset — **skipped** (your data stays on your machine)
 - ❌ GitHub commit — **skipped**
-- ❌ Discord — **skipped**
 
 After the run completes, you are offered a single opt-in prompt:
 
@@ -189,8 +188,6 @@ nano .env
 
 | Key | Where to get it | Used by |
 |---|---|---|
-| `DISCORD_WEBHOOK_URL_AGENT_LOGS` | Discord → Integrations → Webhooks | Agent trace logging (#agent-logs) |
-| `DISCORD_WEBHOOK_URL_RESULTS` | Discord → Integrations → Webhooks | Findings & results (#results) |
 | `NVIDIA_API_KEY` | [build.nvidia.com](https://build.nvidia.com) | NIM endpoints (optional) |
 | `VAST_AI_KEY` | [vast.ai](https://vast.ai) | Burst GPU compute |
 
@@ -259,7 +256,7 @@ The coordinator will:
 2. Run the VCF → pyensembl → MHCflurry pipeline
 3. Validate output through guardrails
 4. Send novel results to Claude Opus for scientific critique
-5. Log everything to PostgreSQL and Discord
+5. Log everything to PostgreSQL
 
 ---
 

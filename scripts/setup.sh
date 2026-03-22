@@ -341,7 +341,7 @@ else
     info ""
     info "  Required:  GENAI_API_KEY (coordinator LLM)"
     info "  Required:  ANTHROPIC_API_KEY, XAI_API_KEY (reviewer agents)"
-    info "  Optional:  DISCORD_WEBHOOK_URL, NVIDIA_API_KEY, VAST_AI_KEY"
+    info "  Optional:  NVIDIA_API_KEY, VAST_AI_KEY"
 fi
 
 # ══════════════════════════════════════════════════════════════════════════════

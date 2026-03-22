@@ -6,7 +6,7 @@ Called after every skill execution to enforce the full pipeline:
   2. Novelty filter (DB dedup)
   3. Reviewer critique (Claude Opus + Grok literature review)
   4. Safety check (final gate)
-  5. Publishing (Discord, PDF, GitHub)
+  5. Publishing (PDF, GitHub)
   6. DB logging (experiment_results, critique_log)
 """
 
@@ -28,7 +28,6 @@ GUARDRAILS_DEFAULTS: dict = {
 
 PUBLISHER_DEFAULTS: dict = {
     "github": {"enabled": True},
-    "discord": {"enabled": True},
     "pdf": {"enabled": True},
     "r2": {"enabled": True},
 }
@@ -70,7 +69,7 @@ def _publisher_enabled(name: str) -> bool:
     """Check if a publisher is enabled in config (falls back to defaults).
 
     Solo mode (OPENCURELABS_MODE=solo): only PDF runs locally.
-    R2, GitHub, and Discord are silenced so personal data never leaves the machine.
+    R2 and GitHub are silenced so personal data never leaves the machine.
     """
     # Solo mode: only PDF (local file). All external publishers are silenced.
     if os.environ.get("OPENCURELABS_MODE") == "solo":
@@ -266,18 +265,6 @@ async def post_execute(
         logger.debug("Could not write last_result.json: %s", e)
 
     # ── Step 6: Publishers ───────────────────────────────────────────────
-    # Discord
-    if _publisher_enabled("discord"):
-        try:
-            from agentiq_labclaw.publishers.discord_publisher import DiscordPublisher
-
-            discord = DiscordPublisher()
-            discord.log_result(skill_name, result_dict, novel=novel)
-            orch["published"].append("discord")
-            logger.info("Published %s result to Discord", skill_name)
-        except Exception as e:
-            logger.warning("Discord publish error: %s", e)
-
     # PDF report
     pdf_path = None
     if _publisher_enabled("pdf"):

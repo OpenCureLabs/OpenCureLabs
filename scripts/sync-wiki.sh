@@ -106,7 +106,6 @@ generate_sidebar() {
 #### Community
 - [Contributing](Contributing)
 - [GitHub](https://github.com/OpenCureLabs/OpenCureLabs)
-- [Discord](https://discord.gg/opencurelabs)
 SIDEBAR
 }
 

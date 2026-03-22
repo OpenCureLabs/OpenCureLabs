@@ -55,7 +55,6 @@ class TestOrchestratorConfig:
         if hasattr(_get_config, '_cache'):
             del _get_config._cache
 
-        assert _publisher_enabled("discord") is True
         assert _publisher_enabled("github") is True
         assert _publisher_enabled("pdf") is True
         assert _publisher_enabled("nonexistent") is False
@@ -73,11 +72,7 @@ class TestPostExecuteValidation:
 
         output = MockSkillOutput(result_data={"test": True}, novel=False, critique_required=False)
 
-        with patch("agentiq_labclaw.guardrails.novelty_filter.db_check_novelty", return_value=True), \
-             patch("agentiq_labclaw.publishers.discord_publisher.requests.post") as mock_post:
-            mock_resp = MagicMock(status_code=200)
-            mock_resp.raise_for_status = MagicMock()
-            mock_post.return_value = mock_resp
+        with patch("agentiq_labclaw.guardrails.novelty_filter.db_check_novelty", return_value=True):
 
             result = await post_execute("test_skill", output)
 
@@ -111,12 +106,8 @@ class TestPostExecuteReviewer:
         with patch("reviewer.claude_reviewer.ClaudeReviewer.critique", return_value=mock_critique) as mock_claude, \
              patch("agentiq_labclaw.db.critique_log.log_critique", return_value=1), \
              patch("agentiq_labclaw.guardrails.safety_check.safety_check", return_value=(True, None)), \
-             patch("agentiq_labclaw.publishers.discord_publisher.requests.post") as mock_post, \
              patch("agentiq_labclaw.publishers.pdf_publisher.PDFPublisher.generate_report", return_value="/tmp/test.pdf"), \
              patch("agentiq_labclaw.publishers.github_publisher.GitHubPublisher.commit_result", return_value=True):
-            mock_resp = MagicMock(status_code=200)
-            mock_resp.raise_for_status = MagicMock()
-            mock_post.return_value = mock_resp
 
             result = await post_execute("test_skill", output, run_id=1)
 
@@ -148,12 +139,8 @@ class TestPostExecuteReviewer:
              patch("agentiq_labclaw.db.experiment_results.store_result", return_value=1), \
              patch("agentiq_labclaw.guardrails.novelty_filter.db_check_novelty", return_value=True), \
              patch("agentiq_labclaw.guardrails.safety_check.safety_check", return_value=(True, None)), \
-             patch("agentiq_labclaw.publishers.discord_publisher.requests.post") as mock_post, \
              patch("agentiq_labclaw.publishers.pdf_publisher.PDFPublisher.generate_report", return_value="/tmp/test.pdf"), \
              patch("agentiq_labclaw.publishers.github_publisher.GitHubPublisher.commit_result", return_value=True):
-            mock_resp = MagicMock(status_code=200)
-            mock_resp.raise_for_status = MagicMock()
-            mock_post.return_value = mock_resp
 
             result = await post_execute("neoantigen_prediction", output, run_id=1)
 
@@ -195,28 +182,6 @@ class TestPostExecutePublishers:
     """Test publishing pipeline."""
 
     @pytest.mark.asyncio
-    async def test_discord_publish(self):
-        from agentiq_labclaw.orchestrator import post_execute, _get_config
-
-        if hasattr(_get_config, '_cache'):
-            del _get_config._cache
-
-        output = MockSkillOutput(result_data={"message": "test"}, novel=False, critique_required=False)
-
-        with patch.dict(os.environ, {"DISCORD_WEBHOOK_URL_RESULTS": "https://example.com/webhook"}), \
-             patch("agentiq_labclaw.guardrails.safety_check.safety_check", return_value=(True, None)), \
-             patch("agentiq_labclaw.publishers.discord_publisher.requests.post") as mock_post, \
-             patch("agentiq_labclaw.publishers.pdf_publisher.PDFPublisher.generate_report", return_value="/tmp/t.pdf"), \
-             patch("agentiq_labclaw.publishers.github_publisher.GitHubPublisher.commit_result", return_value=True):
-            mock_resp = MagicMock(status_code=200)
-            mock_resp.raise_for_status = MagicMock()
-            mock_post.return_value = mock_resp
-
-            result = await post_execute("test_skill", output, run_id=1)
-
-        assert "discord" in result["orchestration"]["published"]
-
-    @pytest.mark.asyncio
     async def test_pdf_generation(self):
         from agentiq_labclaw.orchestrator import post_execute, _get_config
 
@@ -226,12 +191,8 @@ class TestPostExecutePublishers:
         output = MockSkillOutput(result_data={"data": 1}, novel=False, critique_required=False)
 
         with patch("agentiq_labclaw.guardrails.safety_check.safety_check", return_value=(True, None)), \
-             patch("agentiq_labclaw.publishers.discord_publisher.requests.post") as mock_post, \
              patch("agentiq_labclaw.publishers.pdf_publisher.PDFPublisher.generate_report", return_value="/tmp/report.pdf") as mock_pdf, \
              patch("agentiq_labclaw.publishers.github_publisher.GitHubPublisher.commit_result", return_value=True):
-            mock_resp = MagicMock(status_code=200)
-            mock_resp.raise_for_status = MagicMock()
-            mock_post.return_value = mock_resp
 
             result = await post_execute("test_skill", output, run_id=1)
 

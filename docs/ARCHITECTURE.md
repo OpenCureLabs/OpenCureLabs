@@ -367,7 +367,6 @@ with automatic TTL expiration.
 
 5. PUBLISHING
    Validated result ──→ GitHub (commit + push)
-                    ──→ Discord (webhook embed)
                     ──→ PDF report (ReportLab)
 
 6. STORAGE
@@ -422,8 +421,6 @@ when Grok finds a new dataset, it calls this skill to write to
 | `GENAI_API_KEY` | Yes | Gemini API — coordinator LLM |
 | `ANTHROPIC_API_KEY` | Yes | Claude Opus 4.6 scientific reviewer |
 | `XAI_API_KEY` | Yes | Grok researcher and literature monitor |
-| `DISCORD_WEBHOOK_URL_AGENT_LOGS` | No | Agent trace logging to Discord #agent-logs |
-| `DISCORD_WEBHOOK_URL_RESULTS` | No | Findings/results to Discord #results |
 | `VAST_AI_KEY` | No | Burst GPU compute (Vast.ai) |
 | `NVIDIA_API_KEY` | No | NIM endpoints (if needed) |
 | `POSTGRES_URL` | No | Database connection (default: `postgresql://localhost:5433/opencurelabs`) |
@@ -451,7 +448,7 @@ when Grok finds a new dataset, it calls this skill to write to
 │           ├── connectors/      # TCGA, ChEMBL, ClinVar
 │           ├── db/              # PostgreSQL abstraction layer
 │           ├── guardrails/      # Output validation pipeline
-│           ├── publishers/      # Discord, GitHub, PDF
+│           ├── publishers/      # GitHub, PDF
 │           └── skills/          # 8 scientific skill modules
 ├── pipelines/           # End-to-end pipeline runners
 │   ├── run_pipeline.py  # CLI pipeline executor

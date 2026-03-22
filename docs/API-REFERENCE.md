@@ -20,7 +20,6 @@
    - [Novelty Filter](#novelty-filter)
    - [Safety Check](#safety-check)
 4. [Publishers](#publishers)
-   - [DiscordPublisher](#discordpublisher)
    - [GitHubPublisher](#githubpublisher)
    - [PDFPublisher](#pdfpublisher)
 5. [Database Layer](#database-layer)
@@ -205,27 +204,6 @@ Blocks publication if:
 ## Publishers
 
 Publishers deliver results to external systems.
-
-### DiscordPublisher
-
-**File:** `agentiq_labclaw/publishers/discord_publisher.py`  
-**Environment:** `DISCORD_WEBHOOK_URL_AGENT_LOGS`, `DISCORD_WEBHOOK_URL_RESULTS`
-
-```python
-from agentiq_labclaw.publishers.discord_publisher import DiscordPublisher
-
-pub = DiscordPublisher()  # reads DISCORD_WEBHOOK_URL_AGENT_LOGS / _RESULTS from env
-```
-
-| Method | Parameters | Returns | Description |
-|---|---|---|---|
-| `enabled` | — | `bool` | Property: `True` if webhook URL is set |
-| `send_message` | `content: str`, `username: str = "OpenCure Labs"` | `bool` | Posts plain text (truncated to 2000 chars) |
-| `send_embed` | `title: str`, `description: str`, `fields: list[dict] \| None = None`, `color: int = 0x5865F2`, `username: str = "OpenCure Labs"` | `bool` | Posts rich embed (title ≤256, desc ≤4096, ≤25 fields) |
-| `log_agent_action` | `agent_name: str`, `action: str`, `details: str = ""` | `bool` | Logs agent activity to Discord |
-| `log_result` | `pipeline_name: str`, `result: dict`, `novel: bool = False` | `bool` | Posts result embed (green if novel, blue otherwise) |
-
----
 
 ### GitHubPublisher
 

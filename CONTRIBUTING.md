@@ -364,7 +364,6 @@ Every PR must include:
 ## Community and Communication
 
 - **GitHub Issues** — bugs, feature requests, scientific questions, and discussion
-- **Discord** — live agent logs stream here in real time; community discussion *(link to be added)*
 - **Be respectful** — this project sits at the intersection of technology and medicine. Contributors come from very different backgrounds — computational biologists, ML engineers, clinical researchers, open science advocates. Assume good intent and explain context when it might not be obvious.
 - **Credit** — all contributors are acknowledged. Significant contributions are listed in CONTRIBUTORS.md.
 
@@ -380,7 +379,6 @@ See the [Roadmap section in README.md](README.md#roadmap) for the full phased pl
 | **High** | Molecular docking | AutoDock Vina or Gnina — score ligand-receptor binding |
 | **High** | QSAR | RDKit + scikit-learn — train and evaluate QSAR models |
 | **High** | Variant pathogenicity | Real ClinVar/OMIM scoring logic — replace current scaffold |
-| **Medium** | Discord publisher | Wire the webhook to actually stream agent logs |
 | **Medium** | TCGA connector | Implement GDC API calls for real cohort data ingestion |
 | **Medium** | First published result | End-to-end run on a public TCGA cohort, published as PDF report |
 | **Lower** | PDF publisher | Proper report rendering with figures and tables |

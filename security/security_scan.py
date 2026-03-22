@@ -3,14 +3,13 @@
 OpenCure Labs — Static Security Scanner.
 
 Profile-driven static analysis with unified reporting, baseline comparison,
-auto-fix orchestration, and Discord webhook notification.
+and auto-fix orchestration.
 
 Usage:
     python security/security_scan.py --profile security/profiles/opencurelabs.yaml
     python security/security_scan.py --profile ... --autofix safe
     python security/security_scan.py --profile ... --baseline-save security/baselines/initial.json
     python security/security_scan.py --profile ... --baseline-compare security/baselines/initial.json
-    python security/security_scan.py --profile ... --discord
 
 Tools:
     ruff            Code quality linting
@@ -442,69 +441,6 @@ def run_autofix(result: ScanResult, mode: str, profile: dict) -> dict:
     return {"fixed": fixed_count, "actions": actions, "tier2_count": len(classified["tier2"])}
 
 
-# ── Discord Notification ─────────────────────────────────────────
-
-
-def send_discord_notification(result: ScanResult, grade: str, report_path: str) -> bool:
-    """Post scan summary to Discord webhook. Only sends on CRITICAL/HIGH findings."""
-    webhook_url = (os.environ.get("DISCORD_WEBHOOK_URL_AGENT_LOGS", "")
-                    or os.environ.get("DISCORD_WEBHOOK_URL", ""))
-    if not webhook_url:
-        _p("  ⚠️  DISCORD_WEBHOOK_URL_AGENT_LOGS not set, skipping notification")
-        return False
-
-    by_sev: dict[str, int] = {}
-    for f in result.findings:
-        by_sev[f.severity] = by_sev.get(f.severity, 0) + 1
-
-    has_critical = by_sev.get("CRITICAL", 0) > 0
-    has_high = by_sev.get("HIGH", 0) > 0
-
-    if not has_critical and not has_high:
-        _p("  ℹ️  No CRITICAL/HIGH findings — skipping Discord notification")
-        return False
-
-    # Build embed
-    sev_lines = []
-    for s in ["CRITICAL", "HIGH", "MEDIUM", "LOW"]:
-        if s in by_sev:
-            sev_lines.append(f"**{s}:** {by_sev[s]}")
-
-    finding_lines = []
-    for f in result.findings[:10]:
-        emoji = {"CRITICAL": "🔴", "HIGH": "🟠", "MEDIUM": "🟡", "LOW": "🔵"}.get(f.severity, "⚪")
-        finding_lines.append(f"{emoji} [{f.severity}] {f.title}")
-
-    description = (
-        f"**Grade:** {grade}\n"
-        f"**Checks:** {result.passed}/{result.total} passed\n"
-        f"{chr(10).join(sev_lines)}\n\n"
-        f"**Findings:**\n" + "\n".join(finding_lines)
-    )
-
-    payload = {
-        "embeds": [{
-            "title": "🛡️ Security Scan — Action Required",
-            "description": description[:4000],
-            "color": 0xFF0000 if has_critical else 0xFF8C00,
-            "footer": {"text": f"OpenCure Labs Security Scanner | {result.started}"},
-        }]
-    }
-
-    try:
-        import requests
-        resp = requests.post(webhook_url, json=payload, timeout=10)
-        if resp.status_code in (200, 204):
-            _p("  📢 Discord notification sent")
-            return True
-        else:
-            _p(f"  ⚠️  Discord webhook returned {resp.status_code}")
-            return False
-    except Exception as e:
-        _p(f"  ⚠️  Discord notification failed: {e}")
-        return False
-
-
 # ── Report Generation ────────────────────────────────────────────
 
 
@@ -664,8 +600,6 @@ def main() -> None:
                         help="Save scan results as baseline JSON for future comparison")
     parser.add_argument("--baseline-compare", default="", metavar="PATH",
                         help="Compare scan results against a saved baseline JSON")
-    parser.add_argument("--discord", action="store_true",
-                        help="Send Discord notification on CRITICAL/HIGH findings")
     parser.add_argument("--files", nargs="*", default=None,
                         help="Scan only these files (e.g. staged files from pre-commit)")
     args = parser.parse_args()
@@ -729,11 +663,6 @@ def main() -> None:
             _p(f"  ⚠️  Baseline file not found: {args.baseline_compare}")
         except Exception as e:
             _p(f"  ⚠️  Baseline comparison error: {e}")
-
-    # Discord notification
-    if args.discord:
-        _p(f"\n📢 Checking Discord notification...")
-        send_discord_notification(result, grade, str(report_path))
 
     _p(f"{'='*60}\n")
 

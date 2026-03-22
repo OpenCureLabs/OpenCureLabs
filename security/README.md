@@ -18,9 +18,6 @@ python security/security_scan.py --profile security/profiles/opencurelabs.yaml \
 # Compare against baseline:
 python security/security_scan.py --profile security/profiles/opencurelabs.yaml \
   --baseline-compare security/baselines/initial.json
-
-# With Discord notification (requires DISCORD_WEBHOOK_URL in .env):
-python security/security_scan.py --profile security/profiles/opencurelabs.yaml --discord
 ```
 
 ## Architecture
@@ -35,8 +32,7 @@ security_scan.py
 │
 ├── Auto-Fix       — Tier 1 safe fixes (ruff --fix)
 ├── Reporting      — Markdown + JSON reports
-├── Baseline       — Drift detection between scans
-└── Discord        — Webhook notification on CRITICAL/HIGH
+└── Baseline       — Drift detection between scans
 ```
 
 ## Pre-Commit Hook
@@ -52,7 +48,6 @@ The hook:
 - Runs all 4 static analysis tools
 - Auto-fixes safe Tier 1 issues (ruff lint)
 - **Blocks the commit** if grade is D or F (any CRITICAL or HIGH findings)
-- Posts to Discord if `DISCORD_WEBHOOK_URL` is set
 
 To bypass in an emergency: `git commit --no-verify`
 
@@ -64,7 +59,6 @@ To bypass in an emergency: `git commit --no-verify`
 | `--autofix {safe,low,none}` | Auto-fix mode (default: `none`) |
 | `--baseline-save PATH` | Save results as baseline JSON |
 | `--baseline-compare PATH` | Compare results against saved baseline |
-| `--discord` | Send Discord notification on CRITICAL/HIGH |
 
 ## Grading
 

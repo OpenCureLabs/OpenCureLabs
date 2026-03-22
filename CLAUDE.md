@@ -13,7 +13,7 @@ protein structure prediction, molecular docking, QSAR modeling — through
 specialist agents coordinated by NVIDIA NeMo Agent Toolkit (AgentIQ).
 
 Results are reviewed by Claude Opus 4.6 (scientific critic) and Grok (literature
-monitor), then published to GitHub, Discord, and PDF reports.
+monitor), then published to GitHub and PDF reports.
 
 Full details: see README.md (source of truth — never overwrite it).
 Architecture spec: see LABCLAW.md.
@@ -31,7 +31,7 @@ Architecture spec: see LABCLAW.md.
 ├── data/            # Ingestion connectors (TCGA, GEO, ClinVar, ChEMBL)
 ├── reviewer/        # Claude Opus + Grok reviewer agent configs
 ├── reports/         # Generated PDF outputs
-├── logs/            # Agent run logs (also streamed to Discord)
+├── logs/            # Agent run logs
 ├── db/              # PostgreSQL schemas and migrations
 ├── config/          # NeMo configs, model settings
 ├── workspace/       # Grok's sandboxed working directory
@@ -62,7 +62,7 @@ Architecture spec: see LABCLAW.md.
 
 5. **Never overwrite README.md** — it is the source of truth for the project.
 
-6. **All agent activity logs** to `logs/` directory and Discord webhook.
+6. **All agent activity logs** to `logs/` directory.
 
 7. **Never use `git commit --no-verify`** — pre-commit hooks enforce security
    scanning and documentation checks. If a commit is blocked by the security
@@ -106,14 +106,6 @@ nat run --config_file coordinator/labclaw_workflow.yaml --input "your task here"
 - **Connection:** `postgresql://localhost/opencurelabs` (local, no auth in dev)
 - **Start service:** `service postgresql start`
 - **Tables:** agent_runs, discovered_sources, pipeline_runs, critique_log, experiment_results
-
----
-
-## Discord Logging
-
-- Agent logs webhook URL read from `.env` as `DISCORD_WEBHOOK_URL_AGENT_LOGS`
-- Results webhook URL read from `.env` as `DISCORD_WEBHOOK_URL_RESULTS`
-- All agent reasoning traces and results stream to Discord in real time
 
 ---
 

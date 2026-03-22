@@ -144,13 +144,6 @@ class TestGuardrailsIntegration:
 class TestPublishersIntegration:
     """Test publisher classes are importable and constructable."""
 
-    def test_discord_publisher(self):
-        from agentiq_labclaw.publishers.discord_publisher import DiscordPublisher
-
-        pub = DiscordPublisher(webhook_url="https://example.com/test")
-        assert pub.enabled is True
-        assert pub.logs_url == "https://example.com/test"
-
     def test_github_publisher(self):
         from agentiq_labclaw.publishers.github_publisher import GitHubPublisher
 
@@ -252,12 +245,8 @@ class TestFullPipeline:
              patch("agentiq_labclaw.db.experiment_results.store_result", return_value=1), \
              patch("agentiq_labclaw.guardrails.novelty_filter.db_check_novelty", return_value=True), \
              patch("agentiq_labclaw.guardrails.safety_check.safety_check", return_value=(True, None)), \
-             patch("agentiq_labclaw.publishers.discord_publisher.requests.post") as mock_discord, \
              patch("agentiq_labclaw.publishers.pdf_publisher.PDFPublisher.generate_report", return_value="/tmp/neo.pdf"), \
              patch("agentiq_labclaw.publishers.github_publisher.GitHubPublisher.commit_result", return_value=True):
-            mock_resp = MagicMock(status_code=200)
-            mock_resp.raise_for_status = MagicMock()
-            mock_discord.return_value = mock_resp
 
             enriched = await post_execute("neoantigen_prediction", result, run_id=1)
 
@@ -266,6 +255,5 @@ class TestFullPipeline:
         assert orch["novelty"]["is_novel"] is True
         assert len(orch["critiques"]) == 2
         assert orch["safety"]["safe"] is True
-        assert "discord" in orch["published"]
         assert any("pdf:" in p for p in orch["published"])
         assert "github" in orch["published"]
