@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - CI pipeline with tests, ruff, and bandit
 - Commitizen conventional commits enforcement
 
+## v0.24.0 (2026-03-22)
+
+### Feat
+
+- Cloudflare R2+D1 global result store via ingest Worker
+
 ## v0.23.3 (2026-03-21)
 
 ### Fix
