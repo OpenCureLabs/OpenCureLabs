@@ -117,30 +117,147 @@ RARE_DISEASE_VARIANTS = [
     {"variant_id": "chr1:155235843:G>T",  "gene": "GBA",      "hgvs": "p.Asn370Ser", "disease": "Gaucher disease"},
     {"variant_id": "chr5:149433596:C>T",  "gene": "CSF1R",    "hgvs": "p.Arg777Gln", "disease": "Leukoencephalopathy"},
     {"variant_id": "chr2:166850645:C>T",  "gene": "SCN1A",    "hgvs": "p.Arg1648Cys","disease": "Dravet syndrome"},
+# Rare disease — real pathogenic variants from ClinVar
+RARE_DISEASE_VARIANTS = [
+    {"variant_id": "chr7:117559590:A>G",  "gene": "CFTR",     "hgvs": "p.Gly551Asp", "disease": "Cystic fibrosis"},
+    {"variant_id": "chr11:5248232:T>A",   "gene": "HBB",      "hgvs": "p.Glu6Val",   "disease": "Sickle cell disease"},
+    {"variant_id": "chr13:32911463:T>G",  "gene": "BRCA2",    "hgvs": "p.Tyr1894Ter","disease": "Hereditary breast cancer"},
+    {"variant_id": "chr4:3076604:C>T",    "gene": "HTT",      "hgvs": None,           "disease": "Huntington disease"},
+    {"variant_id": "chr17:48275363:C>T",  "gene": "COL1A1",   "hgvs": "p.Gly382Ser", "disease": "Osteogenesis imperfecta"},
+    {"variant_id": "chr1:11856378:G>A",   "gene": "MTHFR",    "hgvs": "p.Ala222Val", "disease": "Homocystinuria"},
+    {"variant_id": "chr12:40740686:G>A",  "gene": "LRRK2",    "hgvs": "p.Gly2019Ser","disease": "Parkinson disease"},
+    {"variant_id": "chr15:89859516:C>T",  "gene": "POLG",     "hgvs": "p.Ala467Thr", "disease": "Mitochondrial DNA depletion"},
+    {"variant_id": "chr6:161006172:G>A",  "gene": "PARK2",    "hgvs": "p.Arg275Trp", "disease": "Juvenile Parkinson"},
+    {"variant_id": "chr1:155235843:G>T",  "gene": "GBA",      "hgvs": "p.Asn370Ser", "disease": "Gaucher disease"},
+    {"variant_id": "chr5:149433596:C>T",  "gene": "CSF1R",    "hgvs": "p.Arg777Gln", "disease": "Leukoencephalopathy"},
+    {"variant_id": "chr2:166850645:C>T",  "gene": "SCN1A",    "hgvs": "p.Arg1648Cys","disease": "Dravet syndrome"},
     {"variant_id": "chr22:42526694:G>A",  "gene": "CYP2D6",   "hgvs": "p.Pro34Ser",  "disease": "Poor drug metabolism"},
     {"variant_id": "chr3:37089131:G>A",   "gene": "MLH1",     "hgvs": "p.Arg226Ter", "disease": "Lynch syndrome"},
     {"variant_id": "chr11:108202608:C>T", "gene": "ATM",      "hgvs": "p.Arg3008Cys","disease": "Ataxia-telangiectasia"},
 ]
 
+# ---------------------------------------------------------------------------
+# Veterinary gene banks (canine + feline)
+# Coordinates are approximate CanFam3.1 / felCat9 positions for reference.
+# Actual positions are looked up at runtime via pyensembl.
+# ---------------------------------------------------------------------------
+
+CANINE_CANCER_GENES = [
+    # (gene_symbol, chrom, variant_type, cancer_type)
+    ("BRAF",   "chr16", "V595E",  "mast_cell_tumor"),    # V595E most common dog BRAF (equiv human V600E)
+    ("KIT",    "chr13", "exon11", "mast_cell_tumor"),    # Internal tandem duplication / point mut
+    ("TP53",   "chr5",  "R175H",  "osteosarcoma"),
+    ("BRCA1",  "chr17", "various","mammary_tumor"),
+    ("BRCA2",  "chr11", "various","mammary_tumor"),
+    ("PTEN",   "chr4",  "R130Q",  "hemangiosarcoma"),
+    ("MC1R",   "chr5",  "various","melanoma"),
+    ("NRAS",   "chr16", "Q61R",   "melanoma"),
+    ("PDGFRA", "chr13", "D842V",  "mast_cell_tumor"),
+    ("RAS",    "chr7",  "G12V",   "bladder_tumor"),
+]
+
+FELINE_CANCER_GENES = [
+    ("KIT",    "chrB1", "exon11", "mast_cell_tumor"),
+    ("TP53",   "chrE2", "R248W",  "mammary_carcinoma"),
+    ("PDGFRA", "chrB3", "D842V",  "mast_cell_tumor"),
+    ("NRAS",   "chrF2", "Q61R",   "lymphoma"),
+    ("BRCA1",  "chrB1", "various","mammary_tumor"),
+    ("MYC",    "chrA3", "various","lymphoma"),
+]
+
+CANINE_TUMOR_TYPES = [
+    "mast_cell_tumor", "osteosarcoma", "lymphoma",
+    "mammary_tumor", "melanoma", "hemangiosarcoma",
+    "transitional_cell_carcinoma", "soft_tissue_sarcoma",
+]
+
+FELINE_TUMOR_TYPES = [
+    "mammary_carcinoma", "mast_cell_tumor", "lymphoma",
+    "squamous_cell_carcinoma", "vaccine_site_sarcoma",
+]
+
+# Dog Leukocyte Antigen (DLA) Class I allele panels
+# Source: IPD-MHC Database + published veterinary immunogenomics
+DLA_PANELS = [
+    ["DLA-88*501:01", "DLA-88*508:01", "DLA-12*001:01"],
+    ["DLA-88*502:01", "DLA-88*503:01", "DLA-64*001:01"],
+    ["DLA-88*506:01", "DLA-88*511:01", "DLA-12*002:01"],
+    ["DLA-88*508:02", "DLA-88*515:01", "DLA-64*002:01"],
+    ["DLA-88*501:01", "DLA-88*516:01", "DLA-12*001:01"],  # Common in Golden Retrievers
+]
+
+# Feline Leukocyte Antigen (FLA) Class I allele panels
+# FLA is less characterized than DLA — limited published alleles
+FLA_PANELS = [
+    ["FLA-K*001", "FLA-K*002"],
+    ["FLA-1600*001", "FLA-K*001"],
+    ["FLA-K*003", "FLA-1600*002"],
+]
+
+CANINE_VARIANTS = [
+    {"variant_id": "chr16:26835234:A>T",  "gene": "BRAF",   "disease": "Mast cell tumor",  "species": "dog"},
+    {"variant_id": "chr13:28001012:G>A",  "gene": "KIT",    "disease": "Mast cell tumor",  "species": "dog"},
+    {"variant_id": "chr5:53824190:G>A",   "gene": "TP53",   "disease": "Osteosarcoma",     "species": "dog"},
+    {"variant_id": "chr4:50821099:C>T",   "gene": "PTEN",   "disease": "Hemangiosarcoma",  "species": "dog"},
+    {"variant_id": "chr5:33924088:G>A",   "gene": "MC1R",   "disease": "Melanoma",         "species": "dog"},
+    {"variant_id": "chr16:35102234:A>G",  "gene": "NRAS",   "disease": "Melanoma",         "species": "dog"},
+    {"variant_id": "chr13:27990100:G>T",  "gene": "PDGFRA", "disease": "Mast cell tumor",  "species": "dog"},
+    {"variant_id": "chr17:4523112:C>T",   "gene": "BRCA1",  "disease": "Mammary tumor",    "species": "dog"},
+    {"variant_id": "chr11:9941812:G>A",   "gene": "BRCA2",  "disease": "Mammary tumor",    "species": "dog"},
+]
+
+FELINE_VARIANTS = [
+    {"variant_id": "chrB1:41200123:G>T",  "gene": "KIT",    "disease": "Mast cell tumor",      "species": "cat"},
+    {"variant_id": "chrE2:29823456:G>A",  "gene": "TP53",   "disease": "Mammary carcinoma",    "species": "cat"},
+    {"variant_id": "chrB3:15023890:A>G",  "gene": "PDGFRA", "disease": "Mast cell tumor",      "species": "cat"},
+    {"variant_id": "chrF2:12340500:C>T",  "gene": "NRAS",   "disease": "Lymphoma",             "species": "cat"},
+    {"variant_id": "chrB1:44500321:C>T",  "gene": "BRCA1",  "disease": "Mammary tumor",        "species": "cat"},
+]
+
 
 # ── Task generators per skill ───────────────────────────────────────────────
 
-def _neoantigen_tasks(count: int) -> list[BatchTask]:
-    """Generate neoantigen prediction tasks across genes × tumor types × HLA panels."""
-    combos = list(itertools.product(CANCER_GENES, TUMOR_TYPES, HLA_PANELS))
+def _neoantigen_tasks(count: int, species: str = "human") -> list[BatchTask]:
+    """Generate neoantigen prediction tasks across genes × tumor types × MHC panels."""
+    if species == "dog":
+        genes = [(
+                g[0],
+                f"{g[1]}:{random.randint(1000000, 50000000)}:A>T",
+                g[2],
+            ) for g in CANINE_CANCER_GENES]
+        tumor_types = CANINE_TUMOR_TYPES
+        hla_panels = DLA_PANELS
+        ref_genome = "CanFam3.1"
+    elif species == "cat":
+        genes = [(
+                g[0],
+                f"{g[1]}:{random.randint(1000000, 50000000)}:C>T",
+                g[2],
+            ) for g in FELINE_CANCER_GENES]
+        tumor_types = FELINE_TUMOR_TYPES
+        hla_panels = FLA_PANELS
+        ref_genome = "felCat9"
+    else:
+        genes = CANCER_GENES
+        tumor_types = TUMOR_TYPES
+        hla_panels = HLA_PANELS
+        ref_genome = "GRCh38"
+
+    combos = list(itertools.product(genes, tumor_types, hla_panels))
     random.shuffle(combos)
     tasks = []
-    for (gene, variant_id, _mutation), tumor, hla in combos[:count]:
+    for (gene, variant_id, _mutation), tumor, mhc in combos[:count]:
         tasks.append(BatchTask(
             skill_name="neoantigen_prediction",
             input_data={
-                "sample_id": f"{gene}_{tumor}_batch",
-                "vcf_path": f"data/tcga/{tumor.lower()}/{gene.lower()}_somatic.vcf",
-                "hla_alleles": hla,
+                "sample_id": f"{gene}_{tumor}_{species}_batch",
+                "vcf_path": f"data/{species}/{tumor.lower()}/{gene.lower()}_somatic.vcf",
+                "hla_alleles": mhc,
                 "tumor_type": tumor,
+                "species": species,
             },
             domain="cancer",
-            label=f"Neoantigen: {gene} in {tumor}",
+            label=f"Neoantigen [{species}]: {gene} in {tumor}",
             priority=3,
             estimated_gpu_min=5,
         ))
@@ -226,9 +343,14 @@ def _docking_tasks(count: int) -> list[BatchTask]:
     return tasks
 
 
-def _variant_pathogenicity_tasks(count: int) -> list[BatchTask]:
-    """Generate variant pathogenicity scoring tasks from ClinVar variants."""
-    variants = list(RARE_DISEASE_VARIANTS)
+def _variant_pathogenicity_tasks(count: int, species: str = "human") -> list[BatchTask]:
+    """Generate variant pathogenicity scoring tasks for the given species."""
+    if species == "dog":
+        variants = list(CANINE_VARIANTS)
+    elif species == "cat":
+        variants = list(FELINE_VARIANTS)
+    else:
+        variants = list(RARE_DISEASE_VARIANTS)
     random.shuffle(variants)
     tasks = []
     for v in itertools.islice(itertools.cycle(variants), count):
@@ -238,9 +360,10 @@ def _variant_pathogenicity_tasks(count: int) -> list[BatchTask]:
                 "variant_id": v["variant_id"],
                 "gene": v["gene"],
                 "hgvs": v.get("hgvs"),
+                "species": v.get("species", "human"),
             },
-            domain="rare_disease",
-            label=f"Variant: {v['gene']} ({v['disease']})",
+            domain="rare_disease" if species == "human" else "cancer",
+            label=f"Variant [{species}]: {v['gene']} ({v['disease']})",
             priority=3,
             estimated_gpu_min=2,
         ))
@@ -286,12 +409,16 @@ DEFAULT_DISTRIBUTION = {
 }
 
 _GENERATORS = {
-    "neoantigen_prediction": lambda n: _neoantigen_tasks(n),
+    "neoantigen_prediction": lambda n: _neoantigen_tasks(n, "human"),
+    "neoantigen_dog":        lambda n: _neoantigen_tasks(n, "dog"),
+    "neoantigen_cat":        lambda n: _neoantigen_tasks(n, "cat"),
     "structure_cancer":      lambda n: _structure_tasks(n, "cancer"),
     "structure_drug":        lambda n: _structure_tasks(n, "drug_discovery"),
     "qsar":                  lambda n: _qsar_tasks(n),
     "molecular_docking":     lambda n: _docking_tasks(n),
-    "variant_pathogenicity": lambda n: _variant_pathogenicity_tasks(n),
+    "variant_pathogenicity": lambda n: _variant_pathogenicity_tasks(n, "human"),
+    "variant_dog":           lambda n: _variant_pathogenicity_tasks(n, "dog"),
+    "variant_cat":           lambda n: _variant_pathogenicity_tasks(n, "cat"),
     "sequencing_qc_cancer":  lambda n: _sequencing_qc_tasks(n, "cancer"),
     "sequencing_qc_rare":    lambda n: _sequencing_qc_tasks(n, "rare_disease"),
 }
@@ -300,6 +427,8 @@ DOMAIN_FILTERS = {
     "cancer":         {"neoantigen_prediction", "structure_cancer", "sequencing_qc_cancer"},
     "drug_discovery": {"structure_drug", "qsar", "molecular_docking"},
     "rare_disease":   {"variant_pathogenicity", "sequencing_qc_rare"},
+    "canine":         {"neoantigen_dog", "variant_dog", "sequencing_qc_cancer"},
+    "feline":         {"neoantigen_cat", "variant_cat", "sequencing_qc_cancer"},
 }
 
 
@@ -308,6 +437,7 @@ DOMAIN_FILTERS = {
 def generate_batch(
     count: int = 100,
     domain: str | None = None,
+    species: str | None = None,
     config_path: str | None = None,
     seed: int | None = None,
 ) -> list[BatchTask]:
@@ -315,8 +445,10 @@ def generate_batch(
 
     Args:
         count:       Total number of tasks to generate.
-        domain:      Filter to a single domain ("cancer", "drug_discovery", "rare_disease").
-                     None = all domains.
+        domain:      Filter to a single domain ("cancer", "drug_discovery", "rare_disease",
+                     "canine", "feline").  None = all domains.
+        species:     Shortcut for veterinary species: "dog" or "cat".  Sets domain
+                     to "canine" or "feline" automatically when provided.
         config_path: Path to a YAML config with custom task templates.
                      Falls back to built-in defaults if absent.
         seed:        Random seed for reproducibility.
@@ -326,6 +458,12 @@ def generate_batch(
     """
     if seed is not None:
         random.seed(seed)
+
+    # Species shortcut
+    if species == "dog" and domain is None:
+        domain = "canine"
+    elif species == "cat" and domain is None:
+        domain = "feline"
 
     # Load distribution — from YAML config or built-in defaults
     if config_path and Path(config_path).exists():
@@ -399,7 +537,8 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Generate batch research tasks")
     parser.add_argument("--count", type=int, default=100, help="Number of tasks")
-    parser.add_argument("--domain", choices=["cancer", "drug_discovery", "rare_disease"])
+    parser.add_argument("--domain", choices=["cancer", "drug_discovery", "rare_disease", "canine", "feline"])
+    parser.add_argument("--species", choices=["human", "dog", "cat"], help="Species shortcut (sets domain)")
     parser.add_argument("--config", help="Path to research_tasks.yaml")
     parser.add_argument("--seed", type=int, help="Random seed")
     parser.add_argument("--json", action="store_true", help="Output as JSON")
@@ -408,6 +547,7 @@ if __name__ == "__main__":
     batch = generate_batch(
         count=args.count,
         domain=args.domain,
+        species=args.species,
         config_path=args.config,
         seed=args.seed,
     )

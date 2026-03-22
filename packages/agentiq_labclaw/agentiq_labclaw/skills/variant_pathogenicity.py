@@ -1,4 +1,10 @@
-"""Variant pathogenicity scoring skill — ClinVar/OMIM cross-reference + CADD API."""
+"""Variant pathogenicity scoring skill — species-aware ClinVar/OMIM/CADD/VEP cross-reference.
+
+Human:     ClinVar + OMIM associations + CADD API (GRCh38)
+Dog/Cat:   OMIA associations + Ensembl VEP (SIFT/PolyPhen2) — ClinVar and CADD are human-only
+
+All inputs default to species="human" — zero breaking changes to existing pipelines.
+"""
 
 import logging
 
@@ -7,6 +13,9 @@ from pydantic import BaseModel
 
 from agentiq_labclaw.base import LabClawSkill, labclaw_skill
 from agentiq_labclaw.connectors.clinvar import ClinVarConnector
+from agentiq_labclaw.connectors.ensembl_vep import EnsemblVEPConnector
+from agentiq_labclaw.connectors.omia import OMIAConnector
+from agentiq_labclaw.species import get_species
 
 logger = logging.getLogger("labclaw.skills.variant_pathogenicity")
 
@@ -23,6 +32,7 @@ class VariantInput(BaseModel):
     gene: str
     transcript: str | None = None
     hgvs: str | None = None
+    species: str = "human"  # "human" | "dog" | "cat"
 
 
 class VariantOutput(BaseModel):
@@ -111,8 +121,20 @@ class VariantPathogenicitySkill(LabClawSkill):
     """
 
     def run(self, input_data: VariantInput) -> VariantOutput:
-        logger.info("Scoring pathogenicity for %s in %s", input_data.variant_id, input_data.gene)
+        logger.info(
+            "Scoring pathogenicity for %s in %s (species=%s)",
+            input_data.variant_id, input_data.gene, input_data.species,
+        )
 
+        species_config = get_species(input_data.species)
+        parsed = _parse_variant_id(input_data.variant_id)
+
+        if species_config.name == "human":
+            return self._run_human(input_data, parsed)
+        return self._run_veterinary(input_data, parsed, species_config)
+
+    def _run_human(self, input_data: VariantInput, parsed) -> VariantOutput:
+        """Human pipeline: ClinVar + OMIM + CADD API."""
         clinvar = ClinVarConnector()
 
         # 1. ClinVar lookup
@@ -127,15 +149,12 @@ class VariantPathogenicitySkill(LabClawSkill):
 
         # 3. CADD score
         cadd_score = None
-        parsed = _parse_variant_id(input_data.variant_id)
         if parsed:
             chrom, pos, ref, alt = parsed
             cadd_score = _query_cadd(chrom, pos, ref, alt)
 
         # 4. Classify
         classification, score = _classify(cadd_score, clinvar_sig)
-
-        # Adjust score if CADD is available and ClinVar gave the classification
         if cadd_score is not None and clinvar_sig:
             score = max(score, round(cadd_score / 40.0, 4))
 
@@ -151,6 +170,66 @@ class VariantPathogenicitySkill(LabClawSkill):
             gene=input_data.gene,
             clinvar_significance=clinvar_sig,
             omim_associations=omim_assoc,
+            pathogenicity_score=round(score, 4),
+            classification=classification,
+            novel=is_novel,
+            critique_required=classification in ("pathogenic", "likely_pathogenic", "vus"),
+        )
+
+    def _run_veterinary(self, input_data: VariantInput, parsed, species_config) -> VariantOutput:
+        """Veterinary pipeline: OMIA + Ensembl VEP (SIFT/PolyPhen2). No ClinVar/CADD."""
+        # 1. OMIA associations (veterinary equivalent of OMIM/ClinVar)
+        omia = OMIAConnector()
+        omia_assoc = omia.lookup_gene(input_data.gene, species=species_config.vep_species)
+
+        # 2. Ensembl VEP for functional impact
+        vep_result: dict = {}
+        cadd_equiv: float | None = None
+        if parsed:
+            chrom, pos, ref, alt = parsed
+            vep = EnsemblVEPConnector()
+            vep_result = vep.predict_effect(
+                chrom=chrom, pos=pos, ref=ref, alt=alt,
+                species=species_config.vep_species,
+            )
+            cadd_equiv = vep.phred_from_sift(vep_result.get("sift_score"))
+
+        # 3. Classify using VEP impact + SIFT proxy score
+        impact = vep_result.get("impact", "MODIFIER")
+        clinvar_sig_proxy = None  # No ClinVar for non-human
+        if impact == "HIGH":
+            clinvar_sig_proxy = "Pathogenic"
+        elif impact == "MODERATE":
+            clinvar_sig_proxy = "Likely pathogenic"
+        elif impact == "LOW":
+            clinvar_sig_proxy = "Likely benign"
+
+        classification, score = _classify(cadd_equiv, clinvar_sig_proxy)
+        is_novel = classification in ("pathogenic", "likely_pathogenic") and not omia_assoc
+
+        logger.info(
+            "Veterinary variant %s (%s) classified as %s (VEP impact=%s, SIFT=%s)",
+            input_data.variant_id, species_config.name, classification,
+            impact, vep_result.get("sift_score"),
+        )
+
+        # Combine OMIA associations and VEP metadata into omim_associations field
+        assoc_list = list(omia_assoc)
+        if vep_result.get("most_severe_consequence"):
+            assoc_list.append({
+                "consequence": vep_result["most_severe_consequence"],
+                "sift_score": vep_result.get("sift_score"),
+                "sift_prediction": vep_result.get("sift_prediction"),
+                "polyphen_score": vep_result.get("polyphen_score"),
+                "polyphen_prediction": vep_result.get("polyphen_prediction"),
+                "source": "Ensembl_VEP",
+            })
+
+        return VariantOutput(
+            variant_id=input_data.variant_id,
+            gene=input_data.gene,
+            clinvar_significance=None,
+            omim_associations=assoc_list,
             pathogenicity_score=round(score, 4),
             classification=classification,
             novel=is_novel,

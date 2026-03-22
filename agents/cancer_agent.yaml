@@ -3,6 +3,11 @@
 # Processes cancer genomics data to identify somatic mutations,
 # predict neoantigens, and model tumor-immune microenvironments.
 #
+# Supports multiple species via LABCLAW_SPECIES env var:
+#   human  → HLA alleles, GRCh38, MHCflurry, TCGA
+#   dog    → DLA alleles, CanFam3.1, NetMHCpan (or fallback)
+#   cat    → FLA alleles, felCat9, NetMHCpan (or fallback)
+#
 # Backed by NAT specialist_agent registration in nat_specialists.py
 # Coordinator YAML entry: cancer_agent (_type: specialist_agent)
 
@@ -17,8 +22,14 @@ agent:
     - structure_prediction
 
   data_sources:
-    - TCGA
-    - GEO
+    - TCGA           # human tumor sequencing
+    - GEO            # expression data
+    - OMIA           # veterinary variant database (dog/cat)
+
+  species_support:
+    human: { ref: GRCh38, mhc: HLA, predictor: mhcflurry }
+    dog:   { ref: CanFam3.1, mhc: DLA, predictor: netmhcpan, ensembl_release: 112 }
+    cat:   { ref: felCat9,   mhc: FLA, predictor: netmhcpan, ensembl_release: 112 }
 
   pipelines:
     somatic_mutation_calling:
@@ -27,7 +38,7 @@ agent:
         - sequencing_qc
         - alignment  # BWA-MEM2
         - variant_calling  # Mutect2
-        - annotation  # VEP/Funcotator
+        - annotation  # VEP/Funcotator (human) or Ensembl VEP REST (vet)
 
     neoantigen_pipeline:
       description: "Predict neoantigens from somatic variants and HLA typing"

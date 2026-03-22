@@ -3,6 +3,11 @@
 # Analyzes rare and de novo variants against ClinVar/OMIM databases
 # to assess pathogenicity, identify candidate genes, and support diagnosis.
 #
+# Supports multiple species via LABCLAW_SPECIES env var:
+#   human → ClinVar + OMIM + CADD
+#   dog   → OMIA + Ensembl VEP (CanFam3.1)
+#   cat   → OMIA + Ensembl VEP (felCat9)
+#
 # Backed by NAT specialist_agent registration in nat_specialists.py
 # Coordinator YAML entry: rare_disease_agent (_type: specialist_agent)
 
@@ -16,8 +21,14 @@ agent:
     - sequencing_qc
 
   data_sources:
-    - ClinVar
-    - OMIM
+    - ClinVar    # human pathogenic variants
+    - OMIM       # human gene-disease associations
+    - OMIA       # veterinary variant database (dogs, cats, and 250+ species)
+
+  species_support:
+    human: { ref: GRCh38,   variant_db: ClinVar+OMIM, effect_predictor: CADD }
+    dog:   { ref: CanFam3.1, variant_db: OMIA, effect_predictor: EnsemblVEP }
+    cat:   { ref: felCat9,   variant_db: OMIA, effect_predictor: EnsemblVEP }
 
   pipelines:
     variant_analysis:
@@ -25,7 +36,7 @@ agent:
       steps:
         - sequencing_qc
         - variant_calling
-        - variant_pathogenicity
+        - variant_pathogenicity  # routes to ClinVar (human) or OMIA+VEP (vet)
         - candidate_gene_ranking
 
     de_novo_analysis:

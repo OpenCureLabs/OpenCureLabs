@@ -44,14 +44,23 @@ class TestStructurePrediction:
         mock_dir.__truediv__ = lambda self, name: tmp_path / name
         mock_dir.mkdir = MagicMock()
 
+        # Mock 1: UniProt search API (called inside _run_alphafold to resolve accession)
+        uniprot_resp = MagicMock(status_code=200)
+        uniprot_resp.json.return_value = {
+            "results": [{"primaryAccession": "P04637", "sequence": {"value": "MAAAL"}}]
+        }
+        uniprot_resp.raise_for_status = MagicMock()
+
+        # Mock 2: AlphaFold DB prediction metadata
         entry_resp = MagicMock(status_code=200)
         entry_resp.json.return_value = [{"entryId": "AF-P04637-F1", "pdbUrl": "https://example.com/model.pdb", "globalMetricValue": 72.0}]
         entry_resp.raise_for_status = MagicMock()
 
+        # Mock 3: PDB file download
         pdb_resp = MagicMock(status_code=200, text="ATOM      1  CA  ALA A   1       1.0   2.0   3.0  1.00 72.00\nEND\n")
         pdb_resp.raise_for_status = MagicMock()
 
-        mock_get.side_effect = [entry_resp, pdb_resp]
+        mock_get.side_effect = [uniprot_resp, entry_resp, pdb_resp]
 
         from agentiq_labclaw.skills.structure import StructureInput, StructurePredictionSkill
 
@@ -314,7 +323,8 @@ class TestSequencingQC:
             fastq_paths=["/data/r1.fastq.gz", "/data/r2.fastq.gz"],
         )
         assert len(inp.fastq_paths) == 2
-        assert inp.reference_genome == "hg38"
+        # reference_genome defaults to "" and is derived from species at run time
+        assert inp.reference_genome == ""
 
 
 # ── Report Generator ─────────────────────────────────────────────────────────

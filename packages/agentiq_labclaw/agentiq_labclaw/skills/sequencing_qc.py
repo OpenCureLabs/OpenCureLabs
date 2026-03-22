@@ -10,6 +10,7 @@ from pathlib import Path
 from pydantic import BaseModel
 
 from agentiq_labclaw.base import LabClawSkill, labclaw_skill
+from agentiq_labclaw.species import get_species
 
 logger = logging.getLogger("labclaw.skills.sequencing_qc")
 
@@ -25,7 +26,8 @@ MAX_GC_CONTENT = 70.0
 class SequencingQCInput(BaseModel):
     sample_id: str
     fastq_paths: list[str]
-    reference_genome: str = "hg38"
+    species: str = "human"  # "human" | "dog" | "cat"
+    reference_genome: str = ""  # auto-derived from species if blank
 
 
 class SequencingQCOutput(BaseModel):
@@ -58,7 +60,16 @@ class SequencingQCSkill(LabClawSkill):
     """
 
     def run(self, input_data: SequencingQCInput) -> SequencingQCOutput:
-        logger.info("Running QC for sample %s (%d files)", input_data.sample_id, len(input_data.fastq_paths))
+        # Derive reference genome from species if not explicitly set
+        ref_genome = input_data.reference_genome
+        if not ref_genome:
+            species_config = get_species(input_data.species)
+            ref_genome = species_config.reference_genome
+        logger.info(
+            "Running QC for sample %s (%d files) [species=%s, ref=%s]",
+            input_data.sample_id, len(input_data.fastq_paths),
+            input_data.species, ref_genome,
+        )
 
         if not shutil.which("fastp"):
             raise FileNotFoundError("fastp not found in PATH. Install with: apt install fastp")

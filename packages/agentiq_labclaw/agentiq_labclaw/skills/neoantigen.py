@@ -3,16 +3,19 @@ Neoantigen prediction skill — predicts neoantigens from somatic variants and H
 
 Pipeline:
   1. Parse somatic variants from VCF (pysam)
-  2. Look up affected transcripts and protein sequences (pyensembl)
+  2. Look up affected transcripts and protein sequences (pyensembl — species-aware)
   3. Generate mutant peptide windows (8–11mers) around each mutation
-  4. Score MHC-I binding affinity via MHCflurry (no academic license required)
+  4. Score MHC-I binding affinity (MHCflurry for human; NetMHCpan for dog/cat)
   5. Rank candidates by predicted IC50 (< 500 nM = strong binder)
   6. Log pipeline run to PostgreSQL
   7. Return structured NeoantigenOutput
 
-Binding predictor: MHCflurry 2.x (CPU-based, pan-allele model).
-NetMHCpan is preferred when available under academic license but requires
-a manual install — MHCflurry is the default fallback.
+Species support: human (default), dog (canine / DLA alleles), cat (feline / FLA alleles).
+All inputs default to species="human" — no breaking changes to existing pipelines.
+
+Binding predictor selection:
+  human → MHCflurry 2.x (CPU-based, pan-allele HLA-I model)
+  dog/cat → NetMHCpan 4.1 if installed; otherwise MHCflurry with human-proxy allele + warning
 """
 
 import logging
@@ -21,6 +24,7 @@ from pathlib import Path
 from pydantic import BaseModel
 
 from agentiq_labclaw.base import LabClawSkill, labclaw_skill
+from agentiq_labclaw.species import SpeciesConfig, get_species
 
 logger = logging.getLogger("labclaw.skills.neoantigen")
 
@@ -41,6 +45,7 @@ class NeoantigenInput(BaseModel):
     vcf_path: str
     hla_alleles: list[str]
     tumor_type: str
+    species: str = "human"  # "human" | "dog" | "cat"
 
 
 class NeoantigenCandidate(BaseModel):
@@ -72,11 +77,45 @@ class NeoantigenOutput(BaseModel):
 # Helper functions
 # ---------------------------------------------------------------------------
 
-def _normalize_allele(allele: str) -> str:
-    """Normalize HLA allele to MHCflurry format: HLA-A*02:01."""
-    allele = allele.strip().replace("hla-", "HLA-").replace("HLA_", "HLA-")
-    if not allele.startswith("HLA-"):
-        allele = "HLA-" + allele
+def _normalize_allele(allele: str, species_config: SpeciesConfig | None = None) -> str:
+    """
+    Normalize an MHC allele string to the format expected by the binding predictor.
+
+    Human: HLA-A*02:01 (MHCflurry format)
+    Dog:   DLA-88*501:01 (NetMHCpan format; validated with mhcgnomes)
+    Cat:   FLA-K*001 (NetMHCpan format)
+    """
+    allele = allele.strip()
+    prefix = (species_config.mhc_prefix if species_config else "HLA")
+
+    if prefix == "HLA":
+        # Existing human normalization
+        allele = allele.replace("hla-", "HLA-").replace("HLA_", "HLA-")
+        if not allele.startswith("HLA-"):
+            allele = "HLA-" + allele
+        return allele
+
+    # Non-human: validate with mhcgnomes then normalize prefix
+    try:
+        import mhcgnomes
+        parsed = mhcgnomes.parse(allele)
+        if parsed is not None:
+            # mhcgnomes str() gives object repr, not allele string.
+            # Reconstruct: DLA-88*501:01 / FLA-K*001
+            try:
+                gene_name = parsed.gene.name
+                fields = ":".join(parsed.allele_fields)
+                allele = f"{prefix}-{gene_name}*{fields}" if fields else f"{prefix}-{gene_name}"
+                return allele
+            except AttributeError:
+                pass  # fall through to string prefix fallback
+    except Exception:
+        pass
+
+    # Fallback: ensure correct prefix
+    upper = allele.upper()
+    if not upper.startswith(prefix):
+        allele = f"{prefix}-{allele}"
     return allele
 
 
@@ -109,7 +148,8 @@ def _parse_vcf_variants(vcf_path: str) -> list[dict]:
     return variants
 
 
-def _get_affected_transcripts(chrom: str, pos: int, ref: str, alt: str):
+def _get_affected_transcripts(chrom: str, pos: int, ref: str, alt: str,
+                              species_config: SpeciesConfig | None = None):
     """
     Look up protein-coding transcripts overlapping a variant position.
     Returns list of (transcript, codon_index, ref_aa, alt_aa, protein_sequence).
@@ -117,9 +157,10 @@ def _get_affected_transcripts(chrom: str, pos: int, ref: str, alt: str):
     from Bio.Data.CodonTable import standard_dna_table
     from pyensembl import EnsemblRelease
 
-    ensembl = EnsemblRelease(ENSEMBL_RELEASE)
+    cfg = species_config or get_species("human")
+    ensembl = EnsemblRelease(cfg.ensembl_release, species=cfg.ensembl_species)
 
-    # Normalize chromosome (strip 'chr' prefix if present for Ensembl)
+    # Normalize chromosome: strip leading 'chr' for Ensembl lookups
     contig = chrom.replace("chr", "")
 
     results = []
@@ -402,7 +443,11 @@ class NeoantigenSkill(LabClawSkill):
         return result
 
     def _run_pipeline(self, input_data: NeoantigenInput) -> NeoantigenOutput:
-        from mhcflurry import Class1AffinityPredictor
+        from agentiq_labclaw.skills.mhc_predictor import get_predictor
+
+        # Resolve species config
+        species_config = get_species(input_data.species)
+        logger.info("Species: %s (%s)", species_config.name, species_config.latin)
 
         # 1. Parse VCF
         vcf_path = input_data.vcf_path
@@ -420,16 +465,26 @@ class NeoantigenSkill(LabClawSkill):
             logger.info("No somatic variants found in VCF")
             return self._empty_output(input_data.sample_id)
 
-        # Normalize HLA alleles
-        alleles = [_normalize_allele(a) for a in input_data.hla_alleles]
+        # Normalize MHC alleles using species-aware normalizer
+        alleles = [_normalize_allele(a, species_config) for a in input_data.hla_alleles]
 
-        # Load predictor once
-        predictor = Class1AffinityPredictor.load()
-        supported = set(predictor.supported_alleles)
-        valid_alleles = [a for a in alleles if a in supported]
-        if not valid_alleles:
-            logger.warning("No supported HLA alleles found")
-            return self._empty_output(input_data.sample_id)
+        # Load binding predictor for this species
+        predictor = get_predictor(species_config)
+        logger.info("MHC predictor: %s", predictor.name)
+
+        # For MHCflurry: pre-validate alleles against supported list
+        # For NetMHCpan: no pre-validation (it validates at runtime)
+        supported = predictor.supported_alleles()  # empty set = "accept all"
+        if supported:
+            valid_alleles = [a for a in alleles if a in supported]
+            if not valid_alleles:
+                logger.warning(
+                    "No supported MHC alleles found for species=%s alleles=%s",
+                    species_config.name, alleles,
+                )
+                return self._empty_output(input_data.sample_id)
+        else:
+            valid_alleles = alleles
 
         # 2-3. Collect all unique peptide entries across variants/transcripts
         # Key: (gene, mt_peptide) → metadata dict
@@ -438,6 +493,7 @@ class NeoantigenSkill(LabClawSkill):
         for var in variants:
             affected = _get_affected_transcripts(
                 var["chrom"], var["pos"], var["ref"], var["alt"],
+                species_config=species_config,
             )
             for hit in affected:
                 windows = _generate_peptide_windows(
@@ -482,7 +538,6 @@ class NeoantigenSkill(LabClawSkill):
                 alleles=[allele] * n,
                 peptides=all_wt,
             )
-
             for i, entry in enumerate(entries):
                 ic50_mt = float(mt_ic50s[i])
                 ic50_wt = float(wt_ic50s[i])

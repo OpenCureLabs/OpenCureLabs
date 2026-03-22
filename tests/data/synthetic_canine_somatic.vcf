@@ -1,0 +1,17 @@
+##fileformat=VCFv4.2
+##reference=CanFam3.1
+##FILTER=<ID=PASS,Description="All filters passed">
+##INFO=<ID=DP,Number=1,Type=Integer,Description="Total read depth">
+##INFO=<ID=AF,Number=A,Type=Float,Description="Allele frequency">
+##INFO=<ID=GENE,Number=1,Type=String,Description="Gene symbol">
+##INFO=<ID=MUTATION,Number=1,Type=String,Description="Amino acid change">
+##INFO=<ID=CANCER,Number=1,Type=String,Description="Associated cancer type">
+##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">
+##FORMAT=<ID=DP,Number=1,Type=Integer,Description="Read depth">
+##FORMAT=<ID=AD,Number=R,Type=Integer,Description="Allele depth REF,ALT">
+#CHROM	POS	ID	REF	ALT	QUAL	FILTER	INFO	FORMAT	TUMOR	NORMAL
+chr16	26835234	.	T	A	100	PASS	DP=120;AF=0.42;GENE=BRAF;MUTATION=V595E;CANCER=mast_cell_tumor	GT:DP:AD	0/1:120:70,50	0/0:80:80,0
+chr13	28001012	.	G	A	95	PASS	DP=95;AF=0.38;GENE=KIT;MUTATION=exon11_point;CANCER=mast_cell_tumor	GT:DP:AD	0/1:95:59,36	0/0:60:60,0
+chr5	53824190	rs397518396	G	A	88	PASS	DP=105;AF=0.31;GENE=TP53;MUTATION=R175H;CANCER=osteosarcoma	GT:DP:AD	0/1:105:72,33	0/0:65:65,0
+chr4	50821099	.	C	T	92	PASS	DP=110;AF=0.35;GENE=PTEN;MUTATION=R130Q;CANCER=hemangiosarcoma	GT:DP:AD	0/1:110:71,39	0/0:70:70,0
+chr5	33924088	.	G	A	78	PASS	DP=88;AF=0.27;GENE=MC1R;MUTATION=E92K;CANCER=melanoma	GT:DP:AD	0/1:88:64,24	0/0:55:55,0

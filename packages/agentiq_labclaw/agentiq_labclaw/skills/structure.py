@@ -8,6 +8,7 @@ import requests
 from pydantic import BaseModel
 
 from agentiq_labclaw.base import LabClawSkill, labclaw_skill
+from agentiq_labclaw.species import get_species
 
 logger = logging.getLogger("labclaw.skills.structure")
 
@@ -21,6 +22,7 @@ class StructureInput(BaseModel):
     protein_id: str
     sequence: str
     method: str = "esmfold"  # "esmfold" | "alphafold"
+    species: str = "human"  # "human" | "dog" | "cat" — used for UniProt organism filtering
 
 
 class StructureOutput(BaseModel):
@@ -58,7 +60,10 @@ class StructurePredictionSkill(LabClawSkill):
         seq = input_data.sequence.strip().upper()
         accession = None
         if not seq or "PLACEHOLDER" in seq or seq == "AUTO_RESOLVE":
-            seq, accession = self._fetch_uniprot_sequence(input_data.protein_id)
+            species_config = get_species(input_data.species)
+            seq, accession = self._fetch_uniprot_sequence(
+                input_data.protein_id, organism_id=species_config.ncbi_taxon_id
+            )
             if not seq:
                 raise ValueError(f"Could not resolve sequence for {input_data.protein_id}")
 
@@ -70,13 +75,15 @@ class StructurePredictionSkill(LabClawSkill):
         return self._run_esmfold_with_fallback(resolved, accession=accession)
 
     @staticmethod
-    def _fetch_uniprot_sequence(protein_id: str) -> tuple[str | None, str | None]:
-        """Look up protein sequence and accession from UniProt by gene name."""
+    def _fetch_uniprot_sequence(
+        protein_id: str, organism_id: int = 9606
+    ) -> tuple[str | None, str | None]:
+        """Look up protein sequence and accession from UniProt by gene name and organism."""
         try:
             resp = requests.get(
                 UNIPROT_API,
                 params={
-                    "query": f"(gene:{protein_id}) AND (organism_id:9606) AND (reviewed:true)",
+                    "query": f"(gene:{protein_id}) AND (organism_id:{organism_id}) AND (reviewed:true)",
                     "format": "json",
                     "size": "1",
                     "fields": "accession,sequence",
@@ -91,12 +98,12 @@ class StructurePredictionSkill(LabClawSkill):
                 accession = entry.get("primaryAccession")
                 if seq:
                     logger.info(
-                        "Resolved %s → %s (%d aa)",
-                        protein_id, accession, len(seq),
+                        "Resolved %s (taxon %d) → %s (%d aa)",
+                        protein_id, organism_id, accession, len(seq),
                     )
                     return seq, accession
         except Exception as exc:
-            logger.warning("UniProt lookup failed for %s: %s", protein_id, exc)
+            logger.warning("UniProt lookup failed for %s (taxon %d): %s", protein_id, organism_id, exc)
         return None, None
 
     def _run_esmfold_with_fallback(

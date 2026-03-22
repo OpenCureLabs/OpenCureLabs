@@ -74,6 +74,20 @@ RARE_TASKS=(
     "Check Data Quality ~ Verify sequencing data is clean before analysis|Run sequencing quality control on rare disease genomic data. Check read quality, coverage, and contamination."
 )
 
+CANINE_TASKS=(
+    "Find Canine Tumor Mutations ~ Analyse dog tumor vs healthy DNA for somatic mutations|Identify somatic mutations from canine tumor/normal paired sequencing. Use CanFam3.1 reference, Mutect2 variant calling, and Ensembl VEP annotation. species=dog."
+    "Predict Canine Neoantigens ~ Find tumor markers the dog's immune system can target|Predict neoantigens from canine somatic variants and DLA typing. Run full canine neoantigen pipeline using DLA-88 alleles and NetMHCpan binding prediction. species=dog."
+    "Assess Canine Variant Danger ~ Check if a canine genetic variant causes disease|Analyze canine variants for pathogenicity using OMIA (Online Mendelian Inheritance in Animals) and Ensembl VEP. species=dog."
+    "Check Canine Data Quality ~ Verify canine sequencing data before analysis|Run sequencing QC on canine genomic data. Use CanFam3.1 reference for coverage and contamination metrics. species=dog."
+)
+
+FELINE_TASKS=(
+    "Find Feline Tumor Mutations ~ Analyse cat tumor vs healthy DNA for somatic mutations|Identify somatic mutations from feline tumor/normal paired sequencing. Use felCat9 reference, Mutect2 variant calling, and Ensembl VEP annotation. species=cat."
+    "Predict Feline Neoantigens ~ Find tumor markers the cat's immune system can target|Predict neoantigens from feline somatic variants and FLA typing. Run full feline neoantigen pipeline using FLA alleles and NetMHCpan binding prediction. species=cat."
+    "Assess Feline Variant Danger ~ Check if a feline genetic variant causes disease|Analyze feline variants for pathogenicity using OMIA and Ensembl VEP with felCat9 reference. species=cat."
+    "Check Feline Data Quality ~ Verify feline sequencing data before analysis|Run sequencing QC on feline genomic data. Use felCat9 reference for coverage and contamination metrics. species=cat."
+)
+
 # ── Follow-up prompts ────────────────────────────────────────────────────────
 # Ask task-specific questions to collect details the coordinator needs.
 # Results are appended to $TASK before sending to the coordinator.
@@ -347,7 +361,8 @@ if $HAS_GUM; then
         --selected.foreground 46 \
         --selected.bold \
         "🔬 Cancer — Find mutations, predict immune targets" \
-        "💊 Drug Discovery — Screen molecules, predict effectiveness" \
+        "� Veterinary — Cancer & variants for dogs and cats" \
+        "�💊 Drug Discovery — Screen molecules, predict effectiveness" \
         "🧬 Rare Disease — Analyze genetic variants for diagnosis" \
         "⌨️  Custom Task — Type your own research question" \
         "🚀 Genesis Mode — Run EVERY task across ALL domains (12 runs, full send)" \
@@ -355,10 +370,30 @@ if $HAS_GUM; then
 
     echo ""
 
+    # ── Species (default; overridden per domain below) ───────────────────
+    LABCLAW_SPECIES="human"
+
     # ── Task selection per domain ────────────────────────────────────────
     case "$DOMAIN" in
         *"Cancer"*)
             ITEMS=("${CANCER_TASKS[@]}")
+            ;;
+        *"Veterinary"*)
+            echo ""
+            VET_SPECIES=$(gum choose \
+                --header "Which animal?" \
+                --header.foreground 39 \
+                --cursor.foreground 46 \
+                --item.foreground 255 \
+                --selected.foreground 46 \
+                --selected.bold \
+                "🐕 Dog (Canine) — CanFam3.1, DLA alleles" \
+                "🐈 Cat (Feline) — felCat9, FLA alleles" \
+            ) || { echo "Cancelled."; read -r; exit 0; }
+            case "$VET_SPECIES" in
+                *"Dog"*) LABCLAW_SPECIES="dog"; ITEMS=("${CANINE_TASKS[@]}") ;;
+                *"Cat"*) LABCLAW_SPECIES="cat"; ITEMS=("${FELINE_TASKS[@]}") ;;
+            esac
             ;;
         *"Drug"*)
             ITEMS=("${DRUG_TASKS[@]}")
@@ -907,6 +942,9 @@ if $HAS_GUM; then
     [[ "$USE_VAST" == "yes" ]] && export LABCLAW_COMPUTE=vast_ai || export LABCLAW_COMPUTE=local
     # Solo mode: My Data runs are private — only PDF publisher fires locally.
     [[ "$DATA_MODE" == "mydata" ]] && export OPENCURELABS_MODE=solo || export OPENCURELABS_MODE=contribute
+    # Species routing — propagated to all LabClaw skills via environment
+    export LABCLAW_SPECIES="${LABCLAW_SPECIES:-human}"
+    [[ "$LABCLAW_SPECIES" != "human" ]] && TASK="$TASK species=$LABCLAW_SPECIES."
 
     RUN_COUNT=0
     while true; do
@@ -965,13 +1003,26 @@ echo ""
 echo -e "${BOLD}What do you want to research?${RESET}"
 echo ""
 
-DOMAINS=("Cancer — Find mutations, predict immune targets" "Drug Discovery — Screen molecules, predict effectiveness" "Rare Disease — Analyze genetic variants for diagnosis" "Custom Task — Type your own question" "Genesis Mode — Run EVERY task across ALL domains (12 runs)")
+LABCLAW_SPECIES="human"
+DOMAINS=("Cancer — Find mutations, predict immune targets" "Veterinary — Cancer & variants for dogs and cats" "Drug Discovery — Screen molecules, predict effectiveness" "Rare Disease — Analyze genetic variants for diagnosis" "Custom Task — Type your own question" "Genesis Mode — Run EVERY task across ALL domains (12 runs)")
 select domain in "${DOMAINS[@]}"; do
     case "$REPLY" in
         1) ITEMS=("${CANCER_TASKS[@]}"); break ;;
-        2) ITEMS=("${DRUG_TASKS[@]}"); break ;;
-        3) ITEMS=("${RARE_TASKS[@]}"); break ;;
-        4)
+        2)
+            echo ""
+            echo -e "${BOLD}Which animal?${RESET}"
+            echo "  1) Dog (Canine) — CanFam3.1, DLA alleles"
+            echo "  2) Cat (Feline) — felCat9, FLA alleles"
+            read -rp "Choice [1]: " _vet_choice
+            case "${_vet_choice:-1}" in
+                2) LABCLAW_SPECIES="cat"; ITEMS=("${FELINE_TASKS[@]}") ;;
+                *) LABCLAW_SPECIES="dog"; ITEMS=("${CANINE_TASKS[@]}") ;;
+            esac
+            break
+            ;;
+        3) ITEMS=("${DRUG_TASKS[@]}"); break ;;
+        4) ITEMS=("${RARE_TASKS[@]}"); break ;;
+        5)
             echo ""
             read -rp "Task: " TASK
             if [[ -z "$TASK" ]]; then
@@ -982,8 +1033,7 @@ select domain in "${DOMAINS[@]}"; do
             ITEMS=()
             break
             ;;
-        5)
-            # ── Genesis Mode (Fallback) ──────────────────────────────
+        6)
             ALL_TASKS=()
             ALL_LABELS=()
             ALL_DOMAINS=()
@@ -1375,6 +1425,9 @@ esac
 [[ "$USE_VAST" == "yes" ]] && export LABCLAW_COMPUTE=vast_ai || export LABCLAW_COMPUTE=local
 # Solo mode: My Data runs are private — only PDF publisher fires locally.
 [[ "$DATA_MODE" == "mydata" ]] && export OPENCURELABS_MODE=solo || export OPENCURELABS_MODE=contribute
+# Species routing — propagated to all LabClaw skills via environment
+export LABCLAW_SPECIES="${LABCLAW_SPECIES:-human}"
+[[ "$LABCLAW_SPECIES" != "human" ]] && TASK="$TASK species=$LABCLAW_SPECIES."
 
 RUN_COUNT=0
 while true; do
