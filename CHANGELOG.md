@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - CI pipeline with tests, ruff, and bandit
 - Commitizen conventional commits enforcement
 
+## v0.28.0 (2026-03-22)
+
+### Feat
+
+- multi-species support (dog/cat) — DLA/FLA MHC, OMIA, Ensembl VEP, NetMHCpan
+
 ## v0.27.0 (2026-03-22)
 
 ### Feat
