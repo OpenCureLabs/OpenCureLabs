@@ -33,6 +33,9 @@ anthropic>=0.25
 openai>=1.20
 reportlab>=4.1
 
+# ── Ed25519 result signing ──────────────────────────────────────────────────
+PyNaCl>=1.5.0
+
 # ── Development & Testing ───────────────────────────────────────────────────
 pytest>=7.0
 pytest-cov>=4.0

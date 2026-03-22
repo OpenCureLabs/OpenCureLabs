@@ -4,9 +4,9 @@ Post-execution orchestrator — wires guardrails, reviewers, and publishers.
 Called after every skill execution to enforce the full pipeline:
   1. Output validation (schema check)
   2. Novelty filter (DB dedup)
-  3. Reviewer critique (Claude Opus + Grok literature review)
+  3. Reviewer critique (Grok scientific critique + literature review)
   4. Safety check (final gate)
-  5. Publishing (PDF, GitHub)
+  5. Publishing (PDF, GitHub, R2 with Ed25519-signed payloads)
   6. DB logging (experiment_results, critique_log)
 """
 
@@ -144,20 +144,20 @@ async def post_execute(
 
     # ── Step 3: Reviewer critique ────────────────────────────────────────
     if critique_required:
-        # Claude Opus critique
+        # Grok critique (local review — contributor's XAI_API_KEY)
         try:
             sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "..", ".."))
-            from reviewer.claude_reviewer import ClaudeReviewer
+            from reviewer.grok_reviewer import GrokReviewer
 
-            reviewer = ClaudeReviewer()
-            critique = reviewer.critique(
+            grok = GrokReviewer()
+            critique = grok.critique(
                 pipeline_name=skill_name,
                 result_data=result_dict,
             )
-            orch["critiques"].append({"reviewer": "claude_opus", "critique": critique})
+            orch["critiques"].append({"reviewer": "grok", "critique": critique})
             critique_completed = True
             logger.info(
-                "Claude critique for %s: score=%s, rec=%s",
+                "Grok critique for %s: score=%s, rec=%s",
                 skill_name,
                 critique.get("overall_score"),
                 critique.get("recommendation"),
@@ -168,13 +168,13 @@ async def post_execute(
                 try:
                     from agentiq_labclaw.db.critique_log import log_critique
 
-                    log_critique(run_id, "claude_opus", critique)
+                    log_critique(run_id, "grok", critique)
                 except Exception as e:
-                    logger.warning("Failed to log Claude critique to DB: %s", e)
+                    logger.warning("Failed to log Grok critique to DB: %s", e)
 
         except Exception as e:
-            logger.warning("Claude reviewer error: %s", e)
-            orch["critiques"].append({"reviewer": "claude_opus", "error": str(e)})
+            logger.warning("Grok reviewer error: %s", e)
+            orch["critiques"].append({"reviewer": "grok", "error": str(e)})
 
         # Grok literature review (only if result is novel)
         if novel:
@@ -200,10 +200,10 @@ async def post_execute(
 
                         log_critique(run_id, "grok_literature", lit_review)
                     except Exception as e:
-                        logger.warning("Failed to log Grok critique to DB: %s", e)
+                        logger.warning("Failed to log Grok literature review to DB: %s", e)
 
             except Exception as e:
-                logger.warning("Grok reviewer error: %s", e)
+                logger.warning("Grok literature review error: %s", e)
                 orch["critiques"].append({"reviewer": "grok_literature", "error": str(e)})
 
     # ── Step 4: Safety check ─────────────────────────────────────────────
@@ -308,7 +308,16 @@ async def post_execute(
 
             r2 = R2Publisher()
             if r2.enabled:
-                r2_result = r2.publish_result(skill_name, result_dict, novel=novel, status="published")
+                # Collect local critique from Grok review for signing
+                local_critique = None
+                for c in orch["critiques"]:
+                    if c.get("reviewer") == "grok" and "critique" in c:
+                        local_critique = c["critique"]
+                        break
+                r2_result = r2.publish_result(
+                    skill_name, result_dict, novel=novel,
+                    local_critique=local_critique,
+                )
                 if r2_result:
                     orch["published"].append(f"r2:{r2_result.get('url', '')}")
                     logger.info("Published %s result to R2: %s", skill_name, r2_result.get("url"))

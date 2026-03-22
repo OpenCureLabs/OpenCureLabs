@@ -1,4 +1,4 @@
-"""Grok literature reviewer — searches recent publications for corroborating/contradicting evidence."""
+"""Grok reviewer — scientific critique and literature review."""
 
 import json
 import logging
@@ -11,11 +11,32 @@ logger = logging.getLogger("labclaw.reviewer.grok")
 
 class GrokReviewer:
     """
-    Calls Grok (xAI API, OpenAI-compatible) to review novel scientific
-    results against recent literature.
+    Calls Grok (xAI API, OpenAI-compatible) for scientific critique and
+    literature review of pipeline results.
     """
 
-    SYSTEM_PROMPT = (
+    CRITIQUE_PROMPT = (
+        "You are a scientific critic reviewing computational biology results.\n"
+        "Your role is to evaluate:\n"
+        "1. Scientific logic — does the methodology match the question?\n"
+        "2. Statistical validity — are the statistics appropriate and correctly applied?\n"
+        "3. Interpretive accuracy — do the conclusions follow from the data?\n"
+        "4. Reproducibility — could this result be independently verified?\n"
+        "5. Novelty assessment — is this a genuine new finding or expected behavior?\n\n"
+        "Always return your critique as a JSON object with this schema:\n"
+        "{\n"
+        '  "overall_score": 0-10,\n'
+        '  "scientific_logic": {"score": 0-10, "comments": "..."},\n'
+        '  "statistical_validity": {"score": 0-10, "comments": "..."},\n'
+        '  "interpretive_accuracy": {"score": 0-10, "comments": "..."},\n'
+        '  "reproducibility": {"score": 0-10, "comments": "..."},\n'
+        '  "novelty_assessment": {"is_novel": true/false, "comments": "..."},\n'
+        '  "recommendation": "publish" | "revise" | "reject",\n'
+        '  "revision_notes": "..."\n'
+        "}"
+    )
+
+    LITERATURE_PROMPT = (
         "You are a literature reviewer. When presented with a novel scientific result, "
         "search recent publications and preprint servers for:\n"
         "1. Corroborating evidence — does recent literature support this finding?\n"
@@ -43,6 +64,61 @@ class GrokReviewer:
         self.model = model
         self.client = openai.OpenAI(api_key=self.api_key, base_url=base_url)
 
+    def critique(
+        self,
+        pipeline_name: str,
+        result_data: dict,
+        max_tokens: int = 4096,
+    ) -> dict:
+        """
+        Scientific critique of a pipeline result.
+
+        Returns parsed JSON critique with overall_score, recommendation, etc.
+        """
+        logger.info("Requesting Grok critique for %s", pipeline_name)
+
+        user_content = (
+            f"Pipeline: {pipeline_name}\n\n"
+            f"Result data:\n```json\n{json.dumps(result_data, indent=2, default=str)}\n```\n"
+            "\nPlease provide your structured critique as JSON."
+        )
+
+        response = self.client.chat.completions.create(
+            model=self.model,
+            temperature=0.0,
+            max_tokens=max_tokens,
+            messages=[
+                {"role": "system", "content": self.CRITIQUE_PROMPT},
+                {"role": "user", "content": user_content},
+            ],
+        )
+
+        response_text = response.choices[0].message.content
+
+        try:
+            if "```json" in response_text:
+                json_str = response_text.split("```json")[1].split("```")[0]
+            elif "```" in response_text:
+                json_str = response_text.split("```")[1].split("```")[0]
+            else:
+                json_str = response_text
+
+            critique_result = json.loads(json_str)
+            logger.info(
+                "Grok critique: overall_score=%s, recommendation=%s",
+                critique_result.get("overall_score"),
+                critique_result.get("recommendation"),
+            )
+            return critique_result
+        except (json.JSONDecodeError, IndexError) as e:
+            logger.warning("Failed to parse Grok critique JSON: %s", e)
+            return {
+                "overall_score": None,
+                "recommendation": "revise",
+                "raw_response": response_text,
+                "parse_error": str(e),
+            }
+
     def review_literature(
         self,
         pipeline_name: str,
@@ -67,7 +143,7 @@ class GrokReviewer:
             temperature=0.0,
             max_tokens=max_tokens,
             messages=[
-                {"role": "system", "content": self.SYSTEM_PROMPT},
+                {"role": "system", "content": self.LITERATURE_PROMPT},
                 {"role": "user", "content": user_content},
             ],
         )

@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
-"""OpenCure Labs — Reviewer Sweep
+"""OpenCure Labs — Batch Verification Sweep
 
-Polls the public R2/D1 results feed for unreviewed results,
-runs Claude Opus (scientific critic) and Grok (literature reviewer),
-then publishes critiques back to R2/D1 via the ingest worker.
+Polls the ingest worker for pending results (status=pending), runs Grok
+verification (shorter than full critique — validates local_critique), then
+PATCHes results to published or blocked.
+
+Uses admin key for PATCH operations. Only runs on the central VM.
 
 Usage:
-    python reviewer/sweep.py                  # One-shot: review all pending
+    python reviewer/sweep.py                  # One-shot: verify all pending
     python reviewer/sweep.py --watch          # Continuous: poll every 60s
-    python reviewer/sweep.py --limit 5        # Review at most 5 results
-    python reviewer/sweep.py --reviewer claude  # Only run Claude
-    python reviewer/sweep.py --reviewer grok    # Only run Grok
+    python reviewer/sweep.py --limit 20       # Verify at most 20 results
 """
 
 import argparse
@@ -25,7 +25,7 @@ from urllib.error import URLError
 # Allow import from project root
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-# Load .env for API keys (ANTHROPIC_API_KEY, XAI_API_KEY)
+# Load .env for API keys
 from dotenv import load_dotenv  # noqa: E402
 
 load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
@@ -39,17 +39,12 @@ logger = logging.getLogger("labclaw.reviewer.sweep")
 
 INGEST_URL = os.environ.get("INGEST_URL", "https://ingest.opencurelabs.ai")
 PUBLIC_URL = os.environ.get("PUBLIC_URL", "https://pub.opencurelabs.ai")
-UA = "OpenCureLabs-Sweep/1.0"
-_CONTRIBUTOR_ID_PATH = os.path.expanduser("~/.opencurelabs/contributor_id")
+ADMIN_KEY = os.environ.get("OPENCURELABS_ADMIN_KEY", "")
+UA = "OpenCureLabs-Sweep/2.0"
 
-
-def _get_contributor_id() -> str | None:
-    """Read this machine's contributor ID (set by R2Publisher on first run)."""
-    try:
-        with open(_CONTRIBUTOR_ID_PATH) as f:
-            return f.read().strip() or None
-    except FileNotFoundError:
-        return None
+# Verification thresholds
+PUBLISH_THRESHOLD = 7.0
+REJECT_THRESHOLD = 5.0
 
 
 def api_get(path: str, params: dict | None = None) -> dict:
@@ -64,11 +59,20 @@ def api_get(path: str, params: dict | None = None) -> dict:
         return json.loads(resp.read())
 
 
-def api_post(path: str, data: dict) -> dict:
-    """POST request to the ingest worker API."""
+def api_patch(path: str, data: dict) -> dict:
+    """PATCH request to the ingest worker API (admin-authenticated)."""
     url = f"{INGEST_URL}{path}"
     body = json.dumps(data).encode()
-    req = Request(url, data=body, headers={"Content-Type": "application/json", "User-Agent": UA}, method="POST")
+    req = Request(
+        url,
+        data=body,
+        headers={
+            "Content-Type": "application/json",
+            "User-Agent": UA,
+            "X-Admin-Key": ADMIN_KEY,
+        },
+        method="PATCH",
+    )
     with urlopen(req, timeout=60) as resp:  # noqa: S310 — trusted internal URL
         return json.loads(resp.read())
 
@@ -84,144 +88,146 @@ def fetch_r2_result(r2_url: str) -> dict | None:
         return None
 
 
-def get_unreviewed_results(limit: int = 50, contributor_id: str | None = None) -> list[dict]:
-    """Fetch results from D1 that have not been reviewed yet."""
-    params: dict[str, str] = {"limit": str(limit)}
-    if contributor_id:
-        params["contributor_id"] = contributor_id
-    data = api_get("/results", params)
-    all_results = data.get("results", [])
-
-    # Filter to those without reviewed_at
-    return [r for r in all_results if not r.get("reviewed_at")]
+def get_pending_results(limit: int = 50) -> list[dict]:
+    """Fetch pending results from D1 awaiting batch verification."""
+    data = api_get("/results", {"status": "pending", "limit": str(limit)})
+    return data.get("results", [])
 
 
-def run_claude_critique(skill: str, result_data: dict) -> dict | None:
-    """Run Claude Opus scientific critique."""
-    try:
-        from reviewer.claude_reviewer import ClaudeReviewer
-        reviewer = ClaudeReviewer()
-        return reviewer.critique(pipeline_name=skill, result_data=result_data)
-    except Exception as e:
-        logger.error("Claude critique failed: %s", e)
-        return None
-
-
-def run_grok_review(skill: str, result_data: dict) -> dict | None:
-    """Run Grok literature review."""
+def run_grok_verification(skill: str, result_data: dict, local_critique: dict) -> dict | None:
+    """Run Grok batch verification — validates local_critique against result_data."""
     try:
         from reviewer.grok_reviewer import GrokReviewer
-        reviewer = GrokReviewer()
-        return reviewer.review_literature(pipeline_name=skill, result_data=result_data)
-    except Exception as e:
-        logger.error("Grok review failed: %s", e)
-        return None
+        grok = GrokReviewer()
 
-
-def publish_critique(result_id: str, reviewer_name: str, critique: dict) -> str | None:
-    """Publish a critique to the ingest worker (R2 + D1)."""
-    overall_score = critique.get("overall_score")
-    if overall_score is None:
-        overall_score = critique.get("literature_score")
-
-    recommendation = critique.get("recommendation")
-    if recommendation is None:
-        confidence = critique.get("confidence_in_finding", "low")
-        recommendation = {"high": "publish", "medium": "revise", "low": "reject"}.get(
-            confidence, "revise"
+        # Verification prompt is shorter than full critique
+        verification_prompt = (
+            f"A contributor submitted a {skill} result with a local Grok review.\n"
+            f"Verify the local review is honest and the data supports the conclusions.\n\n"
+            f"Result:\n```json\n{json.dumps(result_data, indent=2, default=str)}\n```\n\n"
+            f"Local Grok Review:\n```json\n{json.dumps(local_critique, indent=2, default=str)}\n```\n\n"
+            "Return JSON:\n"
+            '{"verification_score": 0-10, "recommendation": "publish"|"revise"|"reject", '
+            '"flags": ["list of concerns if any"], "summary": "brief assessment"}'
         )
 
-    payload = {
-        "result_id": result_id,
-        "reviewer": reviewer_name,
-        "overall_score": overall_score,
-        "recommendation": recommendation,
-        "critique_data": critique,
-    }
+        response = grok.client.chat.completions.create(
+            model=grok.model,
+            temperature=0.0,
+            max_tokens=2048,
+            messages=[
+                {"role": "system", "content": (
+                    "You are a verification reviewer. A contributor ran a local Grok critique "
+                    "on their own result. Your job is to verify: (1) the local critique appears "
+                    "genuine and not fabricated, (2) the result data supports the stated conclusions, "
+                    "(3) there are no red flags. Return a concise JSON verification."
+                )},
+                {"role": "user", "content": verification_prompt},
+            ],
+        )
 
-    try:
-        resp = api_post("/critiques", payload)
-        return resp.get("id")
+        response_text = response.choices[0].message.content
+
+        if "```json" in response_text:
+            json_str = response_text.split("```json")[1].split("```")[0]
+        elif "```" in response_text:
+            json_str = response_text.split("```")[1].split("```")[0]
+        else:
+            json_str = response_text
+
+        return json.loads(json_str)
     except Exception as e:
-        logger.error("Failed to publish critique for %s: %s", result_id, e)
+        logger.error("Grok verification failed: %s", e)
         return None
 
 
-def sweep_once(limit: int = 50, reviewer_filter: str | None = None, contributor_id: str | None = None) -> int:
-    """Run one sweep pass. Returns number of critiques published."""
-    if contributor_id:
-        logger.info("Fetching unreviewed results (limit=%d, contributor=%s...)...", limit, contributor_id[:8])
-    else:
-        logger.info("Fetching ALL unreviewed results (limit=%d, --all mode)...", limit)
-    unreviewed = get_unreviewed_results(limit=limit, contributor_id=contributor_id)
+def sweep_once(limit: int = 50) -> dict:
+    """Run one verification sweep. Returns counts of actions taken."""
+    logger.info("Fetching pending results (limit=%d)...", limit)
+    pending = get_pending_results(limit=limit)
 
-    if not unreviewed:
-        logger.info("No unreviewed results found.")
-        return 0
+    if not pending:
+        logger.info("No pending results found.")
+        return {"published": 0, "blocked": 0, "deferred": 0, "errors": 0}
 
-    logger.info("Found %d unreviewed result(s)", len(unreviewed))
-    published = 0
+    logger.info("Found %d pending result(s)", len(pending))
+    counts = {"published": 0, "blocked": 0, "deferred": 0, "errors": 0}
 
-    for result in unreviewed:
+    for result in pending:
         result_id = result["id"]
         skill = result.get("skill", "unknown")
         r2_url = result.get("r2_url", "")
-        species = result.get("species", "human")
 
-        logger.info("Reviewing %s (skill=%s, species=%s)", result_id, skill, species)
+        logger.info("Verifying %s (skill=%s)", result_id, skill)
 
         # Fetch full result from R2
         full_result = fetch_r2_result(r2_url) if r2_url else None
-        result_data = full_result.get("result_data", {}) if full_result else {}
+        if not full_result:
+            logger.warning("Skipping %s — could not fetch R2 object", result_id)
+            counts["errors"] += 1
+            continue
+
+        result_data = full_result.get("result_data", {})
+        local_critique = full_result.get("local_critique", {})
 
         if not result_data:
             logger.warning("Skipping %s — empty result_data", result_id)
+            counts["errors"] += 1
             continue
 
-        # Run Claude critique
-        if reviewer_filter in (None, "claude"):
-            claude_crit = run_claude_critique(skill, result_data)
-            if claude_crit:
-                cid = publish_critique(result_id, "claude_opus", claude_crit)
-                if cid:
-                    logger.info("  Claude critique published: %s (score=%s, rec=%s)",
-                                cid, claude_crit.get("overall_score"), claude_crit.get("recommendation"))
-                    published += 1
+        # Run verification
+        verification = run_grok_verification(skill, result_data, local_critique)
+        if not verification:
+            counts["errors"] += 1
+            continue
 
-        # Run Grok literature review
-        if reviewer_filter in (None, "grok"):
-            grok_rev = run_grok_review(skill, result_data)
-            if grok_rev:
-                cid = publish_critique(result_id, "grok_literature", grok_rev)
-                if cid:
-                    logger.info("  Grok review published: %s (score=%s, confidence=%s)",
-                                cid, grok_rev.get("literature_score"), grok_rev.get("confidence_in_finding"))
-                    published += 1
+        score = verification.get("verification_score", 0)
+        rec = verification.get("recommendation", "revise")
 
-    return published
+        # Decide action based on thresholds
+        if score >= PUBLISH_THRESHOLD and rec == "publish":
+            action = "published"
+        elif score < REJECT_THRESHOLD or rec == "reject":
+            action = "blocked"
+        else:
+            # Borderline — leave as pending for manual review
+            logger.info("  Deferred %s (score=%.1f, rec=%s) — borderline", result_id, score, rec)
+            counts["deferred"] += 1
+            continue
+
+        # PATCH the result status
+        try:
+            api_patch(f"/results/{result_id}", {
+                "status": action,
+                "batch_critique": verification,
+            })
+            logger.info("  %s %s (score=%.1f, rec=%s)", action.upper(), result_id, score, rec)
+            counts[action] += 1
+        except Exception as e:
+            logger.error("  PATCH failed for %s: %s", result_id, e)
+            counts["errors"] += 1
+
+    return counts
 
 
 def main():
-    parser = argparse.ArgumentParser(description="OpenCure Labs — Reviewer Sweep")
-    parser.add_argument("--watch", action="store_true", help="Continuous mode: poll every 60s")
-    parser.add_argument("--limit", type=int, default=50, help="Max results to review per sweep")
-    parser.add_argument("--reviewer", choices=["claude", "grok"], help="Only run one reviewer")
-    parser.add_argument("--interval", type=int, default=60, help="Poll interval in seconds (watch mode)")
-    parser.add_argument("--all", action="store_true", help="Sweep ALL contributors (default: this machine only)")
-    args = parser.parse_args()
+    if not ADMIN_KEY:
+        logger.error("OPENCURELABS_ADMIN_KEY not set — cannot PATCH results")
+        sys.exit(1)
 
-    contributor_id: str | None = None
-    if not args.all:
-        contributor_id = _get_contributor_id()
-        if contributor_id:
-            logger.info("Sweeping results for this machine: %s...", contributor_id[:8])
-        else:
-            logger.warning("No contributor_id found at %s — sweeping all results", _CONTRIBUTOR_ID_PATH)
+    parser = argparse.ArgumentParser(description="OpenCure Labs — Batch Verification Sweep")
+    parser.add_argument("--watch", action="store_true", help="Continuous mode: poll every 60s")
+    parser.add_argument("--limit", type=int, default=50, help="Max results to verify per sweep")
+    parser.add_argument("--interval", type=int, default=60, help="Poll interval in seconds (watch mode)")
+    args = parser.parse_args()
 
     while True:
         try:
-            count = sweep_once(limit=args.limit, reviewer_filter=args.reviewer, contributor_id=contributor_id)
-            logger.info("Sweep complete: %d critique(s) published", count)
+            counts = sweep_once(limit=args.limit)
+            logger.info(
+                "Sweep complete: %d published, %d blocked, %d deferred, %d errors",
+                counts["published"], counts["blocked"], counts["deferred"], counts["errors"],
+            )
         except Exception as e:
             logger.error("Sweep error: %s", e)
 

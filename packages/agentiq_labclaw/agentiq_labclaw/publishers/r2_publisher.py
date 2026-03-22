@@ -1,8 +1,11 @@
 """Cloudflare R2 universal result publisher.
 
-Posts results to the OpenCure Labs ingest Worker, which writes the full object
-to R2 and indexes a row in D1. Users only need OPENCURELABS_INGEST_URL in
-their .env — no cloud credentials are required or distributed.
+Posts signed results to the OpenCure Labs ingest Worker, which verifies the
+Ed25519 signature, writes the full object to R2, and indexes a row in D1.
+
+Users need OPENCURELABS_INGEST_URL in their .env — no cloud credentials are
+required or distributed. An Ed25519 keypair is generated on first use and
+stored at ~/.opencurelabs/signing_key.
 
 Contributor ID:
     Generated on first use as a UUID4 and stored in ~/.opencurelabs/contributor_id.
@@ -16,6 +19,8 @@ import uuid
 from pathlib import Path
 
 import requests
+
+from agentiq_labclaw.publishers.signing import get_or_create_keypair, sign_payload
 
 logger = logging.getLogger("labclaw.publishers.r2")
 
@@ -54,7 +59,7 @@ def _extract_species(result_data: dict) -> str:
 
 
 class R2Publisher:
-    """Publishes results to OpenCure Labs' global R2 dataset via the ingest Worker.
+    """Publishes signed results to OpenCure Labs' global R2 dataset via the ingest Worker.
 
     Silently no-ops when OPENCURELABS_INGEST_URL is not set, so Postgres-only
     deployments are unaffected.
@@ -63,6 +68,8 @@ class R2Publisher:
     def __init__(self) -> None:
         self.ingest_url = os.environ.get(_ENV_INGEST_URL, "").rstrip("/")
         self._contributor_id: str | None = None
+        self._signing_key = None
+        self._verify_key_hex: str | None = None
 
     @property
     def enabled(self) -> bool:
@@ -74,19 +81,26 @@ class R2Publisher:
             self._contributor_id = _get_contributor_id()
         return self._contributor_id
 
+    def _ensure_keypair(self) -> None:
+        if self._signing_key is None:
+            self._signing_key, self._verify_key_hex = get_or_create_keypair()
+
     def publish_result(
         self,
         skill_name: str,
         result_data: dict,
         novel: bool = False,
-        status: str = "published",
+        status: str = "pending",
+        local_critique: dict | None = None,
     ) -> dict | None:
-        """POST a result to the ingest Worker.
+        """POST a signed result to the ingest Worker.
 
         Returns {id, url} on success, None if disabled or on error.
         """
         if not self.ingest_url:
             return None
+
+        self._ensure_keypair()
 
         payload = {
             "skill": skill_name,
@@ -97,15 +111,43 @@ class R2Publisher:
             "species": _extract_species(result_data),
             "summary": _extract_summary(result_data),
         }
+        if local_critique:
+            payload["local_critique"] = local_critique
+
+        signature = sign_payload(self._signing_key, payload)
+        headers = {
+            "X-Contributor-Key": self._verify_key_hex,
+            "X-Signature": signature,
+        }
+
+        url = f"{self.ingest_url}/results" if not self.ingest_url.endswith("/results") else self.ingest_url
 
         try:
-            resp = requests.post(
-                f"{self.ingest_url}/results" if not self.ingest_url.endswith("/results") else self.ingest_url,
-                json=payload,
-                timeout=15,
-            )
+            resp = requests.post(url, json=payload, headers=headers, timeout=15)
+
+            # Auto-register on first contribution (401 = unknown contributor)
+            if resp.status_code == 401:
+                self._register_contributor()
+                resp = requests.post(url, json=payload, headers=headers, timeout=15)
+
             resp.raise_for_status()
             return resp.json()
         except requests.RequestException as e:
             logger.warning("R2 publish failed (result not lost — still stored locally): %s", e)
             return None
+
+    def _register_contributor(self) -> None:
+        """Register this contributor's public key with the ingest Worker."""
+        try:
+            resp = requests.post(
+                f"{self.ingest_url}/contributors",
+                json={
+                    "contributor_id": self.contributor_id,
+                    "public_key": self._verify_key_hex,
+                },
+                timeout=15,
+            )
+            resp.raise_for_status()
+            logger.info("Registered new contributor key. Results will appear after review.")
+        except requests.RequestException as e:
+            logger.warning("Contributor registration failed: %s", e)

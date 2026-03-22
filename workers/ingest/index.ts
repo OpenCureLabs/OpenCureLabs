@@ -1,17 +1,26 @@
 /**
  * OpenCure Labs — Ingest Worker
  *
- * POST /results  — accepts a result payload from a user's CLI, validates it,
- *                  writes the full object to R2, indexes a row in D1, and
- *                  updates the rolling latest.json feed.
+ * POST /results       — accepts a signed result payload, verifies Ed25519 signature,
+ *                       writes the full object to R2, indexes a row in D1 as 'pending'.
  *
- * GET  /results  — queries D1 with optional ?skill= &date= &novel= &limit= filters.
- *                  contributor_id is stripped from responses (admin-only field).
+ * GET  /results       — queries D1 with optional filters. Default: published results only.
+ *                       ?status=pending available for batch sweep.
+ *
+ * PATCH /results/:id  — admin-only: update result status (published/blocked) after review.
+ *
+ * POST /contributors  — register a contributor's Ed25519 public key.
+ *
+ * GET  /contributors  — admin-only: list registered contributors.
+ *
+ * POST /critiques     — attach a critique to a result.
+ * GET  /critiques     — query critiques.
  *
  * Storage:
  *   R2  → results/{skill}/{YYYY-MM-DD}/{uuid}.json   (immutable blobs)
- *   R2  → latest.json                                (rolling feed, 100 entries)
+ *   R2  → latest.json                                (rolling feed, 100 published entries)
  *   D1  → results table                              (queryable index)
+ *   D1  → contributors table                         (public key registry)
  */
 
 const KNOWN_SKILLS = [
@@ -29,13 +38,14 @@ const PUBLIC_BASE_URL = "https://pub.opencurelabs.ai";
 
 const CORS_HEADERS: Record<string, string> = {
     "Access-Control-Allow-Origin": "*",
-    "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
-    "Access-Control-Allow-Headers": "Content-Type",
+    "Access-Control-Allow-Methods": "GET, POST, PATCH, OPTIONS",
+    "Access-Control-Allow-Headers": "Content-Type, X-Contributor-Key, X-Signature, X-Admin-Key",
 };
 
 interface Env {
     RESULTS_BUCKET: R2Bucket;
     RESULTS_DB: D1Database;
+    ADMIN_KEY?: string;
 }
 
 interface IngestPayload {
@@ -45,6 +55,7 @@ interface IngestPayload {
     status?: string;
     contributor_id?: string;
     species?: string;
+    local_critique?: unknown;
     summary?: {
         confidence_score?: number;
         gene?: string;
@@ -80,6 +91,18 @@ export default {
             return handleGet(request, env);
         }
 
+        if (request.method === "PATCH" && url.pathname.startsWith("/results/")) {
+            return handlePatchResult(request, env);
+        }
+
+        if (request.method === "POST" && url.pathname === "/contributors") {
+            return handlePostContributor(request, env);
+        }
+
+        if (request.method === "GET" && url.pathname === "/contributors") {
+            return handleGetContributors(request, env);
+        }
+
         if (request.method === "POST" && url.pathname === "/critiques") {
             return handlePostCritique(request, env);
         }
@@ -92,15 +115,100 @@ export default {
     },
 };
 
+// ── Signature Verification ────────────────────────────────────────────────────
+
+function hexToBytes(hex: string): Uint8Array {
+    const bytes = new Uint8Array(hex.length / 2);
+    for (let i = 0; i < hex.length; i += 2) {
+        bytes[i / 2] = parseInt(hex.substring(i, i + 2), 16);
+    }
+    return bytes;
+}
+
+async function verifySignature(
+    publicKeyHex: string,
+    signatureB64: string,
+    payload: unknown
+): Promise<boolean> {
+    try {
+        const keyBytes = hexToBytes(publicKeyHex);
+        const key = await crypto.subtle.importKey(
+            "raw",
+            keyBytes,
+            { name: "Ed25519" },
+            false,
+            ["verify"]
+        );
+
+        const signatureBytes = Uint8Array.from(atob(signatureB64), (c) => c.charCodeAt(0));
+        const canonical = JSON.stringify(payload, Object.keys(payload as Record<string, unknown>).sort(), undefined);
+        // Match Python's separators=(",", ":") — no spaces
+        const canonicalCompact = canonicalJsonEncode(payload as Record<string, unknown>);
+        const payloadBytes = new TextEncoder().encode(canonicalCompact);
+
+        return await crypto.subtle.verify("Ed25519", key, signatureBytes, payloadBytes);
+    } catch {
+        return false;
+    }
+}
+
+/** Canonical JSON matching Python's json.dumps(obj, sort_keys=True, separators=(",", ":")) */
+function canonicalJsonEncode(obj: unknown): string {
+    if (obj === null || obj === undefined) return "null";
+    if (typeof obj === "boolean") return obj ? "true" : "false";
+    if (typeof obj === "number") return JSON.stringify(obj);
+    if (typeof obj === "string") return JSON.stringify(obj);
+    if (Array.isArray(obj)) {
+        return "[" + obj.map(canonicalJsonEncode).join(",") + "]";
+    }
+    if (typeof obj === "object") {
+        const keys = Object.keys(obj as Record<string, unknown>).sort();
+        const pairs = keys.map(
+            (k) => JSON.stringify(k) + ":" + canonicalJsonEncode((obj as Record<string, unknown>)[k])
+        );
+        return "{" + pairs.join(",") + "}";
+    }
+    return JSON.stringify(obj);
+}
+
 // ── POST /results ─────────────────────────────────────────────────────────────
 
 async function handlePost(request: Request, env: Env): Promise<Response> {
+    // Require signature headers
+    const contributorKey = request.headers.get("X-Contributor-Key");
+    const signature = request.headers.get("X-Signature");
+
+    if (!contributorKey || !signature) {
+        return json({ error: "Signature required. Set X-Contributor-Key and X-Signature headers." }, 401);
+    }
+
+    // Look up contributor
+    const contributor = await env.RESULTS_DB.prepare(
+        "SELECT contributor_id, status FROM contributors WHERE public_key = ?"
+    )
+        .bind(contributorKey)
+        .first<{ contributor_id: string; status: string }>();
+
+    if (!contributor) {
+        return json({ error: "Unknown contributor — POST to /contributors first" }, 401);
+    }
+
+    if (contributor.status === "banned") {
+        return json({ error: "Contributor suspended" }, 403);
+    }
+
     let payload: IngestPayload;
 
     try {
         payload = (await request.json()) as IngestPayload;
     } catch {
         return json({ error: "Invalid JSON body" }, 400);
+    }
+
+    // Verify Ed25519 signature
+    const valid = await verifySignature(contributorKey, signature, payload);
+    if (!valid) {
+        return json({ error: "Invalid signature" }, 403);
     }
 
     // Validate required fields
@@ -113,11 +221,17 @@ async function handlePost(request: Request, env: Env): Promise<Response> {
         return json({ error: `Unknown skill '${payload.skill}'. Valid skills: ${KNOWN_SKILLS.join(", ")}` }, 400);
     }
 
+    // Validate local_critique is present
+    if (!payload.local_critique) {
+        return json({ error: "Missing required field: local_critique (Grok review)" }, 400);
+    }
+
     const id = crypto.randomUUID();
     const now = new Date();
     const date = now.toISOString().split("T")[0];
     const createdAt = now.toISOString();
-    const status = payload.status || "published";
+    // All results start as pending — batch sweep publishes after verification
+    const status = "pending";
     const novel = payload.novel === true;
 
     const key = `results/${payload.skill}/${date}/${id}.json`;
@@ -128,7 +242,6 @@ async function handlePost(request: Request, env: Env): Promise<Response> {
     const confidenceScore =
         typeof resultData?.confidence_score === "number" ? resultData.confidence_score : null;
     const gene = typeof resultData?.gene === "string" ? resultData.gene : null;
-    // Species — prefer top-level payload field, fall back to result_data, default human
     const species =
         typeof payload.species === "string" && payload.species
             ? payload.species
@@ -136,7 +249,7 @@ async function handlePost(request: Request, env: Env): Promise<Response> {
                 ? (resultData.species as string)
                 : "human";
 
-    // Write full result object to R2
+    // Write full result object to R2 (includes local_critique)
     const resultObject = {
         id,
         skill: payload.skill,
@@ -145,6 +258,7 @@ async function handlePost(request: Request, env: Env): Promise<Response> {
         status,
         species,
         result_data: payload.result_data,
+        local_critique: payload.local_critique,
         created_at: createdAt,
     };
 
@@ -168,15 +282,12 @@ async function handlePost(request: Request, env: Env): Promise<Response> {
             species,
             confidenceScore,
             gene,
-            payload.contributor_id ?? null,
+            contributor.contributor_id,
             createdAt
         )
         .run();
 
-    // Update rolling latest.json
-    await updateLatest(env, { id, skill: payload.skill, date, novel, status, url: r2Url, species, confidence_score: confidenceScore, gene, created_at: createdAt });
-
-    return json({ id, url: r2Url }, 201);
+    return json({ id, url: r2Url, status: "pending" }, 201);
 }
 
 // ── GET /results ──────────────────────────────────────────────────────────────
@@ -186,11 +297,21 @@ async function handleGet(request: Request, env: Env): Promise<Response> {
     const skill = url.searchParams.get("skill");
     const date = url.searchParams.get("date");
     const novelParam = url.searchParams.get("novel");
+    const statusParam = url.searchParams.get("status");
     const limit = Math.min(parseInt(url.searchParams.get("limit") ?? "50", 10), 200);
 
     let query =
         "SELECT id, skill, date, novel, status, r2_url, species, confidence_score, gene, created_at FROM results WHERE 1=1";
     const bindings: (string | number)[] = [];
+
+    // Default to published results only (public-facing)
+    if (statusParam) {
+        query += " AND status = ?";
+        bindings.push(statusParam);
+    } else {
+        query += " AND status = ?";
+        bindings.push("published");
+    }
 
     if (skill) {
         query += " AND skill = ?";
@@ -209,11 +330,6 @@ async function handleGet(request: Request, env: Env): Promise<Response> {
         query += " AND species = ?";
         bindings.push(speciesParam);
     }
-    const contributorParam = url.searchParams.get("contributor_id");
-    if (contributorParam) {
-        query += " AND contributor_id = ?";
-        bindings.push(contributorParam);
-    }
 
     query += " ORDER BY created_at DESC LIMIT ?";
     bindings.push(limit);
@@ -223,6 +339,147 @@ async function handleGet(request: Request, env: Env): Promise<Response> {
         .all();
 
     return json({ results: result.results, count: result.results.length });
+}
+
+// ── PATCH /results/:id ────────────────────────────────────────────────────────
+
+async function handlePatchResult(request: Request, env: Env): Promise<Response> {
+    // Admin-only endpoint
+    const adminKey = request.headers.get("X-Admin-Key");
+    if (!env.ADMIN_KEY || adminKey !== env.ADMIN_KEY) {
+        return json({ error: "Unauthorized" }, 401);
+    }
+
+    const url = new URL(request.url);
+    const id = url.pathname.split("/results/")[1];
+    if (!id) {
+        return json({ error: "Missing result ID" }, 400);
+    }
+
+    let body: { status: string; batch_critique?: unknown };
+    try {
+        body = (await request.json()) as { status: string; batch_critique?: unknown };
+    } catch {
+        return json({ error: "Invalid JSON body" }, 400);
+    }
+
+    if (!body.status || !["published", "blocked"].includes(body.status)) {
+        return json({ error: "status must be 'published' or 'blocked'" }, 400);
+    }
+
+    // Update D1
+    const now = new Date().toISOString();
+    await env.RESULTS_DB.prepare(
+        "UPDATE results SET status = ?, reviewed_at = ? WHERE id = ?"
+    )
+        .bind(body.status, now, id)
+        .run();
+
+    // If batch_critique provided, append to R2 object
+    if (body.batch_critique) {
+        const row = await env.RESULTS_DB.prepare("SELECT r2_url, skill, date FROM results WHERE id = ?")
+            .bind(id)
+            .first<{ r2_url: string; skill: string; date: string }>();
+
+        if (row) {
+            const key = `results/${row.skill}/${row.date}/${id}.json`;
+            const existing = await env.RESULTS_BUCKET.get(key);
+            if (existing) {
+                const obj = JSON.parse(await existing.text());
+                obj.status = body.status;
+                obj.batch_critique = body.batch_critique;
+                obj.reviewed_at = now;
+                await env.RESULTS_BUCKET.put(key, JSON.stringify(obj, null, 2), {
+                    httpMetadata: { contentType: "application/json" },
+                });
+            }
+        }
+    }
+
+    // If published, update latest.json feed
+    if (body.status === "published") {
+        const row = await env.RESULTS_DB.prepare(
+            "SELECT id, skill, date, novel, status, r2_url, species, confidence_score, gene, created_at FROM results WHERE id = ?"
+        )
+            .bind(id)
+            .first<LatestEntry & { r2_url: string }>();
+
+        if (row) {
+            await updateLatest(env, {
+                id: row.id,
+                skill: row.skill,
+                date: row.date,
+                novel: !!row.novel,
+                status: "published",
+                url: row.r2_url,
+                species: row.species,
+                confidence_score: row.confidence_score,
+                gene: row.gene,
+                created_at: row.created_at,
+            });
+        }
+    }
+
+    return json({ id, status: body.status, reviewed_at: now });
+}
+
+// ── POST /contributors ────────────────────────────────────────────────────────
+
+async function handlePostContributor(request: Request, env: Env): Promise<Response> {
+    let body: { contributor_id: string; public_key: string };
+    try {
+        body = (await request.json()) as { contributor_id: string; public_key: string };
+    } catch {
+        return json({ error: "Invalid JSON body" }, 400);
+    }
+
+    if (!body.contributor_id || !body.public_key) {
+        return json({ error: "Missing required fields: contributor_id, public_key" }, 400);
+    }
+
+    // Validate public_key is 64 hex chars (32 bytes)
+    if (!/^[0-9a-f]{64}$/i.test(body.public_key)) {
+        return json({ error: "public_key must be a 64-character hex string (32-byte Ed25519 key)" }, 400);
+    }
+
+    const now = new Date().toISOString();
+
+    try {
+        await env.RESULTS_DB.prepare(
+            `INSERT INTO contributors (contributor_id, public_key, status, created_at)
+             VALUES (?, ?, 'active', ?)`
+        )
+            .bind(body.contributor_id, body.public_key.toLowerCase(), now)
+            .run();
+    } catch (e: unknown) {
+        const msg = e instanceof Error ? e.message : String(e);
+        if (msg.includes("UNIQUE") || msg.includes("constraint")) {
+            return json({ error: "Contributor or key already registered" }, 409);
+        }
+        throw e;
+    }
+
+    return json({ contributor_id: body.contributor_id, status: "active" }, 201);
+}
+
+// ── GET /contributors ─────────────────────────────────────────────────────────
+
+async function handleGetContributors(request: Request, env: Env): Promise<Response> {
+    const adminKey = request.headers.get("X-Admin-Key");
+    if (!env.ADMIN_KEY || adminKey !== env.ADMIN_KEY) {
+        return json({ error: "Unauthorized" }, 401);
+    }
+
+    const rows = await env.RESULTS_DB.prepare(
+        `SELECT c.contributor_id, c.public_key, c.status, c.created_at,
+                COUNT(r.id) as result_count
+         FROM contributors c
+         LEFT JOIN results r ON r.contributor_id = c.contributor_id
+         GROUP BY c.contributor_id
+         ORDER BY c.created_at DESC`
+    ).all();
+
+    return json({ contributors: rows.results, count: rows.results.length });
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────────

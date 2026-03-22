@@ -84,7 +84,7 @@ class TestPostExecuteReviewer:
     """Test the reviewer critique step."""
 
     @pytest.mark.asyncio
-    async def test_claude_critique_called_when_required(self):
+    async def test_grok_critique_called_when_required(self):
         from agentiq_labclaw.orchestrator import post_execute, _get_config
 
         if hasattr(_get_config, '_cache'):
@@ -103,7 +103,7 @@ class TestPostExecuteReviewer:
             "scientific_logic": {"score": 8, "comments": "good"},
         }
 
-        with patch("reviewer.claude_reviewer.ClaudeReviewer.critique", return_value=mock_critique) as mock_claude, \
+        with patch("reviewer.grok_reviewer.GrokReviewer.critique", return_value=mock_critique), \
              patch("agentiq_labclaw.db.critique_log.log_critique", return_value=1), \
              patch("agentiq_labclaw.guardrails.safety_check.safety_check", return_value=(True, None)), \
              patch("agentiq_labclaw.publishers.pdf_publisher.PDFPublisher.generate_report", return_value="/tmp/test.pdf"), \
@@ -113,7 +113,7 @@ class TestPostExecuteReviewer:
 
         orch = result["orchestration"]
         assert len(orch["critiques"]) >= 1
-        assert orch["critiques"][0]["reviewer"] == "claude_opus"
+        assert orch["critiques"][0]["reviewer"] == "grok"
         assert orch["critiques"][0]["critique"]["overall_score"] == 8
 
     @pytest.mark.asyncio
@@ -133,7 +133,7 @@ class TestPostExecuteReviewer:
         mock_critique = {"overall_score": 9, "recommendation": "publish"}
         mock_lit = {"literature_score": 7, "confidence_in_finding": "high", "corroborating": []}
 
-        with patch("reviewer.claude_reviewer.ClaudeReviewer.critique", return_value=mock_critique), \
+        with patch("reviewer.grok_reviewer.GrokReviewer.critique", return_value=mock_critique), \
              patch("reviewer.grok_reviewer.GrokReviewer.review_literature", return_value=mock_lit), \
              patch("agentiq_labclaw.db.critique_log.log_critique", return_value=1), \
              patch("agentiq_labclaw.db.experiment_results.store_result", return_value=1), \
@@ -147,7 +147,7 @@ class TestPostExecuteReviewer:
         orch = result["orchestration"]
         critiques = orch["critiques"]
         reviewers = [c["reviewer"] for c in critiques if "reviewer" in c]
-        assert "claude_opus" in reviewers
+        assert "grok" in reviewers
         assert "grok_literature" in reviewers
 
 
@@ -169,8 +169,8 @@ class TestPostExecuteSafety:
         )
 
         # Safety check blocks because confidence < threshold and critique_required but not completed
-        # We skip Claude to trigger "critique required but not completed"
-        with patch("reviewer.claude_reviewer.ClaudeReviewer.critique", side_effect=Exception("API down")):
+        # We skip Grok to trigger "critique required but not completed"
+        with patch("reviewer.grok_reviewer.GrokReviewer.critique", side_effect=Exception("API down")):
             result = await post_execute("test_skill", output, run_id=None)
 
         orch = result["orchestration"]
