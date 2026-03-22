@@ -43,9 +43,9 @@ fi
 sanitize() {
     # Replace internal paths with generic placeholders
     sed \
-        -e 's|/root/opencurelabs|/path/to/opencurelabs|g' \
+        -e 's|/path/to/OpenCureLabs|/path/to/opencurelabs|g' \
         -e 's|postgresql://postgres:postgres@localhost:5433/opencurelabs|postgresql://user:pass@localhost:5432/opencurelabs|g' \
-        -e 's|https://vscode.dev/tunnel/opencure-wsl/root/opencurelabs|https://vscode.dev/tunnel/<host>/<path>|g'
+        -e 's|https://vscode.dev/tunnel/opencure-wsl/path/to/OpenCureLabs|https://vscode.dev/tunnel/<host>/<path>|g'
 }
 
 # ── Page mapping ─────────────────────────────────────────────────────────────

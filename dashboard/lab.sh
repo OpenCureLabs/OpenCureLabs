@@ -4,11 +4,11 @@
 #  Launches the full OpenCure Labs environment in a 6-pane Zellij session.
 #
 #  Usage:  ./dashboard/lab.sh          (from anywhere)
-#          bash /root/opencurelabs/dashboard/lab.sh
+#          bash dashboard/lab.sh
 # ──────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
-PROJECT="/root/opencurelabs"
+PROJECT="$(cd "$(dirname "$0")/.." && pwd)"
 SESSION="opencurelabs"
 LOGFILE="$PROJECT/logs/agent.log"
 ZELLIJ_CFG="$PROJECT/dashboard/zellij"
@@ -111,4 +111,4 @@ fi
 
 # ── Launch Zellij ────────────────────────────────────────────────────────────
 echo "[OpenCure Labs] Launching Zellij session '$SESSION'..."
-exec env ZELLIJ_CONFIG_DIR="$ZELLIJ_CFG" zellij -s "$SESSION"
+exec env ZELLIJ_CONFIG_DIR="$ZELLIJ_CFG" PROJECT_DIR="$PROJECT" zellij -s "$SESSION"

@@ -234,7 +234,7 @@ pub = DiscordPublisher()  # reads DISCORD_WEBHOOK_URL_AGENT_LOGS / _RESULTS from
 ```python
 from agentiq_labclaw.publishers.github_publisher import GitHubPublisher
 
-pub = GitHubPublisher(repo_path="/root/opencurelabs")
+pub = GitHubPublisher(repo_path="/path/to/OpenCureLabs")
 ```
 
 | Method | Parameters | Returns | Description |
@@ -251,7 +251,7 @@ pub = GitHubPublisher(repo_path="/root/opencurelabs")
 ```python
 from agentiq_labclaw.publishers.pdf_publisher import PDFPublisher
 
-pub = PDFPublisher(output_dir="/root/opencurelabs/reports/")
+pub = PDFPublisher(output_dir="/path/to/OpenCureLabs/reports/")
 path = pub.generate_report("Title", sections=[...], critique={...})
 ```
 
@@ -471,7 +471,7 @@ functions:
 **Default port:** 8787
 
 ```bash
-cd /root/opencurelabs
+cd /path/to/OpenCureLabs
 python dashboard/dashboard.py --port 8787 --host 127.0.0.1
 ```
 

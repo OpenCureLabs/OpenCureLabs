@@ -427,7 +427,7 @@ coordinator review.
 | `pipeline_run_id` | `int` | required | Pipeline run ID |
 | `sections` | `list[dict]` | required | Sections with heading, content, table, figures |
 | `critique_json` | `dict \| None` | `None` | Reviewer critique to append |
-| `output_dir` | `str` | `"/root/opencurelabs/reports/"` | Output directory |
+| `output_dir` | `str` | `"/path/to/OpenCureLabs/reports/"` | Output directory |
 
 ### Output: `ReportOutput`
 

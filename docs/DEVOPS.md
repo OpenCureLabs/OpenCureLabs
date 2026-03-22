@@ -162,7 +162,7 @@ environment.
 ### Access
 
 ```
-https://vscode.dev/tunnel/opencure-wsl/root/opencurelabs
+https://vscode.dev/tunnel/opencure-wsl/path/to/OpenCureLabs
 ```
 
 ### Service Management

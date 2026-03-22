@@ -190,7 +190,7 @@ publishers:
     webhook_url: ${DISCORD_WEBHOOK_URL}
   pdf:
     enabled: true
-    output_dir: /root/opencurelabs/reports/
+    output_dir: /path/to/OpenCureLabs/reports/
 ```
 
 ---
@@ -309,17 +309,17 @@ Vast.ai dispatch is handled by `agentiq_labclaw.compute.vast_dispatcher`, which 
 
 ```bash
 # Activate venv
-source /root/opencurelabs/.venv/bin/activate
+source /path/to/OpenCureLabs/.venv/bin/activate
 
 # Ensure PostgreSQL is running
 service postgresql start
 
 # Run the coordinator
-cd /root/opencurelabs
+cd /path/to/OpenCureLabs
 nat run --config_file coordinator/labclaw_workflow.yaml --input "your task here"
 
 # Run Grok researcher (from workspace/ only)
-cd /root/opencurelabs/workspace
+cd /path/to/OpenCureLabs/workspace
 grok --max-tool-rounds 200 --prompt "search bioRxiv for new neoantigen datasets this week"
 ```
 

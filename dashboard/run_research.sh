@@ -25,7 +25,7 @@ _on_error() {
 }
 trap '_on_error $LINENO' ERR
 
-PROJECT_DIR="/root/opencurelabs"
+PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 CONFIG="coordinator/labclaw_workflow.yaml"
 LOG="logs/agent.log"
 
@@ -181,11 +181,11 @@ offer_r2_contribution() {
             if gum spin --spinner dot --title "Publishing to global dataset..." -- \
                 python3 - <<'PYEOF' 2>/dev/null
 import sys, json, os
-sys.path.insert(0, os.environ.get('PROJECT_DIR', '/root/opencurelabs') + '/packages/agentiq_labclaw')
+sys.path.insert(0, os.environ['PROJECT_DIR'] + '/packages/agentiq_labclaw')
 os.environ['OPENCURELABS_MODE'] = 'contribute'
 from agentiq_labclaw.publishers.r2_publisher import R2Publisher
 import pathlib
-f = pathlib.Path(os.environ.get('PROJECT_DIR', '/root/opencurelabs')) / 'reports' / 'last_result.json'
+f = pathlib.Path(os.environ['PROJECT_DIR']) / 'reports' / 'last_result.json'
 data = json.loads(f.read_text())
 result = R2Publisher().publish_result(data['skill_name'], data['result'], novel=data['result'].get('novel', False), status='published')
 if result: print(result.get('url', ''))
@@ -207,11 +207,11 @@ PYEOF
                 echo "Publishing..."
                 PROJECT_DIR="$PROJECT_DIR" python3 - <<'PYEOF' 2>/dev/null
 import sys, json, os
-sys.path.insert(0, os.environ.get('PROJECT_DIR', '/root/opencurelabs') + '/packages/agentiq_labclaw')
+sys.path.insert(0, os.environ['PROJECT_DIR'] + '/packages/agentiq_labclaw')
 os.environ['OPENCURELABS_MODE'] = 'contribute'
 from agentiq_labclaw.publishers.r2_publisher import R2Publisher
 import pathlib
-f = pathlib.Path(os.environ.get('PROJECT_DIR', '/root/opencurelabs')) / 'reports' / 'last_result.json'
+f = pathlib.Path(os.environ['PROJECT_DIR']) / 'reports' / 'last_result.json'
 data = json.loads(f.read_text())
 result = R2Publisher().publish_result(data['skill_name'], data['result'], novel=data['result'].get('novel', False), status='published')
 if result: print('Published:', result.get('url', ''))

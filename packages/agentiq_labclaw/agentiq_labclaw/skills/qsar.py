@@ -9,7 +9,13 @@ from agentiq_labclaw.base import LabClawSkill, labclaw_skill
 
 logger = logging.getLogger("labclaw.skills.qsar")
 
-MODELS_DIR = Path("/root/opencurelabs/reports/qsar_models")
+
+def _project_root() -> Path:
+    import os
+    return Path(os.environ.get("OPENCURELABS_ROOT", str(Path(__file__).resolve().parents[3])))
+
+
+MODELS_DIR = _project_root() / "reports" / "qsar_models"
 
 # Descriptor names — functions resolved lazily so module loads without rdkit
 _DESCRIPTOR_NAMES = [

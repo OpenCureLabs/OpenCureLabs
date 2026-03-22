@@ -10,7 +10,10 @@ logger = logging.getLogger("labclaw.publishers.github")
 class GitHubPublisher:
     """Commits and pushes results to the OpenCure Labs GitHub repository."""
 
-    def __init__(self, repo_path: str = "/root/opencurelabs"):
+    def __init__(self, repo_path: str | None = None):
+        if repo_path is None:
+            import os
+            repo_path = os.environ.get("OPENCURELABS_ROOT", str(Path(__file__).resolve().parents[3]))
         self.repo_path = Path(repo_path)
 
     def commit_and_push(self, files: list[str], message: str, branch: str = "main") -> bool:

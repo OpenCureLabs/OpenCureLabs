@@ -8,7 +8,7 @@ set -euo pipefail
 # Load API key from .env
 VAST_KEY="${VAST_AI_KEY:-}"
 if [[ -z "$VAST_KEY" ]]; then
-    ENV_FILE="${1:-/root/opencurelabs/.env}"
+    ENV_FILE="${1:-$(cd "$(dirname "$0")/.." && pwd)/.env}"
     if [[ -f "$ENV_FILE" ]]; then
         VAST_KEY=$(grep -E '^VAST_AI_KEY=' "$ENV_FILE" 2>/dev/null | cut -d= -f2- | tr -d '"' || true)
     fi

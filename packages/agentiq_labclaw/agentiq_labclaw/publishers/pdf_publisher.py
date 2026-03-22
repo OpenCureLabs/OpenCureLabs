@@ -14,10 +14,19 @@ from reportlab.platypus import Paragraph, SimpleDocTemplate, Spacer
 logger = logging.getLogger("labclaw.publishers.pdf")
 
 
+def _default_reports_dir() -> str:
+    """Resolve the default reports directory from project root."""
+    import os
+    root = os.environ.get("OPENCURELABS_ROOT", str(Path(__file__).resolve().parents[3]))
+    return str(Path(root) / "reports")
+
+
 class PDFPublisher:
     """Generates PDF reports from pipeline results."""
 
-    def __init__(self, output_dir: str = "/root/opencurelabs/reports/"):
+    def __init__(self, output_dir: str | None = None):
+        if output_dir is None:
+            output_dir = _default_reports_dir()
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
 

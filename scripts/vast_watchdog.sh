@@ -5,11 +5,13 @@
 # Runs via cron every 3 minutes.  If no batch_dispatcher / nat run process is
 # alive but Vast.ai instances still exist, destroys them all and logs the event.
 #
-# Install:  crontab -e  →  */3 * * * * /root/opencurelabs/scripts/vast_watchdog.sh
+# Install:  crontab -e  →  */3 * * * * /path/to/opencurelabs/scripts/vast_watchdog.sh
 # ─────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
-LOGFILE="/root/opencurelabs/logs/watchdog.log"
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+LOGFILE="$PROJECT_DIR/logs/watchdog.log"
 DB_PORT=5433
 DB_NAME="opencurelabs"
 

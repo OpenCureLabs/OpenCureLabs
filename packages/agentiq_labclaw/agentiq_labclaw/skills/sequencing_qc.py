@@ -14,7 +14,13 @@ from agentiq_labclaw.species import get_species
 
 logger = logging.getLogger("labclaw.skills.sequencing_qc")
 
-REPORTS_DIR = Path("/root/opencurelabs/reports/qc")
+
+def _project_root() -> Path:
+    import os
+    return Path(os.environ.get("OPENCURELABS_ROOT", str(Path(__file__).resolve().parents[3])))
+
+
+REPORTS_DIR = _project_root() / "reports" / "qc"
 
 # QC thresholds (based on common NGS standards)
 MIN_MEAN_QUALITY = 20.0

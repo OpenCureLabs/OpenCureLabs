@@ -434,7 +434,7 @@ when Grok finds a new dataset, it calls this skill to write to
 ## Folder Structure
 
 ```
-/root/opencurelabs/
+/path/to/OpenCureLabs/
 ├── agents/              # Specialist agent YAML configs
 │   ├── cancer_agent.yaml
 │   ├── rare_disease_agent.yaml

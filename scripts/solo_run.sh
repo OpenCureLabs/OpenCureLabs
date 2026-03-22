@@ -16,7 +16,7 @@
 # ──────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
-PROJECT_DIR="/root/opencurelabs"
+PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 CONFIG="coordinator/labclaw_workflow.yaml"
 LOG="logs/solo_run.log"
 
@@ -108,10 +108,10 @@ offer_r2_contribution() {
             gum spin --spinner dot --title "Publishing to global dataset..." -- \
                 PROJECT_DIR="$PROJECT_DIR" python3 - <<'PYEOF' 2>/dev/null
 import sys, json, os, pathlib
-sys.path.insert(0, os.environ.get('PROJECT_DIR', '/root/opencurelabs') + '/packages/agentiq_labclaw')
+sys.path.insert(0, os.environ['PROJECT_DIR'] + '/packages/agentiq_labclaw')
 os.environ['OPENCURELABS_MODE'] = 'contribute'
 from agentiq_labclaw.publishers.r2_publisher import R2Publisher
-f = pathlib.Path(os.environ.get('PROJECT_DIR', '/root/opencurelabs')) / 'reports' / 'last_result.json'
+f = pathlib.Path(os.environ['PROJECT_DIR']) / 'reports' / 'last_result.json'
 data = json.loads(f.read_text())
 result = R2Publisher().publish_result(
     data['skill_name'], data['result'],
@@ -134,10 +134,10 @@ PYEOF
                 echo "Publishing..."
                 PROJECT_DIR="$PROJECT_DIR" python3 - <<'PYEOF' 2>/dev/null
 import sys, json, os, pathlib
-sys.path.insert(0, os.environ.get('PROJECT_DIR', '/root/opencurelabs') + '/packages/agentiq_labclaw')
+sys.path.insert(0, os.environ['PROJECT_DIR'] + '/packages/agentiq_labclaw')
 os.environ['OPENCURELABS_MODE'] = 'contribute'
 from agentiq_labclaw.publishers.r2_publisher import R2Publisher
-f = pathlib.Path(os.environ.get('PROJECT_DIR', '/root/opencurelabs')) / 'reports' / 'last_result.json'
+f = pathlib.Path(os.environ['PROJECT_DIR']) / 'reports' / 'last_result.json'
 data = json.loads(f.read_text())
 result = R2Publisher().publish_result(
     data['skill_name'], data['result'],

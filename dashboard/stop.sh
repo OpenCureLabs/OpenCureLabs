@@ -8,7 +8,7 @@
 # ──────────────────────────────────────────────────────────────────────────────
 set -uo pipefail
 
-PROJECT="/root/opencurelabs"
+PROJECT="$(cd "$(dirname "$0")/.." && pwd)"
 SESSION="opencurelabs"
 PRE_QUIT=false
 

@@ -9,7 +9,7 @@
 # ──────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
-PROJECT_DIR="/root/opencurelabs"
+PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$PROJECT_DIR"
 
 # Source .env for API keys

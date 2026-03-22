@@ -26,7 +26,7 @@ layout {
         children
         // Help bar at bottom — shows OpenCure Labs shortcuts
         pane size=1 borderless=true command="bash" {
-            args "/root/opencurelabs/dashboard/zellij/helpbar.sh"
+            args "-c" "bash $PROJECT_DIR/dashboard/zellij/helpbar.sh"
         }
     }
 
@@ -35,16 +35,16 @@ layout {
         // Row 1: COORDINATOR | GROK
         pane split_direction="vertical" size="33%" {
             pane name="COORDINATOR" focus=true command="bash" {
-                args "-c" "cd /root/opencurelabs && source .venv/bin/activate 2>/dev/null; clear; echo '── COORDINATOR ──'; echo 'Run research pipelines from here.'; echo ''; echo 'Press Alt+s to open the guided research menu.'; echo ''; echo 'Or run manually:'; echo '  nat run --config_file coordinator/labclaw_workflow.yaml --input \"your task\"'; echo ''; exec bash"
+                args "-c" "cd $PROJECT_DIR && source .venv/bin/activate 2>/dev/null; clear; echo '── COORDINATOR ──'; echo 'Run research pipelines from here.'; echo ''; echo 'Press Alt+s to open the guided research menu.'; echo ''; echo 'Or run manually:'; echo '  nat run --config_file coordinator/labclaw_workflow.yaml --input \"your task\"'; echo ''; exec bash"
             }
             pane name="GROK" command="bash" {
-                args "-c" "cd /root/opencurelabs/workspace && clear; echo '── GROK ── workspace ready'; exec bash"
+                args "-c" "cd $PROJECT_DIR/workspace && clear; echo '── GROK ── workspace ready'; exec bash"
             }
         }
         // Row 2: LOGS | POSTGRES
         pane split_direction="vertical" size="33%" {
             pane name="LOGS" command="bash" {
-                args "-c" "touch /root/opencurelabs/logs/agent.log && tail -f /root/opencurelabs/logs/agent.log"
+                args "-c" "touch $PROJECT_DIR/logs/agent.log && tail -f $PROJECT_DIR/logs/agent.log"
             }
             pane name="POSTGRES" command="bash" {
                 args "-c" "watch -n 5 'psql -p 5433 -d opencurelabs -c \"SELECT id, agent_name, status, started_at FROM agent_runs ORDER BY started_at DESC LIMIT 10;\" 2>/dev/null || echo \"PostgreSQL not available on port 5433\"'"
@@ -53,10 +53,10 @@ layout {
         // Row 3: DASHBOARD | SHELL
         pane split_direction="vertical" size="34%" {
             pane name="DASHBOARD" command="bash" {
-                args "-c" "cd /root/opencurelabs && source .venv/bin/activate 2>/dev/null && python3 dashboard/findings.py --watch"
+                args "-c" "cd $PROJECT_DIR && source .venv/bin/activate 2>/dev/null && python3 dashboard/findings.py --watch"
             }
             pane name="SHELL" command="bash" {
-                args "-c" "cd /root/opencurelabs && source .venv/bin/activate 2>/dev/null; clear; echo '── SHELL ── general purpose'; exec bash"
+                args "-c" "cd $PROJECT_DIR && source .venv/bin/activate 2>/dev/null; clear; echo '── SHELL ── general purpose'; exec bash"
             }
         }
     }
@@ -65,18 +65,18 @@ layout {
     tab name="Agents" {
         pane split_direction="vertical" size="50%" {
             pane name="AGENT CONFIGS" command="bash" {
-                args "-c" "cd /root/opencurelabs && clear; echo '── AGENT CONFIGS ──'; echo; ls -la agents/*.yaml; echo; echo 'Use: cat agents/<name>.yaml to inspect'; exec bash"
+                args "-c" "cd $PROJECT_DIR && clear; echo '── AGENT CONFIGS ──'; echo; ls -la agents/*.yaml; echo; echo 'Use: cat agents/<name>.yaml to inspect'; exec bash"
             }
             pane name="SKILLS" command="bash" {
-                args "-c" "cd /root/opencurelabs && clear; echo '── SKILLS ──'; echo; ls -la skills/ 2>/dev/null || echo 'No skills yet'; echo; ls -la pipelines/ 2>/dev/null || echo 'No pipelines yet'; exec bash"
+                args "-c" "cd $PROJECT_DIR && clear; echo '── SKILLS ──'; echo; ls -la skills/ 2>/dev/null || echo 'No skills yet'; echo; ls -la pipelines/ 2>/dev/null || echo 'No pipelines yet'; exec bash"
             }
         }
         pane split_direction="vertical" size="50%" {
             pane name="RUNNER" command="bash" {
-                args "-c" "cd /root/opencurelabs && source .venv/bin/activate 2>/dev/null; clear; echo '── AGENT RUNNER ──'; echo 'Run: nat run --config_file coordinator/labclaw_workflow.yaml --input \"task\"'; exec bash"
+                args "-c" "cd $PROJECT_DIR && source .venv/bin/activate 2>/dev/null; clear; echo '── AGENT RUNNER ──'; echo 'Run: nat run --config_file coordinator/labclaw_workflow.yaml --input \"task\"'; exec bash"
             }
             pane name="REVIEWER" command="bash" {
-                args "-c" "cd /root/opencurelabs && source .venv/bin/activate 2>/dev/null; clear; echo '── REVIEWER SWEEP ──'; echo 'Claude Opus (critic) + Grok (literature) — polling every 60s'; echo ''; python3 reviewer/sweep.py --watch --interval 60; echo ''; echo 'Sweep exited. Press Enter to restart.'; read; exec bash"
+                args "-c" "cd $PROJECT_DIR && source .venv/bin/activate 2>/dev/null; clear; echo '── REVIEWER SWEEP ──'; echo 'Claude Opus (critic) + Grok (literature) — polling every 60s'; echo ''; python3 reviewer/sweep.py --watch --interval 60; echo ''; echo 'Sweep exited. Press Enter to restart.'; read; exec bash"
             }
         }
     }
@@ -85,18 +85,18 @@ layout {
     tab name="Monitor" {
         pane split_direction="vertical" size="50%" {
             pane name="LIVE LOGS" command="bash" {
-                args "-c" "touch /root/opencurelabs/logs/agent.log && echo '── LIVE LOGS ──' && tail -f /root/opencurelabs/logs/agent.log"
+                args "-c" "touch $PROJECT_DIR/logs/agent.log && echo '── LIVE LOGS ──' && tail -f $PROJECT_DIR/logs/agent.log"
             }
             pane name="DASHBOARD LOG" command="bash" {
-                args "-c" "touch /root/opencurelabs/logs/dashboard.log && echo '── DASHBOARD LOG ──' && tail -f /root/opencurelabs/logs/dashboard.log"
+                args "-c" "touch $PROJECT_DIR/logs/dashboard.log && echo '── DASHBOARD LOG ──' && tail -f $PROJECT_DIR/logs/dashboard.log"
             }
         }
         pane split_direction="vertical" size="50%" {
             pane name="DB MONITOR" command="bash" {
-                args "-c" "watch -n 10 'echo \"── DB MONITOR ──\"; echo; psql -p 5433 -d opencurelabs -c \"SELECT COUNT(*) as runs FROM agent_runs;\" 2>/dev/null; psql -p 5433 -d opencurelabs -c \"SELECT COUNT(*) as findings FROM experiment_results;\" 2>/dev/null || echo \"DB unavailable\"; echo; source /root/opencurelabs/.env 2>/dev/null; bash /root/opencurelabs/dashboard/vast_status.sh'"
+                args "-c" "watch -n 10 'echo \"── DB MONITOR ──\"; echo; psql -p 5433 -d opencurelabs -c \"SELECT COUNT(*) as runs FROM agent_runs;\" 2>/dev/null; psql -p 5433 -d opencurelabs -c \"SELECT COUNT(*) as findings FROM experiment_results;\" 2>/dev/null || echo \"DB unavailable\"; echo; source $PROJECT_DIR/.env 2>/dev/null; bash $PROJECT_DIR/dashboard/vast_status.sh'"
             }
             pane name="SYSTEM" command="bash" {
-                args "-c" "cd /root/opencurelabs && clear; echo '── SYSTEM ──'; echo; echo 'Zellij:     '$(zellij --version); echo 'Python:     '$(python3 --version 2>/dev/null); echo 'PostgreSQL: '$(psql --version 2>/dev/null | head -1); echo 'Git branch: '$(git branch --show-current); echo; echo 'Disk:'; df -h / | tail -1; echo; echo 'GPU:'; nvidia-smi --query-gpu=name,memory.used,memory.total --format=csv,noheader 2>/dev/null || echo 'No GPU detected'; exec bash"
+                args "-c" "cd $PROJECT_DIR && clear; echo '── SYSTEM ──'; echo; echo 'Zellij:     '$(zellij --version); echo 'Python:     '$(python3 --version 2>/dev/null); echo 'PostgreSQL: '$(psql --version 2>/dev/null | head -1); echo 'Git branch: '$(git branch --show-current); echo; echo 'Disk:'; df -h / | tail -1; echo; echo 'GPU:'; nvidia-smi --query-gpu=name,memory.used,memory.total --format=csv,noheader 2>/dev/null || echo 'No GPU detected'; exec bash"
             }
         }
     }
@@ -104,7 +104,7 @@ layout {
     // ── Tab 4: Budget ────────────────────────────────────────────────────────
     tab name="Budget" {
         pane name="BUDGET MONITOR" command="bash" {
-            args "-c" "cd /root/opencurelabs && source .venv/bin/activate 2>/dev/null; bash dashboard/budget.sh"
+            args "-c" "cd $PROJECT_DIR && source .venv/bin/activate 2>/dev/null; bash dashboard/budget.sh"
         }
     }
 }

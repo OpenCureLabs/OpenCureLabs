@@ -11,7 +11,7 @@ researcher:
   base_url: https://api.x.ai/v1
   model: grok-3
 
-  workspace: /root/opencurelabs/workspace/
+  workspace: workspace/  # relative to project root
 
   capabilities:
     - bash_execution

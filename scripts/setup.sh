@@ -74,6 +74,19 @@ echo -e "${BOLD}═════════════════════�
 echo -e "${BOLD}  OpenCure Labs — Automated Setup${NC}"
 echo -e "${BOLD}  Project: $PROJECT_DIR${NC}"
 echo -e "${BOLD}══════════════════════════════════════════════════════════════${NC}"
+info "First-time setup takes ~15–20 minutes (model downloads are ~1.5 GB)."
+if [[ "$SKIP_MODELS" == "true" ]]; then
+    info "Model downloads skipped (--skip-models). Setup will be faster."
+fi
+
+# ── Cleanup on interrupt ─────────────────────────────────────────────────────
+_cleanup() {
+    echo ""
+    fail "Setup interrupted. Partial install may exist — re-run to continue."
+    rm -f /tmp/zellij.tar.gz 2>/dev/null
+    exit 130
+}
+trap _cleanup SIGINT SIGTERM
 
 # ── Check root ───────────────────────────────────────────────────────────────
 if [[ $EUID -ne 0 ]]; then
@@ -160,7 +173,7 @@ else
 fi
 
 # ── Python version check ────────────────────────────────────────────────────
-PY_VERSION=$($PYTHON --version 2>&1 | grep -oP '\d+\.\d+')
+PY_VERSION=$($PYTHON --version 2>&1 | sed -n 's/.*\([0-9]\+\.[0-9]\+\).*/\1/p')
 if [[ "$(echo -e "$PY_VERSION\n$MIN_PYTHON" | sort -V | head -1)" != "$MIN_PYTHON" ]]; then
     fail "Python $MIN_PYTHON+ required, found $PY_VERSION"
     info "Install Python 3.11+: sudo apt install python3.11 python3.11-venv"
@@ -218,6 +231,15 @@ if [[ "$SKIP_MODELS" == "true" ]]; then
     info "Tests use mocks and do not require these models."
 else
 
+# Check available disk space (need ~2 GB for models + packages)
+AVAILABLE_KB=$(df "$PROJECT_DIR" | tail -1 | awk '{print $4}')
+if [[ $AVAILABLE_KB -lt 2000000 ]]; then
+    fail "Less than 2 GB free disk space ($(( AVAILABLE_KB / 1024 )) MB available)"
+    info "Free up space or use --skip-models to skip large downloads"
+    exit 1
+fi
+ok "$(( AVAILABLE_KB / 1024 )) MB free disk space"
+
 info "pyensembl — Ensembl release 110 (human genome, ~500 MB)"
 if python3 -c "from pyensembl import EnsemblRelease; e = EnsemblRelease(110); e.transcript_by_id('ENST00000256078')" 2>/dev/null; then
     ok "pyensembl data already downloaded"
@@ -245,10 +267,18 @@ step "Setting up PostgreSQL (port \$PG_PORT)"
 if ! pg_isready -p "$PG_PORT" -q 2>/dev/null; then
     info "Starting PostgreSQL service"
     service postgresql start 2>/dev/null || true
-    sleep 2
+    # Wait for PostgreSQL with retry loop
+    pg_ready=false
+    for i in $(seq 1 15); do
+        if pg_isready -p "$PG_PORT" -q 2>/dev/null; then
+            pg_ready=true
+            break
+        fi
+        sleep 1
+    done
 fi
 
-if pg_isready -p "$PG_PORT" -q 2>/dev/null; then
+if pg_isready -p "$PG_PORT" -q 2>/dev/null || [[ "${pg_ready:-false}" == "true" ]]; then
     ok "PostgreSQL is running on port $PG_PORT"
 else
     warn "PostgreSQL not responding on port $PG_PORT"
@@ -272,8 +302,12 @@ if sudo -u postgres psql -p "$PG_PORT" -d "$PG_DB" -c "SELECT 1 FROM agent_runs 
     ok "Schema already applied"
 else
     # schema.sql contains CREATE DATABASE which would fail; run table creates only
-    sudo -u postgres psql -p "$PG_PORT" -d "$PG_DB" -f "$PROJECT_DIR/db/schema.sql" 2>/dev/null || true
-    ok "Schema applied"
+    if sudo -u postgres psql -p "$PG_PORT" -d "$PG_DB" -f "$PROJECT_DIR/db/schema.sql" 2>&1 | tail -5; then
+        ok "Schema applied"
+    else
+        warn "Schema application had errors — review output above"
+        info "You can re-apply manually: sudo -u postgres psql -p $PG_PORT -d $PG_DB -f db/schema.sql"
+    fi
 fi
 
 # ══════════════════════════════════════════════════════════════════════════════
@@ -285,7 +319,7 @@ if [[ -f "$PROJECT_DIR/.env" ]]; then
     ok ".env file exists"
     # Check for required keys
     MISSING_KEYS=()
-    for key in ANTHROPIC_API_KEY XAI_API_KEY; do
+    for key in GENAI_API_KEY ANTHROPIC_API_KEY XAI_API_KEY; do
         val=$(grep "^${key}=" "$PROJECT_DIR/.env" 2>/dev/null | cut -d= -f2-)
         if [[ -z "$val" ]]; then
             MISSING_KEYS+=("$key")
@@ -293,8 +327,9 @@ if [[ -f "$PROJECT_DIR/.env" ]]; then
     done
     if [[ ${#MISSING_KEYS[@]} -gt 0 ]]; then
         warn "Missing API keys in .env: ${MISSING_KEYS[*]}"
-        info "Edit .env and add your keys. The system will run without them"
-        info "but the reviewer agents (Claude Opus, Grok) won't work."
+        info "Edit .env and add your keys."
+        info "  GENAI_API_KEY is required for the coordinator (Gemini LLM)."
+        info "  ANTHROPIC_API_KEY and XAI_API_KEY enable the reviewer agents."
     else
         ok "Required API keys are configured"
     fi
@@ -304,7 +339,8 @@ else
     warn ".env created — you must edit it and add your API keys:"
     info "  nano $PROJECT_DIR/.env"
     info ""
-    info "  Required:  ANTHROPIC_API_KEY, XAI_API_KEY"
+    info "  Required:  GENAI_API_KEY (coordinator LLM)"
+    info "  Required:  ANTHROPIC_API_KEY, XAI_API_KEY (reviewer agents)"
     info "  Optional:  DISCORD_WEBHOOK_URL, NVIDIA_API_KEY, VAST_AI_KEY"
 fi
 

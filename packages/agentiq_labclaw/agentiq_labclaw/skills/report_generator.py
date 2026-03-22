@@ -28,7 +28,7 @@ class ReportInput(BaseModel):
     pipeline_run_id: int
     sections: list[dict]  # [{"heading": "...", "content": "...", "figures": [...]}]
     critique_json: dict | None = None
-    output_dir: str = "/root/opencurelabs/reports/"
+    output_dir: str = ""
 
 
 class ReportOutput(BaseModel):
@@ -56,6 +56,11 @@ class ReportGeneratorSkill(LabClawSkill):
 
     def run(self, input_data: ReportInput) -> ReportOutput:
         logger.info("Generating report: %s", input_data.title)
+
+        if not input_data.output_dir:
+            import os
+            root = os.environ.get("OPENCURELABS_ROOT", str(Path(__file__).resolve().parents[3]))
+            input_data.output_dir = str(Path(root) / "reports")
 
         output_dir = Path(input_data.output_dir)
         output_dir.mkdir(parents=True, exist_ok=True)

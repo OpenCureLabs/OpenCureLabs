@@ -12,7 +12,13 @@ from agentiq_labclaw.species import get_species
 
 logger = logging.getLogger("labclaw.skills.structure")
 
-REPORTS_DIR = Path("/root/opencurelabs/reports/structures")
+
+def _project_root() -> Path:
+    import os
+    return Path(os.environ.get("OPENCURELABS_ROOT", str(Path(__file__).resolve().parents[3])))
+
+
+REPORTS_DIR = _project_root() / "reports" / "structures"
 ESMFOLD_API = "https://api.esmatlas.com/foldSequence/v1/pdb/"
 ALPHAFOLD_API = "https://alphafold.ebi.ac.uk/api"
 UNIPROT_API = "https://rest.uniprot.org/uniprotkb/search"

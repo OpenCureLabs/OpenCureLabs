@@ -58,21 +58,21 @@ keybinds {
         // ── OpenCure Labs commands ───────────────────────────────────────
         // Alt+q — stop dashboard and quit Zellij
         bind "Alt q" {
-            Run "bash" "-c" "bash /root/opencurelabs/dashboard/stop.sh --pre-quit" {
+            Run "bash" "-c" "bash $PROJECT_DIR/dashboard/stop.sh --pre-quit" {
                 close_on_exit true
             }
             Quit;
         }
         // Alt+f — detailed findings: novel results + critique scores
         bind "Alt f" {
-            Run "bash" "-c" "cd /root/opencurelabs && source .venv/bin/activate 2>/dev/null; echo -e '\\033[1;96m── Novel Findings & Critiques ──\\033[0m'; echo; python3 dashboard/findings.py --novel --critiques 2>/dev/null || echo 'No database connection'; echo; echo -e '\\033[2mPress Enter to close\\033[0m'; read" {
+            Run "bash" "-c" "cd $PROJECT_DIR && source .venv/bin/activate 2>/dev/null; echo -e '\\033[1;96m── Novel Findings & Critiques ──\\033[0m'; echo; python3 dashboard/findings.py --novel --critiques 2>/dev/null || echo 'No database connection'; echo; echo -e '\\033[2mPress Enter to close\\033[0m'; read" {
                 floating true
                 close_on_exit true
             }
         }
         // Alt+c — stop running agents without quitting
         bind "Alt c" {
-            Run "bash" "-c" "bash /root/opencurelabs/dashboard/stop_agents.sh" {
+            Run "bash" "-c" "bash $PROJECT_DIR/dashboard/stop_agents.sh" {
                 floating true
                 close_on_exit true
             }
@@ -80,7 +80,7 @@ keybinds {
         // Alt+s — start research task (interactive menu in floating pane)
         // Note: Alt+r is intercepted by terminal emulator, so we use Alt+s
         bind "Alt s" {
-            Run "bash" "-c" "bash /root/opencurelabs/dashboard/run_research.sh" {
+            Run "bash" "-c" "bash $PROJECT_DIR/dashboard/run_research.sh" {
                 floating true
                 close_on_exit true
             }

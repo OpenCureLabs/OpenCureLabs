@@ -12,7 +12,13 @@ from agentiq_labclaw.base import LabClawSkill, labclaw_skill
 
 logger = logging.getLogger("labclaw.skills.docking")
 
-REPORTS_DIR = Path("/root/opencurelabs/reports/docking")
+
+def _project_root() -> Path:
+    import os
+    return Path(os.environ.get("OPENCURELABS_ROOT", str(Path(__file__).resolve().parents[3])))
+
+
+REPORTS_DIR = _project_root() / "reports" / "docking"
 
 
 class DockingInput(BaseModel):

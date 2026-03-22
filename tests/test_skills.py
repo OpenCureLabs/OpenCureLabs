@@ -371,7 +371,7 @@ class TestReportGenerator:
             sections=[{"heading": "Intro", "content": "Hello"}],
         )
         assert inp.critique_json is None
-        assert inp.output_dir == "/root/opencurelabs/reports/"
+        assert inp.output_dir == ""
 
 
 if __name__ == "__main__":
