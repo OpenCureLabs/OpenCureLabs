@@ -869,8 +869,8 @@ if $HAS_GUM; then
             --selected.foreground 46 \
             --selected.bold \
             "⬅ Back" \
-            "🚀 Run All — Execute all $ITEM_COUNT tasks in this domain" \
             "${DISPLAY[@]}" \
+            "🚀 Run All — Execute all $ITEM_COUNT tasks in this domain" \
         ) || { echo "Cancelled."; read -r; exit 0; }
 
         if [[ "$SELECTED" == *"Back"* ]]; then
