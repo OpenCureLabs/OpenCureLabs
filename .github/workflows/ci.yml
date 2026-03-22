@@ -10,6 +10,7 @@ jobs:
   test:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false
       matrix:
         python-version: ["3.11", "3.12"]
 
@@ -61,5 +62,5 @@ jobs:
         if: always()
 
       - name: Security scan (bandit)
-        run: bandit -r packages/agentiq_labclaw/agentiq_labclaw -q -l
+        run: bandit -r packages/agentiq_labclaw/agentiq_labclaw -q -ll
         if: always()
