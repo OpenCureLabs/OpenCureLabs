@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - CI pipeline with tests, ruff, and bandit
 - Commitizen conventional commits enforcement
 
+## v0.39.4 (2026-03-22)
+
+### Fix
+
+- **ci**: add pytest-asyncio, fix lint errors, configure ruff per-file-ignores
+
 ## v0.39.3 (2026-03-22)
 
 ### Fix
