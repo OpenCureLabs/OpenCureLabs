@@ -4,11 +4,7 @@
   <a href="https://github.com/OpenCureLabs/OpenCureLabs/actions/workflows/ci.yml"><img src="https://github.com/OpenCureLabs/OpenCureLabs/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
 </p>
 
-## 🎯 The Mission
-
-Paul Conyngham used open-source tools to design a personalized cancer vaccine that saved his dog Rosie. He proved one person with the right pipeline can do what takes an institution months.
-
-We're building the infrastructure so anyone, anywhere can run that same pipeline — and push it further. Personalized medicine shouldn't require a grant and a team of 50.
+**Autonomous AI agents running real science — so every researcher can fight cancer like a funded lab.**
 
 ---
 
