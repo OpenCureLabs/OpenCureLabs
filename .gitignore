@@ -19,3 +19,4 @@ deploy/
 docs/DEPLOYMENT.md
 .wiki/
 build/
+workers/ingest/node_modules/
