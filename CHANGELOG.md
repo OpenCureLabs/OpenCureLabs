@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - CI pipeline with tests, ruff, and bandit
 - Commitizen conventional commits enforcement
 
+## v0.32.0 (2026-03-22)
+
+### Feat
+
+- **website**: species filter row + vet empty states + species badge on cards
+
 ## v0.31.0 (2026-03-22)
 
 ### Feat
