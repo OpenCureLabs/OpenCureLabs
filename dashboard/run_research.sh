@@ -1097,11 +1097,19 @@ if $HAS_GUM; then
     # ── Run All: sequential multi-task execution ─────────────────────
     if ${RUN_ALL:-false}; then
         TOTAL_ALL=${#RUN_ALL_TASKS[@]}
+        ROUND=0
+
+        while true; do
+        ROUND=$((ROUND + 1))
         ALL_OK=0
         ALL_FAILED=0
 
         echo ""
-        gum style --foreground 46 --bold "🚀 Running all $TOTAL_ALL tasks sequentially..." 2>/dev/null || true
+        if $LOOP_MODE; then
+            gum style --foreground 46 --bold "🚀 Round $ROUND — Running all $TOTAL_ALL tasks sequentially..." 2>/dev/null || true
+        else
+            gum style --foreground 46 --bold "🚀 Running all $TOTAL_ALL tasks sequentially..." 2>/dev/null || true
+        fi
         echo ""
 
         for i in $(seq 0 $((TOTAL_ALL - 1))); do
@@ -1114,17 +1122,17 @@ if $HAS_GUM; then
             [[ "$LABCLAW_SPECIES" != "human" ]] && CURRENT_TASK="$CURRENT_TASK species=$LABCLAW_SPECIES."
 
             gum style --foreground 214 --bold \
-                "  ▶ [$TASK_NUM/$TOTAL_ALL] $LABEL" 2>/dev/null || true
+                "  ▶ [R${ROUND} ${TASK_NUM}/$TOTAL_ALL] $LABEL" 2>/dev/null || true
 
             TASK_LOG="$PROJECT_DIR/logs/runall-$(date +%Y%m%d-%H%M%S)-${TASK_NUM}.log"
 
             if nat run --config_file "$CONFIG" --input "$CURRENT_TASK" \
                 2>&1 | tee -a "$TASK_LOG"; then
                 ALL_OK=$((ALL_OK + 1))
-                gum style --foreground 46 "  ✅ [$TASK_NUM/$TOTAL_ALL] $LABEL — complete" 2>/dev/null || true
+                gum style --foreground 46 "  ✅ [R${ROUND} ${TASK_NUM}/$TOTAL_ALL] $LABEL — complete" 2>/dev/null || true
             else
                 ALL_FAILED=$((ALL_FAILED + 1))
-                gum style --foreground 196 "  ❌ [$TASK_NUM/$TOTAL_ALL] $LABEL — failed" 2>/dev/null || true
+                gum style --foreground 196 "  ❌ [R${ROUND} ${TASK_NUM}/$TOTAL_ALL] $LABEL — failed" 2>/dev/null || true
             fi
             echo ""
         done
@@ -1132,7 +1140,7 @@ if $HAS_GUM; then
         echo ""
         printf '%s\n' \
             "" \
-            "  🏁 RUN ALL COMPLETE" \
+            "  🏁 RUN ALL COMPLETE$(${LOOP_MODE} && echo " — Round $ROUND")" \
             "" \
             "  ✅ Passed:  $ALL_OK / $TOTAL_ALL" \
             "  ❌ Failed:  $ALL_FAILED" \
@@ -1145,9 +1153,29 @@ if $HAS_GUM; then
             --padding "0 2" \
             --margin "0 0" 2>/dev/null || cat)
 
+        if ! $LOOP_MODE; then
+            echo ""
+            echo -e "${DIM}Press Enter to close${RESET}"
+            read -r
+            break
+        fi
+
+        # Continuous mode: countdown with abort option
         echo ""
-        echo -e "${DIM}Press Enter to close${RESET}"
-        read -r
+        gum style --foreground 214 --bold "🔁 Continuous mode — Round $((ROUND + 1)) in 10 seconds"
+        gum style --foreground 242 "Press Ctrl+C to stop, or wait to continue..."
+        echo ""
+
+        if ! gum spin --spinner dot --title "Waiting 10s before next round..." -- sleep 10; then
+            echo ""
+            gum style --foreground 46 "⏹ Stopped after $ROUND round(s)."
+            echo ""
+            echo -e "${DIM}Press Enter to close${RESET}"
+            read -r
+            break
+        fi
+
+        done
         exit 0
     fi
 
