@@ -1,56 +1,62 @@
 # OpenCure Labs — Python Dependencies
 # Install: pip install -r requirements.txt
+# Versions pinned to known-working set to prevent pip resolver backtracking.
+# Update with: pip freeze | grep <package> after testing locally.
 
 # ── Core Framework ───────────────────────────────────────────────────────────
-pydantic>=2.0
-psycopg2-binary>=2.9
-requests>=2.28
-pyyaml>=6.0
+pydantic==2.12.5
+psycopg2-binary==2.9.11
+requests==2.32.5
+pyyaml==6.0.3
 
 # ── NVIDIA NeMo Agent Toolkit ────────────────────────────────────────────────
-nvidia-nat>=1.5.0,<2.0
+nvidia-nat==1.5.0
 
 # ── Numerical & Data ─────────────────────────────────────────────────────────
-numpy>=2.3
-pandas>=2.2
-scikit-learn>=1.4
-pyarrow>=17.0
+numpy==2.4.3
+pandas==2.3.3
+scikit-learn==1.8.0
+pyarrow==23.0.1
 
 # ── Scientific Stack (neoantigen pipeline) ───────────────────────────────────
-pysam>=0.22
-biopython>=1.83
-pyensembl>=2.3
-mhcflurry>=2.1
-rdkit>=2024.3
+pysam==0.23.3
+biopython==1.86
+# pyensembl and mhcflurry have transitive deps that conflict with pyarrow 23.x
+# (gtfparse pins pyarrow<14.1). Install separately: see .github/workflows/ci.yml
+pyensembl==2.3.13
+mhcflurry==2.1.5
+rdkit==2025.9.6
 
 # ── LangGraph / LangChain (coordinator agent) ───────────────────────────────
-langchain-core>=0.3
-langchain-openai>=0.3
-langgraph>=1.0
+langchain-core==1.2.20
+langchain-openai==1.1.11
+langgraph==1.1.3
 
 # ── Reviewer Dependencies ───────────────────────────────────────────────────
-anthropic>=0.25
-openai>=1.20
-reportlab>=4.1
+anthropic==0.86.0
+openai==2.29.0
+reportlab==4.4.10
 
 # ── Ed25519 result signing ──────────────────────────────────────────────────
-PyNaCl>=1.5.0
+PyNaCl==1.6.2
 
 # ── Development & Testing ───────────────────────────────────────────────────
-pytest>=7.0
-pytest-cov>=4.0
-commitizen>=4.0
+pytest==9.0.2
+pytest-cov==7.0.0
+commitizen==4.13.9
 
 # ── Dashboard ───────────────────────────────────────────────────────────────
-fastapi>=0.110
-uvicorn>=0.29
+fastapi==0.135.1
+uvicorn==0.42.0
 
 # ── Vast.ai burst compute ──────────────────────────────────────────────────
-vastai>=0.5
+# vastai pins python-dateutil==2.6.1 which conflicts with pandas.
+# Install separately: pip install --no-deps vastai
+vastai==0.5.0
 
 # ── Security Scanning (optional — used by security/security_scan.py) ────────
-ruff>=0.4
-bandit>=1.7
+ruff==0.15.6
+bandit==1.9.4
 pip-audit>=2.7
-detect-secrets>=1.4
-slowapi
+detect-secrets==1.5.0
+slowapi==0.1.9

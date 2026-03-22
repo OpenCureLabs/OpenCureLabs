@@ -1,0 +1,5 @@
+# Pip constraint overrides for conflicting transitive dependencies.
+# gtfparse 2.5.0 pins pyarrow<14.1.0 but works fine with newer versions.
+# vastai 0.5.0 pins python-dateutil==2.6.1 but works fine with newer versions.
+pyarrow==23.0.1
+python-dateutil>=2.8.2
