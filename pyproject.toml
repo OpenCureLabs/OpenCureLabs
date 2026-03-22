@@ -5,7 +5,7 @@
 
 [tool.commitizen]
 name = "cz_conventional_commits"
-version = "0.39.4"
+version = "0.39.5"
 version_files = [
     "packages/agentiq_labclaw/pyproject.toml:version",
     "packages/agentiq_labclaw/agentiq_labclaw/__init__.py:__version__",
