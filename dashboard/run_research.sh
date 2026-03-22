@@ -350,12 +350,26 @@ if [[ -n "$TASK" ]]; then
     exit 0
 fi
 
-# ══════════════════════════════════════════════════════════════════════════════
-#  GUM MODE — Beautiful interactive menu
+#  GUM MODE — Beautiful interactive menu with ⬅ Back navigation
 # ══════════════════════════════════════════════════════════════════════════════
 if $HAS_GUM; then
 
-    # ── Header ───────────────────────────────────────────────────────────
+    # ── Step-based navigation (⬅ Back support) ────────────────────────
+    # Steps: 1=Domain  2=Species(vet)  3=Task  4=Data  5=Agents  6=RunMode  7=Launch
+    _STEP=1
+    _BACK_FROM_3=1   # where step 3 goes back to (1 or 2)
+    TASK=""
+    BASE_TASK=""
+    SELECTED_LABEL=""
+
+    while true; do
+
+    case $_STEP in
+
+    # ══════════════════════════════════════════════════════════════════════
+    #  STEP 1 — Domain selection
+    # ══════════════════════════════════════════════════════════════════════
+    1)
     gum style \
         --border double \
         --border-foreground 39 \
@@ -366,7 +380,6 @@ if $HAS_GUM; then
 
     echo ""
 
-    # ── Domain selection ─────────────────────────────────────────────────
     DOMAIN=$(gum choose \
         --header "What do you want to research?" \
         --header.foreground 39 \
@@ -375,8 +388,8 @@ if $HAS_GUM; then
         --selected.foreground 46 \
         --selected.bold \
         "🔬 Cancer — Find mutations, predict immune targets" \
-        "� Veterinary — Cancer & variants for dogs and cats" \
-        "�💊 Drug Discovery — Screen molecules, predict effectiveness" \
+        "🐾 Veterinary — Cancer & variants for dogs and cats" \
+        "💊 Drug Discovery — Screen molecules, predict effectiveness" \
         "🧬 Rare Disease — Analyze genetic variants for diagnosis" \
         "⌨️  Custom Task — Type your own research question" \
         "🚀 Genesis Mode — Run EVERY task across ALL domains (12 runs, full send)" \
@@ -384,52 +397,21 @@ if $HAS_GUM; then
 
     echo ""
 
-    # ── Species (default; overridden per domain below) ───────────────────
+    # Reset state for fresh selection
     LABCLAW_SPECIES="human"
+    TASK="" SELECTED_LABEL="" BASE_TASK=""
 
-    # ── Task selection per domain ────────────────────────────────────────
     case "$DOMAIN" in
         *"Cancer"*)
-            ITEMS=("${CANCER_TASKS[@]}")
-            ;;
+            ITEMS=("${CANCER_TASKS[@]}"); _BACK_FROM_3=1; _STEP=3 ;;
         *"Veterinary"*)
-            echo ""
-            VET_SPECIES=$(gum choose \
-                --header "Which animal?" \
-                --header.foreground 39 \
-                --cursor.foreground 46 \
-                --item.foreground 255 \
-                --selected.foreground 46 \
-                --selected.bold \
-                "🐕 Dog (Canine) — CanFam3.1, DLA alleles" \
-                "🐈 Cat (Feline) — felCat9, FLA alleles" \
-            ) || { echo "Cancelled."; read -r; exit 0; }
-            case "$VET_SPECIES" in
-                *"Dog"*) LABCLAW_SPECIES="dog"; ITEMS=("${CANINE_TASKS[@]}") ;;
-                *"Cat"*) LABCLAW_SPECIES="cat"; ITEMS=("${FELINE_TASKS[@]}") ;;
-            esac
-            ;;
+            _STEP=2 ;;
         *"Drug"*)
-            ITEMS=("${DRUG_TASKS[@]}")
-            ;;
+            ITEMS=("${DRUG_TASKS[@]}"); _BACK_FROM_3=1; _STEP=3 ;;
         *"Rare"*)
-            ITEMS=("${RARE_TASKS[@]}")
-            ;;
+            ITEMS=("${RARE_TASKS[@]}"); _BACK_FROM_3=1; _STEP=3 ;;
         *"Custom"*)
-            TASK=$(gum input \
-                --placeholder "Describe your research task..." \
-                --prompt "Task: " \
-                --prompt.foreground 46 \
-                --width 80 \
-                --char-limit 500 \
-            ) || { echo "Cancelled."; read -r; exit 0; }
-
-            if [[ -z "$TASK" ]]; then
-                echo "No task entered."
-                read -r
-                exit 0
-            fi
-            ;;
+            _BACK_FROM_3=1; _STEP=3 ;;
         *"Genesis"*)
             # ── Genesis Mode ─────────────────────────────────────────────
             # Run EVERY task across ALL domains: 12 runs, full agents, Vast.ai
@@ -491,6 +473,7 @@ if $HAS_GUM; then
                 --item.foreground 252 \
                 --selected.foreground 46 \
                 --selected.bold \
+                "⬅ Back" \
                 "1 — Sequential (safest, lowest cost)" \
                 "3 — Fast parallel" \
                 "6 — Max throughput" \
@@ -498,6 +481,9 @@ if $HAS_GUM; then
                 "100 — Batch mode (Vast.ai pool)" \
                 "999 — Continuous batch (Vast.ai pool, loops until budget exhausted)" \
             ) || { echo "Cancelled."; read -r; exit 0; }
+            if [[ "$VAST_INSTANCES" == *"Back"* ]]; then
+                _STEP=1; continue
+            fi
             PARALLEL="${VAST_INSTANCES%%[[:space:]]*}"
             if [[ $PARALLEL -ge 100 ]]; then
                 BATCH_MODE=1
@@ -811,9 +797,56 @@ if $HAS_GUM; then
             exit 0
             ;;
     esac
+    ;;
 
-    # If not custom, show task chooser
-    if [[ -z "$TASK" ]]; then
+    # ══════════════════════════════════════════════════════════════════════
+    #  STEP 2 — Species selection (Veterinary only)
+    # ══════════════════════════════════════════════════════════════════════
+    2)
+    echo ""
+    VET_SPECIES=$(gum choose \
+        --header "Which animal?" \
+        --header.foreground 39 \
+        --cursor.foreground 46 \
+        --item.foreground 255 \
+        --selected.foreground 46 \
+        --selected.bold \
+        "⬅ Back" \
+        "🐾 All Species — Run both canine and feline tasks" \
+        "🐕 Dog (Canine) — CanFam3.1, DLA alleles" \
+        "🐈 Cat (Feline) — felCat9, FLA alleles" \
+    ) || { echo "Cancelled."; read -r; exit 0; }
+    if [[ "$VET_SPECIES" == *"Back"* ]]; then
+        _STEP=1; continue
+    fi
+    case "$VET_SPECIES" in
+        *"All"*) LABCLAW_SPECIES="all"; ITEMS=("${CANINE_TASKS[@]}" "${FELINE_TASKS[@]}") ;;
+        *"Dog"*) LABCLAW_SPECIES="dog"; ITEMS=("${CANINE_TASKS[@]}") ;;
+        *"Cat"*) LABCLAW_SPECIES="cat"; ITEMS=("${FELINE_TASKS[@]}") ;;
+    esac
+    _BACK_FROM_3=2
+    _STEP=3
+    ;;
+
+    # ══════════════════════════════════════════════════════════════════════
+    #  STEP 3 — Task selection (or Custom input)
+    # ══════════════════════════════════════════════════════════════════════
+    3)
+    if [[ "$DOMAIN" == *"Custom"* ]]; then
+        # Custom task: free-text input
+        TASK=$(gum input \
+            --placeholder "Describe your research task... (empty = go back)" \
+            --prompt "Task: " \
+            --prompt.foreground 46 \
+            --width 80 \
+            --char-limit 500 \
+        ) || { _STEP=1; continue; }
+
+        if [[ -z "$TASK" ]]; then
+            _STEP=1; continue
+        fi
+        SELECTED_LABEL=""
+    else
         # Build display labels:  "Label — explanation"
         DISPLAY=()
         for item in "${ITEMS[@]}"; do
@@ -830,11 +863,17 @@ if $HAS_GUM; then
             --item.foreground 252 \
             --selected.foreground 46 \
             --selected.bold \
+            "⬅ Back" \
             "${DISPLAY[@]}" \
         ) || { echo "Cancelled."; read -r; exit 0; }
 
+        if [[ "$SELECTED" == *"Back"* ]]; then
+            _STEP=$_BACK_FROM_3; continue
+        fi
+
         # Extract the label part (before " — ") and find matching task
         SELECTED_LABEL="${SELECTED%% — *}"
+        TASK=""
         for item in "${ITEMS[@]}"; do
             raw="${item%%|*}"
             label="${raw%% ~*}"
@@ -845,7 +884,14 @@ if $HAS_GUM; then
         done
     fi
 
-    # ── Data mode selection ──────────────────────────────────────────
+    BASE_TASK="$TASK"
+    _STEP=4
+    ;;
+
+    # ══════════════════════════════════════════════════════════════════════
+    #  STEP 4 — Data source selection
+    # ══════════════════════════════════════════════════════════════════════
+    4)
     DATA_MODE="public"
     DATA_FILES=$(detect_data_files)
     FILE_COUNT=0
@@ -868,9 +914,14 @@ if $HAS_GUM; then
         --item.foreground 255 \
         --selected.foreground 46 \
         --selected.bold \
+        "⬅ Back" \
         "🌐 Public databases — Search TCGA, ClinVar, ChEMBL automatically" \
         "📁 My data — Use files I've uploaded to data/" \
     ) || { echo "Cancelled."; read -r; exit 0; }
+
+    if [[ "$DATA_MODE_CHOICE" == *"Back"* ]]; then
+        _STEP=3; continue
+    fi
 
     case "$DATA_MODE_CHOICE" in
         *"Public"*)  DATA_MODE="public" ;;
@@ -878,11 +929,18 @@ if $HAS_GUM; then
     esac
 
     # ── Follow-up questions ──────────────────────────────────────────
+    TASK="$BASE_TASK"
     if [[ -n "${SELECTED_LABEL:-}" ]]; then
         collect_details "$SELECTED_LABEL"
     fi
 
-    # ── Agent count ──────────────────────────────────────────────────
+    _STEP=5
+    ;;
+
+    # ══════════════════════════════════════════════════════════════════════
+    #  STEP 5 — Agent count + Vast.ai burst
+    # ══════════════════════════════════════════════════════════════════════
+    5)
     echo ""
     AGENT_COUNT=$(gum choose \
         --header "How many agents should work on this?" \
@@ -891,10 +949,15 @@ if $HAS_GUM; then
         --item.foreground 252 \
         --selected.foreground 46 \
         --selected.bold \
+        "⬅ Back" \
         "1 agent  — Simple, sequential analysis" \
         "2 agents — Moderate parallelism" \
         "3 agents — Full parallelism" \
     ) || { echo "Cancelled."; read -r; exit 0; }
+
+    if [[ "$AGENT_COUNT" == *"Back"* ]]; then
+        _STEP=4; continue
+    fi
 
     AGENT_NUM="${AGENT_COUNT%%[[:space:]]*}"
 
@@ -910,12 +973,21 @@ if $HAS_GUM; then
             ;;
     esac
 
-    # ── Append options to task ───────────────────────────────────────
-    [[ "$DATA_MODE" == "public" ]] && TASK="$TASK Use public databases (TCGA/ClinVar/ChEMBL) for data sourcing."
-    [[ "${AGENT_NUM:-1}" -gt 1 ]] 2>/dev/null && TASK="$TASK Deploy $AGENT_NUM parallel agents."
-    [[ "$USE_VAST" == "yes" ]] && TASK="$TASK Use Vast.ai cloud GPU for compute."
+    _STEP=6
+    ;;
 
-    # ── Confirmation ─────────────────────────────────────────────────────
+    # ══════════════════════════════════════════════════════════════════════
+    #  STEP 6 — Run mode + Confirmation + Launch
+    # ══════════════════════════════════════════════════════════════════════
+    6)
+    # ── Build final task string ──────────────────────────────────────
+    FINAL_TASK="$TASK"
+    [[ "$DATA_MODE" == "public" ]] && FINAL_TASK="$FINAL_TASK Use public databases (TCGA/ClinVar/ChEMBL) for data sourcing."
+    [[ "${AGENT_NUM:-1}" -gt 1 ]] 2>/dev/null && FINAL_TASK="$FINAL_TASK Deploy $AGENT_NUM parallel agents."
+    [[ "$USE_VAST" == "yes" ]] && FINAL_TASK="$FINAL_TASK Use Vast.ai cloud GPU for compute."
+    TASK="$FINAL_TASK"
+
+    # ── Confirmation summary ─────────────────────────────────────────
     echo ""
     printf '%s\n' \
         "📋 Task: $TASK" \
@@ -929,7 +1001,7 @@ if $HAS_GUM; then
         --margin "0 0" \
         --foreground 255 2>/dev/null || cat)
 
-    # ── Run mode ─────────────────────────────────────────────────────────
+    # ── Run mode ─────────────────────────────────────────────────────
     if ! $LOOP_MODE; then
         echo ""
         RUN_MODE=$(gum choose \
@@ -939,20 +1011,40 @@ if $HAS_GUM; then
             --item.foreground 252 \
             --selected.foreground 46 \
             --selected.bold \
+            "⬅ Back" \
             "▶ Run once — Execute and stop" \
             "🔁 Run continuously — Keep re-running until stopped" \
         ) || { echo "Cancelled."; read -r; exit 0; }
+
+        if [[ "$RUN_MODE" == *"Back"* ]]; then
+            _STEP=5; continue
+        fi
 
         case "$RUN_MODE" in
             *"continuously"*) LOOP_MODE=true ;;
         esac
     fi
 
+    # ── Final confirmation ───────────────────────────────────────────
     echo ""
-    gum confirm "Launch this research task?" --affirmative "Run" --negative "Cancel" \
-        || { echo "Cancelled."; read -r; exit 0; }
+    LAUNCH_CHOICE=$(gum choose \
+        --header "Ready to launch?" \
+        --header.foreground 46 \
+        --cursor.foreground 46 \
+        --item.foreground 252 \
+        --selected.foreground 46 \
+        --selected.bold \
+        "▶ Launch — Start the research pipeline" \
+        "⬅ Back — Change settings" \
+        "✖ Cancel — Exit" \
+    ) || { echo "Cancelled."; read -r; exit 0; }
 
-    # ── Launch ───────────────────────────────────────────────────────────
+    case "$LAUNCH_CHOICE" in
+        *"Back"*) _STEP=5; continue ;;
+        *"Cancel"*) echo "Cancelled."; read -r; exit 0 ;;
+    esac
+
+    # ── Launch ───────────────────────────────────────────────────────
     [[ "$USE_VAST" == "yes" ]] && export LABCLAW_COMPUTE=vast_ai || export LABCLAW_COMPUTE=local
     # Solo mode: My Data runs are private — only PDF publisher fires locally.
     [[ "$DATA_MODE" == "mydata" ]] && export OPENCURELABS_MODE=solo || export OPENCURELABS_MODE=contribute
@@ -1005,6 +1097,10 @@ if $HAS_GUM; then
         fi
     done
     exit 0
+    ;;
+
+    esac
+    done
 fi
 
 # ══════════════════════════════════════════════════════════════════════════════
