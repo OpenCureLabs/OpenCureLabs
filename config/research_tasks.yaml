@@ -17,6 +17,11 @@ distribution:
   variant_pathogenicity: 0.20   # Rare:   ClinVar/CADD pathogenicity scoring
   sequencing_qc_cancer:  0.07   # Cancer: sequencing quality control
   sequencing_qc_rare:    0.07   # Rare:   sequencing quality control
+  # Veterinary — only activated when --domain canine or --domain feline is used
+  neoantigen_dog:        0.40   # Canine: somatic variant → neoantigen prediction
+  variant_dog:           0.40   # Canine: variant pathogenicity scoring
+  neoantigen_cat:        0.40   # Feline: somatic variant → neoantigen prediction
+  variant_cat:           0.40   # Feline: variant pathogenicity scoring
 
 # Custom tasks — specific jobs to include in every batch run.
 # These are added ON TOP of the distribution-based tasks.
