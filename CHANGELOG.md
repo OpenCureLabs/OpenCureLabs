@@ -28,6 +28,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - CI pipeline with tests, ruff, and bandit
 - Commitizen conventional commits enforcement
 
+## v0.39.0 (2026-03-22)
+
+### Feat
+
+- add Ed25519 result signing and two-tier Grok review
+
+### Refactor
+
+- remove synthetic data generators from production code
+
 ## v0.38.3 (2026-03-22)
 
 ### Fix
