@@ -71,6 +71,7 @@ class NeoantigenOutput(BaseModel):
     confidence_score: float
     novel: bool
     critique_required: bool
+    species: str = "human"  # propagated to R2/D1 for filtering
 
 
 # ---------------------------------------------------------------------------
@@ -596,6 +597,7 @@ class NeoantigenSkill(LabClawSkill):
             confidence_score=round(confidence, 4),
             novel=has_candidates,
             critique_required=has_candidates,
+            species=input_data.species,
         )
 
     @staticmethod

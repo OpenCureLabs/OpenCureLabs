@@ -47,6 +47,12 @@ def _extract_summary(result_data: dict) -> dict:
     return summary
 
 
+def _extract_species(result_data: dict) -> str:
+    """Return the species string embedded in result_data, defaulting to 'human'."""
+    species = result_data.get("species", "human")
+    return species if isinstance(species, str) and species else "human"
+
+
 class R2Publisher:
     """Publishes results to OpenCure Labs' global R2 dataset via the ingest Worker.
 
@@ -88,6 +94,7 @@ class R2Publisher:
             "novel": novel,
             "status": status,
             "contributor_id": self.contributor_id,
+            "species": _extract_species(result_data),
             "summary": _extract_summary(result_data),
         }
 

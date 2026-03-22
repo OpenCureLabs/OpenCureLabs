@@ -44,6 +44,7 @@ interface IngestPayload {
     novel?: boolean;
     status?: string;
     contributor_id?: string;
+    species?: string;
     summary?: {
         confidence_score?: number;
         gene?: string;
@@ -57,6 +58,7 @@ interface LatestEntry {
     novel: boolean;
     status: string;
     url: string;
+    species: string;
     confidence_score: number | null;
     gene: string | null;
     created_at: string;
@@ -118,6 +120,13 @@ async function handlePost(request: Request, env: Env): Promise<Response> {
     const confidenceScore =
         typeof resultData?.confidence_score === "number" ? resultData.confidence_score : null;
     const gene = typeof resultData?.gene === "string" ? resultData.gene : null;
+    // Species — prefer top-level payload field, fall back to result_data, default human
+    const species =
+        typeof payload.species === "string" && payload.species
+            ? payload.species
+            : typeof resultData?.species === "string" && resultData.species
+                ? (resultData.species as string)
+                : "human";
 
     // Write full result object to R2
     const resultObject = {
@@ -126,6 +135,7 @@ async function handlePost(request: Request, env: Env): Promise<Response> {
         date,
         novel,
         status,
+        species,
         result_data: payload.result_data,
         created_at: createdAt,
     };
@@ -137,8 +147,8 @@ async function handlePost(request: Request, env: Env): Promise<Response> {
     // Insert index row into D1
     await env.RESULTS_DB.prepare(
         `INSERT INTO results
-       (id, skill, date, novel, status, r2_url, confidence_score, gene, contributor_id, created_at)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+       (id, skill, date, novel, status, r2_url, species, confidence_score, gene, contributor_id, created_at)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
         .bind(
             id,
@@ -147,6 +157,7 @@ async function handlePost(request: Request, env: Env): Promise<Response> {
             novel ? 1 : 0,
             status,
             r2Url,
+            species,
             confidenceScore,
             gene,
             payload.contributor_id ?? null,
@@ -155,7 +166,7 @@ async function handlePost(request: Request, env: Env): Promise<Response> {
         .run();
 
     // Update rolling latest.json
-    await updateLatest(env, { id, skill: payload.skill, date, novel, status, url: r2Url, confidence_score: confidenceScore, gene, created_at: createdAt });
+    await updateLatest(env, { id, skill: payload.skill, date, novel, status, url: r2Url, species, confidence_score: confidenceScore, gene, created_at: createdAt });
 
     return json({ id, url: r2Url }, 201);
 }
@@ -170,7 +181,7 @@ async function handleGet(request: Request, env: Env): Promise<Response> {
     const limit = Math.min(parseInt(url.searchParams.get("limit") ?? "50", 10), 200);
 
     let query =
-        "SELECT id, skill, date, novel, status, r2_url, confidence_score, gene, created_at FROM results WHERE 1=1";
+        "SELECT id, skill, date, novel, status, r2_url, species, confidence_score, gene, created_at FROM results WHERE 1=1";
     const bindings: (string | number)[] = [];
 
     if (skill) {
@@ -184,6 +195,11 @@ async function handleGet(request: Request, env: Env): Promise<Response> {
     if (novelParam !== null) {
         query += " AND novel = ?";
         bindings.push(novelParam === "true" ? 1 : 0);
+    }
+    const speciesParam = url.searchParams.get("species");
+    if (speciesParam) {
+        query += " AND species = ?";
+        bindings.push(speciesParam);
     }
 
     query += " ORDER BY created_at DESC LIMIT ?";

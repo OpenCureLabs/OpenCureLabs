@@ -44,6 +44,7 @@ class VariantOutput(BaseModel):
     classification: str  # "pathogenic" | "likely_pathogenic" | "vus" | "likely_benign" | "benign"
     novel: bool
     critique_required: bool
+    species: str = "human"  # propagated to R2/D1 for filtering
 
 
 def _query_cadd(chrom: str, pos: int, ref: str, alt: str) -> float | None:
@@ -174,6 +175,7 @@ class VariantPathogenicitySkill(LabClawSkill):
             classification=classification,
             novel=is_novel,
             critique_required=classification in ("pathogenic", "likely_pathogenic", "vus"),
+            species=input_data.species,
         )
 
     def _run_veterinary(self, input_data: VariantInput, parsed, species_config) -> VariantOutput:
@@ -234,4 +236,5 @@ class VariantPathogenicitySkill(LabClawSkill):
             classification=classification,
             novel=is_novel,
             critique_required=classification in ("pathogenic", "likely_pathogenic", "vus"),
+            species=input_data.species,
         )
