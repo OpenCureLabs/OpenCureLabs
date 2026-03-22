@@ -302,7 +302,7 @@ async def post_execute(
             logger.warning("GitHub publish error: %s", e)
 
     # R2 global dataset — writes to OpenCure Labs' central public bucket via ingest Worker
-    if _publisher_enabled("r2"):
+    if _publisher_enabled("r2") and not os.environ.get("PYTEST_CURRENT_TEST"):
         try:
             from agentiq_labclaw.publishers.r2_publisher import R2Publisher
 

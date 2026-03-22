@@ -17,7 +17,6 @@ logger = logging.getLogger("labclaw.skills.sequencing_qc")
 
 
 def _project_root() -> Path:
-    import os
     return Path(os.environ.get("OPENCURELABS_ROOT", str(Path(__file__).resolve().parents[3])))
 
 
@@ -87,16 +86,10 @@ class SequencingQCSkill(LabClawSkill):
         fastq_paths = list(input_data.fastq_paths)
         if not all(Path(p).exists() for p in fastq_paths):
             missing = [p for p in fastq_paths if not Path(p).exists()]
-            if os.environ.get("LABCLAW_ALLOW_SYNTHETIC", "").lower() in ("true", "1", "yes"):
-                from agentiq_labclaw.data.fetch import generate_synthetic_fastq
-
-                logger.warning("FASTQ files not found — generating synthetic data for %s", input_data.sample_id)
-                fastq_paths = [str(p) for p in generate_synthetic_fastq(input_data.sample_id)]
-            else:
-                raise FileNotFoundError(
-                    f"FASTQ file(s) not found: {', '.join(missing)}. "
-                    f"Provide sequencing data files for sample '{input_data.sample_id}'."
-                )
+            raise FileNotFoundError(
+                f"FASTQ file(s) not found: {', '.join(missing)}. "
+                f"Provide sequencing data files for sample '{input_data.sample_id}'."
+            )
 
         # Build fastp command
         json_report = REPORTS_DIR / f"{input_data.sample_id}_fastp.json"
