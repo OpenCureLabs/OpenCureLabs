@@ -25,3 +25,4 @@ build/
 workers/*/node_modules/
 .wrangler/
 reports/last_result.json
+packages/reports/
