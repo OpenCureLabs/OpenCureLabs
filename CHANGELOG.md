@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - CI pipeline with tests, ruff, and bandit
 - Commitizen conventional commits enforcement
 
+## v0.40.4 (2026-03-23)
+
+### Fix
+
+- resolve AUTO_RESOLVE protein sequences via UniProt before dispatch
+
 ## v0.40.3 (2026-03-23)
 
 ### Fix
