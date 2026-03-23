@@ -213,8 +213,12 @@ class VastInstance:
         resp.raise_for_status()
         return resp.json()
 
-    def wait_until_ready(self, timeout: int = 300, poll_interval: int = 10) -> dict:
-        """Poll until instance is running. Returns instance info."""
+    def wait_until_ready(self, timeout: int = 900, poll_interval: int = 10) -> dict:
+        """Poll until instance is running. Returns instance info.
+
+        RTX 5090 instances can take 8-15 minutes to pull the Docker image and
+        complete the onstart script. Default raised from 300s to 900s (15 min).
+        """
         deadline = time.monotonic() + timeout
         while time.monotonic() < deadline:
             info = self.info
@@ -447,8 +451,8 @@ def dispatch(skill, input_data):
     spend_id = _record_spend_start(skill.name, instance_id, gpu_name, cost_hr)
 
     try:
-        # 3. Wait for instance to be running
-        info = instance.wait_until_ready(timeout=300)
+        # 3. Wait for instance to be running (up to 15 min for RTX 5090 cold start)
+        info = instance.wait_until_ready(timeout=900)
         ssh_host = info.get("ssh_host")
         ssh_port = info.get("ssh_port", 22)
 
