@@ -325,24 +325,39 @@ def _check_setup_ready(ssh_host: str, ssh_port: int) -> bool:
         return False
 
 
-def _check_ssh_alive(ssh_host: str, ssh_port: int) -> bool:
-    """Quick SSH connectivity check — returns True if instance responds."""
-    try:
-        result = subprocess.run(
-            [
-                "ssh", "-o", "StrictHostKeyChecking=no",
-                "-o", "ConnectTimeout=5",
-                "-o", "BatchMode=yes",
-                "-i", SSH_KEY_PATH,
-                "-p", str(ssh_port),
-                f"root@{ssh_host}",
-                "echo alive",
-            ],
-            capture_output=True, text=True, timeout=10,
-        )
-        return "alive" in result.stdout
-    except Exception:
-        return False
+def _check_ssh_alive(ssh_host: str, ssh_port: int, retries: int = 3, retry_delay: float = 5.0) -> bool:
+    """SSH connectivity check — returns True if instance responds.
+
+    Retries up to `retries` times with `retry_delay` seconds between attempts.
+    Vast.ai instances can have momentary SSH hiccups after heavy GPU work
+    (cooling, SSH daemon restart, transient network blip), so a single failure
+    is not sufficient evidence that an instance is dead.
+    """
+    for attempt in range(1, retries + 1):
+        try:
+            result = subprocess.run(
+                [
+                    "ssh", "-o", "StrictHostKeyChecking=no",
+                    "-o", "ConnectTimeout=8",
+                    "-o", "BatchMode=yes",
+                    "-i", SSH_KEY_PATH,
+                    "-p", str(ssh_port),
+                    f"root@{ssh_host}",
+                    "echo alive",
+                ],
+                capture_output=True, text=True, timeout=15,
+            )
+            if "alive" in result.stdout:
+                return True
+        except Exception:
+            pass
+        if attempt < retries:
+            logger.debug(
+                "SSH check attempt %d/%d failed for %s — retrying in %.0fs",
+                attempt, retries, ssh_host, retry_delay,
+            )
+            time.sleep(retry_delay)
+    return False
 
 
 # ── Pool Manager ─────────────────────────────────────────────────────────────
@@ -668,7 +683,9 @@ class PoolManager:
         for inst in list(self.instances.values()):
             if inst.status in ("destroyed", "failed"):
                 continue
-            # Quick SSH ping — if it can't connect in 5s, it's dead
+            # SSH check with built-in retries (3 attempts, 5s gap each).
+            # Only flag as dead if all retries fail — avoids killing instances
+            # that have a momentary SSH hiccup after GPU-intensive work.
             if inst.ssh_host and inst.status in ("ready", "busy", "setup"):
                 alive = _check_ssh_alive(inst.ssh_host, inst.ssh_port)
                 if not alive:
