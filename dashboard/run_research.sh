@@ -25,6 +25,17 @@ _on_error() {
 }
 trap '_on_error $LINENO' ERR
 
+# ── Teardown handler: destroy Vast.ai instances on interrupt / exit ───────────
+_teardown_vast() {
+    echo ""
+    echo -e "\033[1;93m── Tearing down Vast.ai instances before exit... ──\033[0m"
+    python3 -c "
+from agentiq_labclaw.compute.vast_dispatcher import teardown_all_instances
+teardown_all_instances()
+" 2>&1 | sed 's/^/  /' || true
+}
+trap '_teardown_vast' INT TERM
+
 PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 CONFIG="coordinator/labclaw_workflow.yaml"
 LOG="logs/agent.log"
@@ -873,6 +884,13 @@ if $HAS_GUM; then
 
             export LABCLAW_COMPUTE=local
 
+            # ── Teardown persistent pool instances ───────────────────────
+            gum style --foreground 214 "  🧹 Tearing down Vast.ai pool instances..." 2>/dev/null || true
+            python3 -c "
+from agentiq_labclaw.compute.vast_dispatcher import teardown_all_instances
+teardown_all_instances()
+" 2>&1 | sed 's/^/  /' || true
+
             # ── Genesis Summary ──────────────────────────────────────────
             GENESIS_END=$(date +%s)
             GENESIS_ELAPSED=$(( GENESIS_END - GENESIS_START ))
@@ -1631,6 +1649,13 @@ select domain in "${DOMAINS[@]}"; do
                     done
 
                     export LABCLAW_COMPUTE=local
+
+                    # ── Teardown persistent pool instances ───────────────
+                    echo -e "  🧹 Tearing down Vast.ai pool instances..."
+                    python3 -c "
+from agentiq_labclaw.compute.vast_dispatcher import teardown_all_instances
+teardown_all_instances()
+" 2>&1 | sed 's/^/  /' || true
 
                     GENESIS_END=$(date +%s)
                     GENESIS_ELAPSED=$(( GENESIS_END - GENESIS_START ))
