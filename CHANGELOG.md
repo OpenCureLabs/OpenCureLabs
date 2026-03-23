@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - CI pipeline with tests, ruff, and bandit
 - Commitizen conventional commits enforcement
 
+## v0.42.2 (2026-03-23)
+
+### Fix
+
+- **compute**: retry SSH check 3× before declaring instance dead
+
 ## v0.42.1 (2026-03-23)
 
 ### Fix
