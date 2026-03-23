@@ -44,20 +44,20 @@ download_species() {
 
 case "${SPECIES}" in
     dog|canine)
-        download_species "Dog (Canis lupus familiaris)" 112 "dog"
+        download_species "Dog (Canis lupus familiaris)" 111 "dog"
         ;;
     cat|feline)
-        download_species "Cat (Felis catus)" 112 "cat"
+        download_species "Cat (Felis catus)" 111 "cat"
         ;;
     all|--all)
-        download_species "Dog (Canis lupus familiaris)" 112 "dog"
-        download_species "Cat (Felis catus)" 112 "cat"
+        download_species "Dog (Canis lupus familiaris)" 111 "dog"
+        download_species "Cat (Felis catus)" 111 "cat"
         ;;
     *)
         echo "Usage: $0 [dog|cat|all]"
         echo ""
         echo "Available species:"
-        echo "  dog  — Canis lupus familiaris (CanFam3.1, Ensembl 112)"
+        echo "  dog  — Canis lupus familiaris (CanFam3.1, Ensembl 111)"
         echo "  cat  — Felis catus (felCat9, Ensembl 112)"
         echo "  all  — Install both (default)"
         exit 1
@@ -68,6 +68,6 @@ echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "  Done.  Verify with:"
 echo "    python3 -c \"from pyensembl import EnsemblRelease; "
-echo "                 r = EnsemblRelease(112, species='dog'); "
+echo "                 r = EnsemblRelease(111, species='dog'); "
 echo "                 print(r.genes_at_locus('chr16', 26835234))\""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"

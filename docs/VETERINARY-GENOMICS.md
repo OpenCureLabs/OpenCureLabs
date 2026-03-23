@@ -71,7 +71,7 @@ MHC allele system.
 | Resource | Description | Access |
 |---|---|---|
 | **CanFam3.1 / CanFam4** | Dog reference genome (Boxer / German Shepherd) | NCBI GCF_000002285.3 / GCF_011100685.1 |
-| **Ensembl (dog)** | Gene annotations, transcripts, protein sequences | `pyensembl install --release 112 --species dog` |
+| **Ensembl (dog)** | Gene annotations, transcripts, protein sequences | `pyensembl install --release 111 --species dog` |
 | **DLA alleles** | Dog Leukocyte Antigen — canine MHC system | IPD-MHC Database (ebi.ac.uk/ipd/mhc) |
 | **mhcgnomes** | MHC nomenclature parser (DLA-88, DQA1, DQB1, DRA, DRB1) | Already installed (v3.10.0) |
 | **OMIA** | Online Mendelian Inheritance in Animals | omia.org (REST API) |
@@ -83,7 +83,7 @@ MHC allele system.
 | Resource | Description | Access |
 |---|---|---|
 | **felCat9** | Cat reference genome | NCBI GCF_000181335.3 |
-| **Ensembl (cat)** | Gene annotations | `pyensembl install --release 112 --species cat` |
+| **Ensembl (cat)** | Gene annotations | `pyensembl install --release 111 --species cat` |
 | **99 Lives Project** | Large-scale cat WGS consortium | felinegenetics.missouri.edu |
 | **FLA alleles** | Feline Leukocyte Antigen (limited characterization) | IPD-MHC Database |
 | **OMIA** | Feline genetic diseases | omia.org |
@@ -92,7 +92,7 @@ MHC allele system.
 
 | Tool | Status | Notes |
 |---|---|---|
-| **pyensembl** (v2.3.13) | Already installed | Supports dog via `EnsemblRelease(112, species="dog")` + cat, mouse, 20+ species |
+| **pyensembl** (v2.3.13) | Already installed | Supports dog via `EnsemblRelease(111, species="dog")` + cat, mouse, 20+ species |
 | **mhcgnomes** (v3.10.0) | Already installed | Parses DLA/FLA allele nomenclature for 100+ species |
 | **NetMHCpan 4.1** | Needs install | Cross-species MHC-I binding prediction; requires free academic license from DTU |
 | **Ensembl VEP REST API** | Available | Species-agnostic variant effect prediction (SIFT, PolyPhen2) |
@@ -150,9 +150,9 @@ New file: `packages/agentiq_labclaw/agentiq_labclaw/species.py`
   - **HUMAN:** `ensembl_species="homo_sapiens"`, `reference_genome="GRCh38"`,
     `mhc_prefix="HLA"`, `ensembl_release=110`
   - **DOG:** `ensembl_species="canis_familiaris"`, `reference_genome="CanFam3.1"`,
-    `mhc_prefix="DLA"`, `ensembl_release=112`
+    `mhc_prefix="DLA"`, `ensembl_release=111`
   - **CAT:** `ensembl_species="felis_catus"`, `reference_genome="felCat9"`,
-    `mhc_prefix="FLA"`, `ensembl_release=112`
+    `mhc_prefix="FLA"`, `ensembl_release=111`
 - Lookup: `get_species(name: str) -> SpeciesConfig`
 
 **2. Add `species` field to all input schemas**
@@ -283,8 +283,8 @@ Pass species through to agent and task generator.
 
 New file: `scripts/download_ensembl_species.sh`
 ```bash
-pyensembl install --release 112 --species dog
-pyensembl install --release 112 --species cat
+pyensembl install --release 111 --species dog
+pyensembl install --release 111 --species cat
 ```
 
 **18. Canine test data**
@@ -360,7 +360,7 @@ established functional impact predictors.
 ## Verification Checklist
 
 - [ ] `get_species("dog")` returns correct CanFam3.1 config with DLA prefix
-- [ ] `pyensembl install --release 112 --species dog` succeeds
+- [ ] `pyensembl install --release 111 --species dog` succeeds
 - [ ] Canine transcript lookup works for known genes (BRAF, KIT, TP53)
 - [ ] DLA-88*001:01 normalizes correctly
 - [ ] `mhcgnomes.parse("DLA-88*001:01")` validates

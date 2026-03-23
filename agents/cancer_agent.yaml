@@ -28,8 +28,8 @@ agent:
 
   species_support:
     human: { ref: GRCh38, mhc: HLA, predictor: mhcflurry }
-    dog:   { ref: CanFam3.1, mhc: DLA, predictor: netmhcpan, ensembl_release: 112 }
-    cat:   { ref: felCat9,   mhc: FLA, predictor: netmhcpan, ensembl_release: 112 }
+    dog:   { ref: CanFam3.1, mhc: DLA, predictor: netmhcpan, ensembl_release: 111 }
+    cat:   { ref: felCat9,   mhc: FLA, predictor: netmhcpan, ensembl_release: 111 }
 
   pipelines:
     somatic_mutation_calling:

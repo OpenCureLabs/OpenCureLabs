@@ -4,7 +4,7 @@ Test the neoantigen prediction pipeline with synthetic canine (dog) VCF data.
 Uses:
   - Synthetic CanFam3.1 VCF with BRAF V595E, KIT exon-11, TP53 R175H, PTEN R130Q, MC1R variants
   - DLA-88 Class I alleles (Dog Leukocyte Antigen)
-  - Ensembl release 112 (canis_familiaris) gene annotations
+  - Ensembl release 111 (canis_familiaris) gene annotations
 
 Marks xfail when pyensembl canine database is not downloaded.
 Run `bash scripts/download_ensembl_species.sh dog` to enable full tests.
@@ -27,10 +27,10 @@ VCF_PATH = os.path.join(os.path.dirname(__file__), "data", "synthetic_canine_som
 # ── helpers ──────────────────────────────────────────────────────────────────
 
 def _canine_ensembl_available() -> bool:
-    """Return True if pyensembl canine release 112 is downloaded."""
+    """Return True if pyensembl canine release 111 is downloaded."""
     try:
         from pyensembl import EnsemblRelease
-        r = EnsemblRelease(112, species="canis_familiaris")
+        r = EnsemblRelease(111, species="canis_familiaris")
         r.gene_ids_at_locus("chr16", 26835234)  # BRAF locus
         return True
     except Exception:
@@ -38,7 +38,7 @@ def _canine_ensembl_available() -> bool:
 
 
 CANINE_ENSEMBL_MISSING = not _canine_ensembl_available()
-SKIP_REASON = "Ensembl release 112 (dog) not downloaded — run: bash scripts/download_ensembl_species.sh dog"
+SKIP_REASON = "Ensembl release 111 (dog) not downloaded — run: bash scripts/download_ensembl_species.sh dog"
 
 # ── species registry tests ────────────────────────────────────────────────────
 
@@ -47,7 +47,7 @@ def test_species_registry_dog():
     cfg = get_species("dog")
     assert cfg.name == "dog"
     assert cfg.ensembl_species == "canis_familiaris"
-    assert cfg.ensembl_release == 112
+    assert cfg.ensembl_release == 111
     assert cfg.reference_genome == "CanFam3.1"
     assert cfg.mhc_prefix == "DLA"
     assert cfg.ncbi_taxon_id == 9615
