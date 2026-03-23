@@ -16,7 +16,21 @@ else
     echo "⚠️  Documentation checker not found, skipping."
 fi
 
-# ── Step 2: Security scan ────────────────────────────────────────────────────
+# ── Step 2: Fast test gate ────────────────────────────────────────────────────
+# Runs unit tests (skipping integration/gpu) with fail-fast so broken code
+# never enters the repo. Takes ~30s locally.
+echo "🧪 Running fast test gate..."
+if python3 -m pytest tests/ -x -q -m "not integration and not gpu" --tb=line --override-ini="addopts=" 2>/dev/null; then
+    echo "✅ Tests passed."
+else
+    echo ""
+    echo "❌ Tests failed — commit blocked."
+    echo "   Run 'pytest -x --tb=short' to see the full failure."
+    echo ""
+    exit 1
+fi
+
+# ── Step 3: Security scan ────────────────────────────────────────────────────
 
 if [[ ! -f "$SCANNER" ]]; then
     echo "⚠️  Security scanner not found at ${SCANNER}, skipping pre-commit check."

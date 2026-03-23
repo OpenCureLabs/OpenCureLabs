@@ -55,7 +55,7 @@ jobs:
           PGPASSWORD=postgres psql -h localhost -p 5433 -U postgres -d opencurelabs -f db/schema.sql
 
       - name: Run tests
-        run: pytest tests/ -v --tb=short --cov=packages/agentiq_labclaw --cov-report=term-missing --cov-fail-under=30
+        run: pytest tests/ -m "not integration and not gpu" -v --tb=short --cov=packages/agentiq_labclaw --cov-report=term-missing --cov-fail-under=30
 
       - name: Lint (ruff)
         run: ruff check packages/ pipelines/ dashboard/ --output-format=github

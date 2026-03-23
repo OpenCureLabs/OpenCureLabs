@@ -184,7 +184,7 @@ pytest --cov=packages/agentiq_labclaw --cov-report=term-missing
 pytest -m "not gpu"
 ```
 
-**Current status:** 262 tests — 262 passed, 13 skipped, 1 xfailed, 0 failures.
+**Current status:** 396 tests selected (409 collected, 13 deselected) — 382 passed, 13 skipped, 1 xfailed, 0 failures.
 
 ---
 
@@ -192,7 +192,7 @@ pytest -m "not gpu"
 
 | File | Purpose |
 |------|---------|
-| `pytest.ini` | Test discovery, markers (`gpu`), asyncio mode, default args |
+| `pytest.ini` | Test discovery, markers (`gpu`, `integration`), asyncio mode, default args |
 | `pyproject.toml` | Coverage target (`packages/agentiq_labclaw`) |
 | `tests/conftest.py` | Shared fixtures — adds `agentiq_labclaw` to `sys.path` |
 
@@ -218,7 +218,8 @@ pytest -m "not gpu"
 | `test_run_research.py` | 49 | Scenario | Shell function filtering, task catalog, dispatch loops, env vars |
 | `test_security.py` | 21 | Unit | Security scanner grades, findings, reports, baselines |
 | `test_skills.py` | 28 | Unit | Structure prediction, docking, QSAR, variant analysis, QC, PDF |
-| `test_vast_dispatcher.py` | 10 | Unit | Vast.ai instance lifecycle, offers, dispatch |
+| `test_vast_dispatcher.py` | 21 | Unit | Vast.ai instance lifecycle, offers, dispatch, instance reuse |
+| `test_llm_validation.py` | 57 | Unit+Integration | LLM response parsing, prompt validation, pipeline flow, live API |
 
 ---
 
@@ -416,6 +417,56 @@ functions are detected automatically.
 | `TestFindCheapestOffer` | 3 | Cheapest offer, no offers, GPU filter |
 | `TestCreateInstance` | 2 | Create success, failure |
 | `TestDispatch` | 1 | Missing API key |
+| `TestFindReusableInstance` | 7 | Running instance detection, SSH host filter, client_id matching |
+| `TestDispatchReuse` | 2 | Instance reuse path, graceful fallback on reuse failure |
+
+### test_llm_validation.py — LLM Validation
+
+Tests Grok (xAI) and Gemini (Google) LLM integration: response parsing,
+prompt content, pipeline flow, JSON extraction, and live API connectivity.
+The companion CLI tool (`scripts/llm_health_check.py`) provides database
+diagnostics for Grok critique history and API health checks.
+
+**CLI usage:**
+
+```bash
+# Full health check (DB + API connectivity)
+python scripts/llm_health_check.py
+
+# Last 7 days only
+python scripts/llm_health_check.py --days 7
+
+# JSON output for automation
+python scripts/llm_health_check.py --json
+
+# Skip live API checks (DB only)
+python scripts/llm_health_check.py --skip-api
+```
+
+**Checks performed:**
+
+| Check | What |
+|-------|------|
+| Score distribution | Mean, median, std of Grok critique scores |
+| Recommendation distribution | publish / revise / reject counts |
+| Parse error rate | JSON parse failures in critique_log |
+| Block rate | experiment_results blocked vs published |
+| Flagged critiques | Scores ≤ 3 or recommendation = reject |
+| Grok API ping | Live connectivity to xAI API |
+| Gemini API ping | Live connectivity to Gemini API |
+
+| Class | Tests | What |
+|-------|-------|------|
+| `TestGrokCritiqueResponseParsing` | 12 | Valid JSON, missing fields, low score, boundary scores, markdown wrapping |
+| `TestGrokLiteratureResponseParsing` | 5 | Literature review JSON, missing fields, empty sources |
+| `TestGrokFallbackBehavior` | 3 | API errors, empty response, non-JSON response |
+| `TestGrokExtractJson` | 5 | JSON extraction, markdown fences, control character stripping |
+| `TestGrokPromptContent` | 5 | Prompt template validation (recommendation criteria, literature_score) |
+| `TestGeminiCoordinatorPrompts` | 7 | Gemini config, API key, temperature, prompt structure |
+| `TestGrokCritiquePipeline` | 5 | Post-execute flow: critique → DB write → safety check → publish |
+| `TestSafetyCheckUnit` | 7 | Confidence gating, thresholds, edge cases |
+| `TestGrokLiveAPI` | 5 | Live Grok API (marked `integration`) |
+| `TestGeminiLiveAPI` | 3 | Live Gemini API (marked `integration`) |
 
 ### test_log_analysis.py — Log Analyzer
 

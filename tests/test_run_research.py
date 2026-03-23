@@ -12,6 +12,7 @@ import json
 import os
 import re
 import subprocess
+import sys
 import textwrap
 
 import pytest
@@ -228,7 +229,7 @@ class TestParameterize:
     def _run_parameterize(self, desc: str, data_mode: str = "public",
                           species: str = "human") -> str:
         cmd = [
-            "python3", PARAMETERIZE_SCRIPT, desc,
+            sys.executable, PARAMETERIZE_SCRIPT, desc,
             "--species", species,
             "--data-mode", data_mode,
         ]

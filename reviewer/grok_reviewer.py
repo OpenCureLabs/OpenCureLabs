@@ -3,6 +3,7 @@
 import json
 import logging
 import os
+import re
 
 import openai
 
@@ -23,6 +24,13 @@ class GrokReviewer:
         "3. Interpretive accuracy — do the conclusions follow from the data?\n"
         "4. Reproducibility — could this result be independently verified?\n"
         "5. Novelty assessment — is this a genuine new finding or expected behavior?\n\n"
+        "Recommendation criteria:\n"
+        "- \"publish\": overall_score >= 7 AND no critical methodological flaws. "
+        "The result is scientifically sound and ready for dissemination.\n"
+        "- \"revise\": overall_score 4-7 OR minor issues that can be corrected. "
+        "The result has merit but needs improvements before publication.\n"
+        "- \"reject\": overall_score < 4 OR fundamental flaws in logic, statistics, "
+        "or interpretation that invalidate the conclusions.\n\n"
         "Always return your critique as a JSON object with this schema:\n"
         "{\n"
         '  "overall_score": 0-10,\n'
@@ -43,6 +51,8 @@ class GrokReviewer:
         "2. Contradicting evidence — are there findings that conflict?\n"
         "3. Related work — what is the current state of the art?\n"
         "4. Methodology precedent — has this approach been validated elsewhere?\n\n"
+        "You MUST include a numeric literature_score (integer 0-10) and "
+        "confidence_in_finding (\"high\", \"medium\", or \"low\") in your response.\n\n"
         "Return your review as a JSON object with this schema:\n"
         "{\n"
         '  "corroborating": [{"title": "...", "source": "...", "summary": "..."}],\n'
@@ -96,13 +106,7 @@ class GrokReviewer:
         response_text = response.choices[0].message.content
 
         try:
-            if "```json" in response_text:
-                json_str = response_text.split("```json")[1].split("```")[0]
-            elif "```" in response_text:
-                json_str = response_text.split("```")[1].split("```")[0]
-            else:
-                json_str = response_text
-
+            json_str = self._extract_json(response_text)
             critique_result = json.loads(json_str)
             logger.info(
                 "Grok critique: overall_score=%s, recommendation=%s",
@@ -151,13 +155,7 @@ class GrokReviewer:
         response_text = response.choices[0].message.content
 
         try:
-            if "```json" in response_text:
-                json_str = response_text.split("```json")[1].split("```")[0]
-            elif "```" in response_text:
-                json_str = response_text.split("```")[1].split("```")[0]
-            else:
-                json_str = response_text
-
+            json_str = self._extract_json(response_text)
             review = json.loads(json_str)
             logger.info(
                 "Grok review: lit_score=%s, confidence=%s",
@@ -173,6 +171,19 @@ class GrokReviewer:
                 "raw_response": response_text,
                 "parse_error": str(e),
             }
+
+    @staticmethod
+    def _extract_json(text: str) -> str:
+        """Extract JSON from a response, stripping code fences and control characters."""
+        if "```json" in text:
+            json_str = text.split("```json")[1].split("```")[0]
+        elif "```" in text:
+            json_str = text.split("```")[1].split("```")[0]
+        else:
+            json_str = text
+        # Strip control characters (except whitespace) that cause parse failures
+        json_str = re.sub(r'[\x00-\x08\x0b\x0c\x0e-\x1f]', '', json_str)
+        return json_str
 
 
 class GrokResearcher:
