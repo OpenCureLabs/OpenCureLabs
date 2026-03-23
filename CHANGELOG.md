@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - CI pipeline with tests, ruff, and bandit
 - Commitizen conventional commits enforcement
 
+## v0.41.1 (2026-03-23)
+
+### Fix
+
+- reuse existing Vast.ai instances in genesis dispatch
+
 ## v0.41.0 (2026-03-23)
 
 ### Feat
