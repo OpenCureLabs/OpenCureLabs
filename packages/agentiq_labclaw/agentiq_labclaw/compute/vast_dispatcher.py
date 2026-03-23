@@ -195,6 +195,150 @@ def _find_reusable_instance(api_key: str):
     return None
 
 
+# ── Pool-aware instance management ──────────────────────────────────────────
+
+def _claim_pool_instance():
+    """Atomically claim a 'ready' instance from vast_pool for exclusive use.
+
+    Returns (instance_id, ssh_host, ssh_port, gpu_name, cost_per_hr) or None.
+    Uses SELECT FOR UPDATE SKIP LOCKED so parallel tasks each claim a different
+    instance without races.
+    """
+    conn = _get_db_connection()
+    if not conn:
+        return None
+    try:
+        cur = conn.cursor()
+        cur.execute("""
+            UPDATE vast_pool
+            SET status = 'busy'
+            WHERE id = (
+                SELECT id FROM vast_pool
+                WHERE status = 'ready'
+                LIMIT 1
+                FOR UPDATE SKIP LOCKED
+            )
+            RETURNING instance_id, ssh_host, ssh_port, gpu_name, cost_per_hr
+        """)
+        row = cur.fetchone()
+        conn.commit()
+        cur.close()
+        conn.close()
+        return row  # (instance_id, ssh_host, ssh_port, gpu_name, cost_per_hr) or None
+    except Exception as e:
+        logger.debug("Could not claim pool instance: %s", e)
+        try:
+            conn.close()
+        except Exception:
+            pass
+        return None
+
+
+def _register_pool_instance(
+    instance_id: int, ssh_host: str, ssh_port: int, gpu_name: str, cost_per_hr: float,
+):
+    """Register a newly provisioned instance in vast_pool with status 'busy'."""
+    conn = _get_db_connection()
+    if not conn:
+        return
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            """
+            INSERT INTO vast_pool
+                (instance_id, ssh_host, ssh_port, gpu_name, cost_per_hr, status, ready_at)
+            VALUES (%s, %s, %s, %s, %s, 'busy', NOW())
+            ON CONFLICT (instance_id) DO UPDATE
+                SET status = 'busy',
+                    ssh_host = EXCLUDED.ssh_host,
+                    ssh_port = EXCLUDED.ssh_port
+            """,
+            (instance_id, ssh_host, ssh_port, gpu_name, cost_per_hr),
+        )
+        conn.commit()
+        cur.close()
+        conn.close()
+    except Exception as e:
+        logger.debug("Could not register pool instance: %s", e)
+        try:
+            conn.close()
+        except Exception:
+            pass
+
+
+def _release_pool_instance(instance_id: int, destroy: bool = False):
+    """Mark a pool instance ready (or destroyed) after a job completes."""
+    conn = _get_db_connection()
+    if not conn:
+        return
+    try:
+        cur = conn.cursor()
+        if destroy:
+            cur.execute(
+                "UPDATE vast_pool SET status = 'destroyed', destroyed_at = NOW()"
+                " WHERE instance_id = %s",
+                (instance_id,),
+            )
+        else:
+            cur.execute(
+                "UPDATE vast_pool"
+                " SET status = 'ready', jobs_done = COALESCE(jobs_done, 0) + 1"
+                " WHERE instance_id = %s AND status = 'busy'",
+                (instance_id,),
+            )
+        conn.commit()
+        cur.close()
+        conn.close()
+    except Exception as e:
+        logger.debug("Could not release pool instance: %s", e)
+        try:
+            conn.close()
+        except Exception:
+            pass
+
+
+def teardown_all_instances():
+    """Destroy all active Vast.ai pool instances at the end of a run.
+
+    Called by the coordinator when a Genesis run ends (budget exhausted or stopped).
+    Safe to call multiple times — already-destroyed instances are skipped.
+    """
+    vast_key = os.environ.get("VAST_AI_KEY")
+    if not vast_key:
+        return
+    conn = _get_db_connection()
+    if not conn:
+        return
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT instance_id FROM vast_pool WHERE status IN ('ready', 'busy', 'provisioning')"
+        )
+        rows = cur.fetchall()
+        cur.close()
+        conn.close()
+    except Exception as e:
+        logger.warning("Could not query pool for teardown: %s", e)
+        try:
+            conn.close()
+        except Exception:
+            pass
+        return
+
+    if not rows:
+        logger.info("Teardown: no active pool instances to destroy")
+        return
+
+    logger.info("Teardown: destroying %d pool instance(s)", len(rows))
+    for (instance_id,) in rows:
+        try:
+            VastInstance(vast_key, instance_id).destroy()
+            _release_pool_instance(instance_id, destroy=True)
+            logger.info("Teardown: destroyed instance %d", instance_id)
+        except Exception as e:
+            logger.warning("Teardown: failed to destroy instance %d: %s", instance_id, e)
+
+
 class VastInstance:
     """Manages a single Vast.ai GPU instance lifecycle."""
 
@@ -386,13 +530,17 @@ def dispatch(skill, input_data):
     """
     Dispatch a skill execution to Vast.ai for heavy compute.
 
+    Instance lifecycle (continuous/Genesis mode):
     1. Check budget
-    2. Reuse an existing running instance if available
-    3. Otherwise: find cheapest offer, provision a new instance
+    2. Claim an existing 'ready' instance from the pool (atomic DB claim)
+    3. If no pool instance: find cheapest offer, provision a new instance
     4. Wait for it to be ready + onstart to complete
     5. Serialize input, SSH-execute the skill remotely
-    6. Retrieve results
-    7. Terminate the instance only if we provisioned it
+    6. On success: mark instance 'ready' in pool — keeps it alive for next batch
+    7. On failure: destroy the instance and mark it 'destroyed'
+
+    Instances persist between batches in continuous mode and are only destroyed
+    when teardown_all_instances() is called at run end.
     """
     vast_key = os.environ.get("VAST_AI_KEY")
     if not vast_key:
@@ -410,31 +558,41 @@ def dispatch(skill, input_data):
 
     logger.info("Dispatching %s to Vast.ai (GPU required: %s)", skill.name, skill.gpu_required)
 
-    # ── Try to reuse an existing running instance ──
-    existing = _find_reusable_instance(vast_key)
-    if existing:
-        inst_id, ssh_host, ssh_port, gpu_name, cost_hr = existing
+    # ── Claim an existing ready instance from the persistent pool ──
+    claimed = _claim_pool_instance()
+    if claimed:
+        inst_id, ssh_host, ssh_port, gpu_name, cost_hr = claimed
         logger.info(
-            "[%s] Reusing existing Vast.ai instance %d (%s)",
-            skill.name, inst_id, gpu_name,
+            "[%s] Claimed pool instance %d (%s) at %s:%d",
+            skill.name, inst_id, gpu_name, ssh_host, ssh_port,
         )
         spend_id = _record_spend_start(skill.name, inst_id, gpu_name, cost_hr)
         job_start = time.monotonic()
         try:
             result = _run_remote(skill.name, input_data, ssh_host, ssh_port, skill.output_schema)
-            logger.info("Vast.ai dispatch succeeded for %s (reused instance %d)", skill.name, inst_id)
+            logger.info(
+                "Vast.ai dispatch succeeded for %s (pool instance %d)", skill.name, inst_id,
+            )
+            _release_pool_instance(inst_id)  # return to pool for next task
             return result
+        except Exception:
+            # Instance may be broken — destroy it and evict from pool
+            try:
+                VastInstance(vast_key, inst_id).destroy()
+            except Exception as destroy_err:
+                logger.warning("Could not destroy failed pool instance %d: %s", inst_id, destroy_err)
+            _release_pool_instance(inst_id, destroy=True)
+            raise
         finally:
-            # Record spend but do NOT destroy — instance is shared
             elapsed_hrs = (time.monotonic() - job_start) / 3600
             total_cost = round(elapsed_hrs * cost_hr, 4)
             _record_spend_end(spend_id, total_cost)
             logger.info(
-                "Vast.ai job complete (reused): %s, %.1f min, $%.4f",
+                "Vast.ai job complete (pool): %s, %.1f min, $%.4f",
                 skill.name, elapsed_hrs * 60, total_cost,
             )
 
-    # ── No existing instance — provision a new one ──
+    # ── No pool instance available — provision a new one ──
     # 1. Find offer
     offer = _find_cheapest_offer(vast_key, skill.gpu_required)
     offer_id = offer["id"]
@@ -462,14 +620,27 @@ def dispatch(skill, input_data):
         # 4. Wait for onstart (pip install from GitHub) to finish
         _wait_for_setup(ssh_host, ssh_port)
 
-        # 5. Run remotely
+        # 5. Register in pool as 'busy' (we're running on it)
+        _register_pool_instance(instance_id, ssh_host, ssh_port, gpu_name, cost_hr)
+
+        # 6. Run remotely
         result = _run_remote(skill.name, input_data, ssh_host, ssh_port, skill.output_schema)
-        logger.info("Vast.ai dispatch succeeded for %s", skill.name)
+        logger.info("Vast.ai dispatch succeeded for %s (new instance %d)", skill.name, instance_id)
+
+        # 7. Keep alive — return to pool for the next batch
+        _release_pool_instance(instance_id)
+        logger.info("Instance %d returned to pool (ready for next task)", instance_id)
         return result
 
+    except Exception:
+        # Destroy on failure — don't leave broken instances in the pool
+        try:
+            instance.destroy()
+        except Exception as destroy_err:
+            logger.warning("Could not destroy failed instance %d: %s", instance_id, destroy_err)
+        _release_pool_instance(instance_id, destroy=True)
+        raise
     finally:
-        # 7. Always clean up and record spend for provisioned instances
-        instance.destroy()
         elapsed_hrs = (time.monotonic() - job_start) / 3600
         total_cost = round(elapsed_hrs * cost_hr, 4)
         _record_spend_end(spend_id, total_cost)

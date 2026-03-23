@@ -15,6 +15,10 @@ from agentiq_labclaw.compute.vast_dispatcher import (
     VastInstance,
     _find_cheapest_offer,
     _find_reusable_instance,
+    _claim_pool_instance,
+    _register_pool_instance,
+    _release_pool_instance,
+    teardown_all_instances,
     _create_instance,
     _run_remote,
     dispatch,
@@ -259,18 +263,20 @@ class TestFindReusableInstance:
 # ═══════════════════════════════════════════════════════════════════════════
 
 class TestDispatchReuse:
-    """Test that dispatch reuses existing instances and doesn't destroy them."""
+    """Test that dispatch claims pool instances and keeps them alive on success."""
 
     @patch("agentiq_labclaw.compute.vast_dispatcher._record_spend_end")
     @patch("agentiq_labclaw.compute.vast_dispatcher._record_spend_start", return_value=1)
+    @patch("agentiq_labclaw.compute.vast_dispatcher._release_pool_instance")
     @patch("agentiq_labclaw.compute.vast_dispatcher._run_remote")
-    @patch("agentiq_labclaw.compute.vast_dispatcher._find_reusable_instance")
+    @patch("agentiq_labclaw.compute.vast_dispatcher._claim_pool_instance")
     @patch("agentiq_labclaw.compute.vast_dispatcher.check_budget", return_value=(True, 10.0, 20.0))
     def test_reuses_existing_instance(
-        self, mock_budget, mock_find, mock_remote, mock_spend_start, mock_spend_end, monkeypatch,
+        self, mock_budget, mock_claim, mock_remote, mock_release, mock_spend_start, mock_spend_end,
+        monkeypatch,
     ):
         monkeypatch.setenv("VAST_AI_KEY", "test-key")
-        mock_find.return_value = (100, "74.48.78.46", 22222, "RTX 5090", 0.316)
+        mock_claim.return_value = (100, "74.48.78.46", 22222, "RTX 5090", 0.316)
 
         skill = MagicMock()
         skill.name = "structure_prediction"
@@ -279,22 +285,26 @@ class TestDispatchReuse:
 
         result = dispatch(skill, MagicMock())
 
-        mock_find.assert_called_once_with("test-key")
+        mock_claim.assert_called_once()
         mock_remote.assert_called_once()
-        # Should NOT try to find/provision a new instance
+        # Instance returned to pool, not destroyed
+        mock_release.assert_called_once_with(100)
         assert result == mock_remote.return_value
 
     @patch("agentiq_labclaw.compute.vast_dispatcher._record_spend_end")
     @patch("agentiq_labclaw.compute.vast_dispatcher._record_spend_start", return_value=1)
+    @patch("agentiq_labclaw.compute.vast_dispatcher._release_pool_instance")
+    @patch("agentiq_labclaw.compute.vast_dispatcher.VastInstance")
     @patch("agentiq_labclaw.compute.vast_dispatcher._run_remote")
-    @patch("agentiq_labclaw.compute.vast_dispatcher._find_reusable_instance")
+    @patch("agentiq_labclaw.compute.vast_dispatcher._claim_pool_instance")
     @patch("agentiq_labclaw.compute.vast_dispatcher.check_budget", return_value=(True, 10.0, 20.0))
-    def test_reuse_failure_does_not_destroy(
-        self, mock_budget, mock_find, mock_remote, mock_spend_start, mock_spend_end, monkeypatch,
+    def test_pool_failure_destroys_instance(
+        self, mock_budget, mock_claim, mock_remote, mock_vi, mock_release, mock_spend_start,
+        mock_spend_end, monkeypatch,
     ):
-        """When reuse fails, we record spend but do NOT destroy the shared instance."""
+        """When a pool instance fails, it is destroyed and evicted from the pool."""
         monkeypatch.setenv("VAST_AI_KEY", "test-key")
-        mock_find.return_value = (100, "74.48.78.46", 22222, "RTX 5090", 0.316)
+        mock_claim.return_value = (100, "74.48.78.46", 22222, "RTX 5090", 0.316)
         mock_remote.side_effect = RuntimeError("SSH failed")
 
         skill = MagicMock()
@@ -305,3 +315,5 @@ class TestDispatchReuse:
 
         # Spend should still be recorded
         mock_spend_end.assert_called_once()
+        # Instance should be evicted from pool
+        mock_release.assert_called_once_with(100, destroy=True)
