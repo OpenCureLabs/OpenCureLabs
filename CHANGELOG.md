@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - CI pipeline with tests, ruff, and bandit
 - Commitizen conventional commits enforcement
 
+## v0.42.3 (2026-03-23)
+
+### Fix
+
+- **compute**: raise provision wait timeout 300s→900s for RTX 5090 cold start
+
 ## v0.42.2 (2026-03-23)
 
 ### Fix
