@@ -59,6 +59,17 @@ RESET='\033[0m'
 HAS_GUM=false
 command -v gum &>/dev/null && HAS_GUM=true
 
+# ── Parameterize task descriptions ────────────────────────────────────────────
+# Converts free-text task descriptions into parameterized instructions with
+# concrete gene/protein/compound inputs from the curated task generator.
+# Without this, the LLM coordinator asks for clarification instead of acting.
+parameterize_task() {
+    local desc="$1"
+    local species="${LABCLAW_SPECIES:-human}"
+    python3 "$PROJECT_DIR/scripts/parameterize_task.py" "$desc" --species "$species" 2>/dev/null \
+        || echo "$desc"
+}
+
 # ── Task catalog ─────────────────────────────────────────────────────────────
 # Each entry:  "Short label|Full task description sent to coordinator"
 
@@ -400,6 +411,7 @@ while [[ $# -gt 0 ]]; do
 done
 
 if [[ -n "$TASK" ]]; then
+    TASK=$(parameterize_task "$TASK")
     echo -e "${CYAN}── Running Task ──${RESET}"
     echo -e "${DIM}$TASK${RESET}"
     echo
@@ -760,6 +772,7 @@ if $HAS_GUM; then
                         LABEL="${RAW_LABEL%% ~*}"
                         DOMAIN_NAME="${ALL_DOMAINS[$i]}"
                         GENESIS_TASK="${ALL_TASKS[$i]} Use public databases (TCGA/ClinVar/ChEMBL) for data sourcing. Deploy 3 parallel agents. Use Vast.ai cloud GPU for compute."
+                        GENESIS_TASK=$(parameterize_task "$GENESIS_TASK")
                         TASK_LOG="$GENESIS_LOG_DIR/task-${TASK_NUM}-$(echo "$LABEL" | tr ' ' '_').log"
 
                         gum style --foreground 214 --bold \
@@ -791,6 +804,7 @@ if $HAS_GUM; then
                             LABEL="${RAW_LABEL%% ~*}"
                             DOMAIN_NAME="${ALL_DOMAINS[$i]}"
                             GENESIS_TASK="${ALL_TASKS[$i]} Use public databases (TCGA/ClinVar/ChEMBL) for data sourcing. Deploy 3 parallel agents. Use Vast.ai cloud GPU for compute."
+                            GENESIS_TASK=$(parameterize_task "$GENESIS_TASK")
                             TASK_LOG="$GENESIS_LOG_DIR/task-${TASK_NUM}-$(echo "$LABEL" | tr ' ' '_').log"
 
                             gum style --foreground 214 --bold \
@@ -1180,6 +1194,7 @@ if $HAS_GUM; then
             [[ "${AGENT_NUM:-1}" -gt 1 ]] 2>/dev/null && CURRENT_TASK="$CURRENT_TASK Deploy $AGENT_NUM parallel agents."
             [[ "$USE_VAST" == "yes" ]] && CURRENT_TASK="$CURRENT_TASK Use Vast.ai cloud GPU for compute."
             [[ "$LABCLAW_SPECIES" != "human" ]] && CURRENT_TASK="$CURRENT_TASK species=$LABCLAW_SPECIES."
+            CURRENT_TASK=$(parameterize_task "$CURRENT_TASK")
 
             gum style --foreground 214 --bold \
                 "  ▶ [R${ROUND} ${TASK_NUM}/$TOTAL_ALL] $LABEL" 2>/dev/null || true
@@ -1252,6 +1267,7 @@ if $HAS_GUM; then
             gum style --foreground 242 --italic "  🔒 Solo mode — results stay local by default"
         echo ""
 
+        TASK=$(parameterize_task "$TASK")
         nat run --config_file "$CONFIG" --input "$TASK" 2>&1 | tee -a "$LOG"
 
         echo ""
@@ -1512,6 +1528,7 @@ select domain in "${DOMAINS[@]}"; do
                                 LABEL="${ALL_LABELS[$i]}"
                                 DOMAIN_NAME="${ALL_DOMAINS[$i]}"
                                 GENESIS_TASK="${ALL_TASKS[$i]} Use public databases (TCGA/ClinVar/ChEMBL) for data sourcing. Deploy 3 parallel agents. Use Vast.ai cloud GPU for compute."
+                                GENESIS_TASK=$(parameterize_task "$GENESIS_TASK")
                                 TASK_LOG="$GENESIS_LOG_DIR/task-${TASK_NUM}-$(echo "$LABEL" | tr ' ' '_').log"
 
                                 echo -e "${YELLOW}  ▶ [R${ROUND} ${TASK_NUM}/$TOTAL] $DOMAIN_NAME → $LABEL${RESET}"
@@ -1540,6 +1557,7 @@ select domain in "${DOMAINS[@]}"; do
                                     LABEL="${ALL_LABELS[$i]}"
                                     DOMAIN_NAME="${ALL_DOMAINS[$i]}"
                                     GENESIS_TASK="${ALL_TASKS[$i]} Use public databases (TCGA/ClinVar/ChEMBL) for data sourcing. Deploy 3 parallel agents. Use Vast.ai cloud GPU for compute."
+                                    GENESIS_TASK=$(parameterize_task "$GENESIS_TASK")
                                     TASK_LOG="$GENESIS_LOG_DIR/task-${TASK_NUM}-$(echo "$LABEL" | tr ' ' '_').log"
 
                                     echo -e "${YELLOW}  ▶ [R${ROUND} ${TASK_NUM}/$TOTAL] $DOMAIN_NAME → $LABEL${RESET}"
@@ -1748,6 +1766,7 @@ while true; do
     [[ "$DATA_MODE" == "mydata" ]] && echo -e "${DIM}  🔒 Solo mode — results stay local by default${RESET}"
     echo ""
 
+    TASK=$(parameterize_task "$TASK")
     nat run --config_file "$CONFIG" --input "$TASK" 2>&1 | tee -a "$LOG"
 
     echo ""

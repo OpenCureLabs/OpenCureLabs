@@ -110,6 +110,15 @@ async def post_execute(
     }
     orch = enriched["orchestration"]
 
+    # Create a pipeline_runs entry for FK references (critique_log, experiment_results)
+    pipeline_run_id = None
+    try:
+        from agentiq_labclaw.db.pipeline_runs import start_pipeline
+
+        pipeline_run_id = start_pipeline(skill_name, result_dict)
+    except Exception as e:
+        logger.debug("Could not create pipeline_run: %s", e)
+
     novel = result_dict.get("novel", False)
     critique_required = result_dict.get("critique_required", False)
     critique_completed = False
@@ -164,11 +173,11 @@ async def post_execute(
             )
 
             # Log to DB
-            if run_id is not None:
+            if pipeline_run_id is not None:
                 try:
                     from agentiq_labclaw.db.critique_log import log_critique
 
-                    log_critique(run_id, "grok", critique)
+                    log_critique(pipeline_run_id, "grok", critique)
                 except Exception as e:
                     logger.warning("Failed to log Grok critique to DB: %s", e)
 
@@ -194,11 +203,11 @@ async def post_execute(
                     lit_review.get("confidence_in_finding"),
                 )
 
-                if run_id is not None:
+                if pipeline_run_id is not None:
                     try:
                         from agentiq_labclaw.db.critique_log import log_critique
 
-                        log_critique(run_id, "grok_literature", lit_review)
+                        log_critique(pipeline_run_id, "grok_literature", lit_review)
                     except Exception as e:
                         logger.warning("Failed to log Grok literature review to DB: %s", e)
 
@@ -220,12 +229,12 @@ async def post_execute(
             if not is_safe:
                 logger.warning("Safety check blocked publishing for %s: %s", skill_name, reason)
                 # Store the blocked result so it's visible in the dashboard
-                if run_id is not None:
+                if pipeline_run_id is not None:
                     try:
                         from agentiq_labclaw.db.experiment_results import store_result
 
                         store_result(
-                            pipeline_run_id=run_id,
+                            pipeline_run_id=pipeline_run_id,
                             result_type=skill_name,
                             result_data=result_dict,
                             novel=novel,
@@ -239,18 +248,26 @@ async def post_execute(
             orch["safety"] = {"safe": True, "error": str(e)}
 
     # ── Step 5: Store result in DB ───────────────────────────────────────
-    if run_id is not None:
+    if pipeline_run_id is not None:
         try:
             from agentiq_labclaw.db.experiment_results import store_result
 
             store_result(
-                pipeline_run_id=run_id,
+                pipeline_run_id=pipeline_run_id,
                 result_type=skill_name,
                 result_data=result_dict,
                 novel=novel,
             )
         except Exception as e:
             logger.warning("Failed to store result in DB: %s", e)
+
+        # Mark pipeline run as completed
+        try:
+            from agentiq_labclaw.db.pipeline_runs import complete_pipeline
+
+            complete_pipeline(pipeline_run_id, "completed")
+        except Exception as e:
+            logger.debug("Could not complete pipeline_run: %s", e)
 
     # ── Always write reports/last_result.json ────────────────────────────
     # Used by the solo-mode post-run R2 opt-in prompt in run_research.sh

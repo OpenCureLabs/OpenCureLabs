@@ -77,6 +77,10 @@ def fetch_chembl_csv(
     """
     import pandas as pd
 
+    # Normalize: LLMs sometimes strip the CHEMBL prefix (e.g. "4630" → "CHEMBL4630")
+    if target_chembl_id.isdigit():
+        target_chembl_id = f"CHEMBL{target_chembl_id}"
+
     safe = target_chembl_id.replace("/", "_")
     dest = CACHE_DIR / "chembl" / f"{safe}.csv"
     if dest.exists() and dest.stat().st_size > 0:

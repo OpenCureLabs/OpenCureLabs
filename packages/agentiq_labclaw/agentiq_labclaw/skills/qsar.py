@@ -96,8 +96,11 @@ class QSARSkill(LabClawSkill):
         if not Path(dataset_path).exists():
             from agentiq_labclaw.data.fetch import fetch_chembl_csv
 
-            # Extract ChEMBL target ID from filename convention: data/chembl/EGFR_IC50.csv
-            stem = Path(dataset_path).stem  # e.g. "EGFR_IC50"
+            # Extract ChEMBL target ID from filename convention: data/chembl/CHEMBL203.csv
+            stem = Path(dataset_path).stem  # e.g. "CHEMBL203" or "EGFR_IC50"
+            # LLMs may strip the CHEMBL prefix — normalize purely numeric stems
+            if stem.isdigit():
+                stem = f"CHEMBL{stem}"
             logger.warning("Dataset not found: %s — fetching from ChEMBL", dataset_path)
             dataset_path = str(fetch_chembl_csv(
                 target_chembl_id=stem,
