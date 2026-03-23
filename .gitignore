@@ -9,6 +9,9 @@ dist/
 .pytest_cache/
 .ruff_cache/
 data/raw/
+data/human/
+data/canine/
+data/feline/
 logs/*.log
 db/data/
 .DS_Store
