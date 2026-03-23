@@ -26,7 +26,7 @@ ignore = ["S101"]  # allow assert in tests
 [tool.ruff.lint.per-file-ignores]
 # Subprocess calls in compute workers are by design (SSH, vastai CLI)
 "packages/agentiq_labclaw/agentiq_labclaw/compute/*.py" = ["S603", "S607", "S110"]
-"packages/agentiq_labclaw/agentiq_labclaw/skills/*.py" = ["S603", "S110"]
+"packages/agentiq_labclaw/agentiq_labclaw/skills/*.py" = ["S603", "S110", "S311"]  # S311: random used for synthetic data, not crypto
 "packages/agentiq_labclaw/agentiq_labclaw/nat_specialists.py" = ["S110"]
 "packages/agentiq_labclaw/agentiq_labclaw/task_generator.py" = ["S311", "E501", "F841", "B007"]
 # Dashboard and pipelines: pre-existing style issues, not security-critical

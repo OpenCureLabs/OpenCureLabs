@@ -30,7 +30,9 @@ class PDFPublisher:
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
-    def generate_report(self, title: str, sections: list[dict], critique: dict | None = None, synthetic: bool = False) -> str:
+    def generate_report(
+        self, title: str, sections: list[dict], critique: dict | None = None, synthetic: bool = False
+    ) -> str:
         """
         Generate a PDF report.
 

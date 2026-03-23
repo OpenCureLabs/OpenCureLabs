@@ -22,7 +22,10 @@ def store_result(
             (pipeline_run_id, result_type, json.dumps(result_data), novel, status, synthetic),
         )
         result_id = cur.fetchone()[0]
-    logger.info("Stored result %d (type: %s, novel: %s, synthetic: %s, status: %s)", result_id, result_type, novel, synthetic, status)
+    logger.info(
+        "Stored result %d (type: %s, novel: %s, synthetic: %s, status: %s)",
+        result_id, result_type, novel, synthetic, status,
+    )
     return result_id
 
 
