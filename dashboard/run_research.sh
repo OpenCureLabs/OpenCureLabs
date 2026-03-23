@@ -78,7 +78,7 @@ _skip_local_task() {
     if [[ "${DATA_MODE:-public}" == "public" ]]; then
         local desc_lower="${1,,}"
         case "$desc_lower" in
-            *neoantigen*|*"quality control"*|*"data quality"*|*"check data quality"*|*"check "*" data quality"*) return 0 ;;
+            *neoantigen*|*"quality control"*|*"data quality"*|*"check data quality"*|*"check "*" data quality"*|*"sequencing qc"*) return 0 ;;
         esac
     fi
     return 1
