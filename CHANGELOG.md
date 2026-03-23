@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - CI pipeline with tests, ruff, and bandit
 - Commitizen conventional commits enforcement
 
+## v0.42.4 (2026-03-23)
+
+### Fix
+
+- **compute**: persist instances across batches in continuous mode
+
 ## v0.42.3 (2026-03-23)
 
 ### Fix
