@@ -14,7 +14,9 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "packages", "ag
 from agentiq_labclaw.compute.vast_dispatcher import (
     VastInstance,
     _find_cheapest_offer,
+    _find_reusable_instance,
     _create_instance,
+    _run_remote,
     dispatch,
     VAST_API,
 )
@@ -149,3 +151,157 @@ class TestDispatch:
         skill = MagicMock(name="test_skill", gpu_required=True)
         with pytest.raises(RuntimeError, match="VAST_AI_KEY"):
             dispatch(skill, MagicMock())
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  _find_reusable_instance
+# ═══════════════════════════════════════════════════════════════════════════
+
+class TestFindReusableInstance:
+    """Test instance reuse discovery."""
+
+    @patch("agentiq_labclaw.compute.vast_dispatcher.requests.get")
+    def test_finds_running_opencurelabs_instance(self, mock_get):
+        instances = [
+            {
+                "id": 100,
+                "actual_status": "running",
+                "label": "opencurelabs",
+                "ssh_host": "74.48.78.46",
+                "ssh_port": 22222,
+                "gpu_name": "RTX 5090",
+                "dph_total": 0.316,
+            },
+        ]
+        mock_get.return_value = MagicMock(json=lambda: {"instances": instances})
+        result = _find_reusable_instance("test-key")
+        assert result is not None
+        inst_id, ssh_host, ssh_port, gpu_name, cost_hr = result
+        assert inst_id == 100
+        assert ssh_host == "74.48.78.46"
+        assert ssh_port == 22222
+        assert gpu_name == "RTX 5090"
+
+    @patch("agentiq_labclaw.compute.vast_dispatcher.requests.get")
+    def test_skips_non_running_instance(self, mock_get):
+        instances = [
+            {
+                "id": 200,
+                "actual_status": "loading",
+                "label": "opencurelabs",
+                "ssh_host": "1.2.3.4",
+                "ssh_port": 22,
+            },
+        ]
+        mock_get.return_value = MagicMock(json=lambda: {"instances": instances})
+        assert _find_reusable_instance("test-key") is None
+
+    @patch("agentiq_labclaw.compute.vast_dispatcher.requests.get")
+    def test_skips_non_opencurelabs_instance(self, mock_get):
+        instances = [
+            {
+                "id": 300,
+                "actual_status": "running",
+                "label": "someone-else",
+                "ssh_host": "5.6.7.8",
+                "ssh_port": 22,
+            },
+        ]
+        mock_get.return_value = MagicMock(json=lambda: {"instances": instances})
+        assert _find_reusable_instance("test-key") is None
+
+    @patch("agentiq_labclaw.compute.vast_dispatcher.requests.get")
+    def test_no_instances_returns_none(self, mock_get):
+        mock_get.return_value = MagicMock(json=lambda: {"instances": []})
+        assert _find_reusable_instance("test-key") is None
+
+    @patch("agentiq_labclaw.compute.vast_dispatcher.requests.get")
+    def test_api_error_returns_none(self, mock_get):
+        mock_get.side_effect = requests.RequestException("timeout")
+        assert _find_reusable_instance("test-key") is None
+
+    @patch("agentiq_labclaw.compute.vast_dispatcher.requests.get")
+    def test_matches_client_id_field(self, mock_get):
+        """Instances tagged via client_id (not label) should also match."""
+        instances = [
+            {
+                "id": 400,
+                "actual_status": "running",
+                "client_id": "opencurelabs",
+                "ssh_host": "10.0.0.1",
+                "ssh_port": 33333,
+                "gpu_name": "A100",
+                "dph_total": 1.0,
+            },
+        ]
+        mock_get.return_value = MagicMock(json=lambda: {"instances": instances})
+        result = _find_reusable_instance("test-key")
+        assert result is not None
+        assert result[0] == 400
+
+    @patch("agentiq_labclaw.compute.vast_dispatcher.requests.get")
+    def test_skips_instance_without_ssh_host(self, mock_get):
+        instances = [
+            {
+                "id": 500,
+                "actual_status": "running",
+                "label": "opencurelabs",
+                "ssh_host": None,
+                "ssh_port": 22,
+            },
+        ]
+        mock_get.return_value = MagicMock(json=lambda: {"instances": instances})
+        assert _find_reusable_instance("test-key") is None
+
+
+# ═══════════════════════════════════════════════════════════════════════════
+#  dispatch — reuse path
+# ═══════════════════════════════════════════════════════════════════════════
+
+class TestDispatchReuse:
+    """Test that dispatch reuses existing instances and doesn't destroy them."""
+
+    @patch("agentiq_labclaw.compute.vast_dispatcher._record_spend_end")
+    @patch("agentiq_labclaw.compute.vast_dispatcher._record_spend_start", return_value=1)
+    @patch("agentiq_labclaw.compute.vast_dispatcher._run_remote")
+    @patch("agentiq_labclaw.compute.vast_dispatcher._find_reusable_instance")
+    @patch("agentiq_labclaw.compute.vast_dispatcher.check_budget", return_value=(True, 10.0, 20.0))
+    def test_reuses_existing_instance(
+        self, mock_budget, mock_find, mock_remote, mock_spend_start, mock_spend_end, monkeypatch,
+    ):
+        monkeypatch.setenv("VAST_AI_KEY", "test-key")
+        mock_find.return_value = (100, "74.48.78.46", 22222, "RTX 5090", 0.316)
+
+        skill = MagicMock()
+        skill.name = "structure_prediction"
+        skill.gpu_required = True
+        mock_remote.return_value = MagicMock()
+
+        result = dispatch(skill, MagicMock())
+
+        mock_find.assert_called_once_with("test-key")
+        mock_remote.assert_called_once()
+        # Should NOT try to find/provision a new instance
+        assert result == mock_remote.return_value
+
+    @patch("agentiq_labclaw.compute.vast_dispatcher._record_spend_end")
+    @patch("agentiq_labclaw.compute.vast_dispatcher._record_spend_start", return_value=1)
+    @patch("agentiq_labclaw.compute.vast_dispatcher._run_remote")
+    @patch("agentiq_labclaw.compute.vast_dispatcher._find_reusable_instance")
+    @patch("agentiq_labclaw.compute.vast_dispatcher.check_budget", return_value=(True, 10.0, 20.0))
+    def test_reuse_failure_does_not_destroy(
+        self, mock_budget, mock_find, mock_remote, mock_spend_start, mock_spend_end, monkeypatch,
+    ):
+        """When reuse fails, we record spend but do NOT destroy the shared instance."""
+        monkeypatch.setenv("VAST_AI_KEY", "test-key")
+        mock_find.return_value = (100, "74.48.78.46", 22222, "RTX 5090", 0.316)
+        mock_remote.side_effect = RuntimeError("SSH failed")
+
+        skill = MagicMock()
+        skill.name = "qsar"
+
+        with pytest.raises(RuntimeError, match="SSH failed"):
+            dispatch(skill, MagicMock())
+
+        # Spend should still be recorded
+        mock_spend_end.assert_called_once()

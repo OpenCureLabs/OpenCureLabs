@@ -158,6 +158,43 @@ def check_budget(estimated_cost_hr=1.0):
     return True, remaining, budget
 
 
+def _find_reusable_instance(api_key: str):
+    """Check for an existing running Vast.ai instance we can reuse.
+
+    Returns (instance_id, ssh_host, ssh_port, gpu_name, cost_hr) or None.
+    Looks for instances tagged with client_id 'opencurelabs' that are
+    already running, so parallel genesis tasks can share a single GPU
+    instead of each trying to provision its own.
+    """
+    headers = {"Authorization": f"Bearer {api_key}"}
+    try:
+        resp = requests.get(f"{VAST_API}/instances/", headers=headers, timeout=30)
+        resp.raise_for_status()
+        instances = resp.json().get("instances", [])
+        if not instances and isinstance(resp.json(), list):
+            instances = resp.json()
+    except Exception as e:
+        logger.debug("Could not list Vast.ai instances: %s", e)
+        return None
+
+    for inst in instances:
+        status = inst.get("actual_status") or ""
+        client = inst.get("label") or inst.get("client_id") or ""
+        if status == "running" and "opencurelabs" in client.lower():
+            ssh_host = inst.get("ssh_host")
+            ssh_port = inst.get("ssh_port", 22)
+            if ssh_host:
+                gpu_name = inst.get("gpu_name", "GPU")
+                cost_hr = inst.get("dph_total", 0)
+                iid = inst.get("id")
+                logger.info(
+                    "Found reusable Vast.ai instance %d (%s) at %s:%d",
+                    iid, gpu_name, ssh_host, ssh_port,
+                )
+                return iid, ssh_host, ssh_port, gpu_name, cost_hr
+    return None
+
+
 class VastInstance:
     """Manages a single Vast.ai GPU instance lifecycle."""
 
@@ -303,17 +340,55 @@ def _wait_for_setup(ssh_host: str, ssh_port: int, timeout: int = 180):
     raise TimeoutError(f"Instance setup did not complete within {timeout}s")
 
 
+def _run_remote(skill_name, input_data, ssh_host, ssh_port, output_schema):
+    """Execute a skill remotely on a Vast.ai instance via SSH."""
+    input_json = json.dumps(input_data.model_dump(), default=str)
+    ssh_key = os.path.expanduser("~/.ssh/xpclabs")
+
+    remote_script = (
+        "import json, sys; "
+        "from agentiq_labclaw.base import get_skill; "
+        f"Skill = get_skill('{skill_name}'); "
+        "s = Skill(); "
+        "inp = Skill.input_schema.model_validate(json.loads(sys.stdin.read())); "
+        "result = s.run(inp); "
+        "print(json.dumps(result.model_dump(), default=str))"
+    )
+
+    result = subprocess.run(
+        [
+            "ssh", "-o", "StrictHostKeyChecking=no",
+            "-o", "ConnectTimeout=10",
+            "-i", ssh_key,
+            "-p", str(ssh_port),
+            f"root@{ssh_host}",
+            f'python3 -c "{remote_script}"',
+        ],
+        input=input_json,
+        capture_output=True,
+        text=True,
+        timeout=600,
+    )
+
+    if result.returncode != 0:
+        logger.error("Vast.ai remote stderr: %s", result.stderr[:500])
+        raise RuntimeError(f"Remote execution failed: {result.stderr[:300]}")
+
+    output_data = json.loads(result.stdout.strip())
+    return output_schema.model_validate(output_data)
+
+
 def dispatch(skill, input_data):
     """
     Dispatch a skill execution to Vast.ai for heavy compute.
 
     1. Check budget
-    2. Find cheapest suitable GPU instance
-    3. Provision the instance
+    2. Reuse an existing running instance if available
+    3. Otherwise: find cheapest offer, provision a new instance
     4. Wait for it to be ready + onstart to complete
     5. Serialize input, SSH-execute the skill remotely
     6. Retrieve results
-    7. Terminate the instance and record spend
+    7. Terminate the instance only if we provisioned it
     """
     vast_key = os.environ.get("VAST_AI_KEY")
     if not vast_key:
@@ -331,6 +406,31 @@ def dispatch(skill, input_data):
 
     logger.info("Dispatching %s to Vast.ai (GPU required: %s)", skill.name, skill.gpu_required)
 
+    # ── Try to reuse an existing running instance ──
+    existing = _find_reusable_instance(vast_key)
+    if existing:
+        inst_id, ssh_host, ssh_port, gpu_name, cost_hr = existing
+        logger.info(
+            "[%s] Reusing existing Vast.ai instance %d (%s)",
+            skill.name, inst_id, gpu_name,
+        )
+        spend_id = _record_spend_start(skill.name, inst_id, gpu_name, cost_hr)
+        job_start = time.monotonic()
+        try:
+            result = _run_remote(skill.name, input_data, ssh_host, ssh_port, skill.output_schema)
+            logger.info("Vast.ai dispatch succeeded for %s (reused instance %d)", skill.name, inst_id)
+            return result
+        finally:
+            # Record spend but do NOT destroy — instance is shared
+            elapsed_hrs = (time.monotonic() - job_start) / 3600
+            total_cost = round(elapsed_hrs * cost_hr, 4)
+            _record_spend_end(spend_id, total_cost)
+            logger.info(
+                "Vast.ai job complete (reused): %s, %.1f min, $%.4f",
+                skill.name, elapsed_hrs * 60, total_cost,
+            )
+
+    # ── No existing instance — provision a new one ──
     # 1. Find offer
     offer = _find_cheapest_offer(vast_key, skill.gpu_required)
     offer_id = offer["id"]
@@ -358,46 +458,13 @@ def dispatch(skill, input_data):
         # 4. Wait for onstart (pip install from GitHub) to finish
         _wait_for_setup(ssh_host, ssh_port)
 
-        # 5. Serialize input and run remotely via stdin (avoids shell escaping)
-        input_json = json.dumps(input_data.model_dump(), default=str)
-        ssh_key = os.path.expanduser("~/.ssh/xpclabs")
-
-        remote_script = (
-            "import json, sys; "
-            "from agentiq_labclaw.base import get_skill; "
-            f"Skill = get_skill('{skill.name}'); "
-            "s = Skill(); "
-            "inp = Skill.input_schema.model_validate(json.loads(sys.stdin.read())); "
-            "result = s.run(inp); "
-            "print(json.dumps(result.model_dump(), default=str))"
-        )
-
-        result = subprocess.run(
-            [
-                "ssh", "-o", "StrictHostKeyChecking=no",
-                "-o", "ConnectTimeout=10",
-                "-i", ssh_key,
-                "-p", str(ssh_port),
-                f"root@{ssh_host}",
-                f'python3 -c "{remote_script}"',
-            ],
-            input=input_json,
-            capture_output=True,
-            text=True,
-            timeout=600,
-        )
-
-        if result.returncode != 0:
-            logger.error("Vast.ai remote stderr: %s", result.stderr[:500])
-            raise RuntimeError(f"Remote execution failed: {result.stderr[:300]}")
-
-        # 6. Parse results
-        output_data = json.loads(result.stdout.strip())
+        # 5. Run remotely
+        result = _run_remote(skill.name, input_data, ssh_host, ssh_port, skill.output_schema)
         logger.info("Vast.ai dispatch succeeded for %s", skill.name)
-        return skill.output_schema.model_validate(output_data)
+        return result
 
     finally:
-        # 7. Always clean up and record spend
+        # 7. Always clean up and record spend for provisioned instances
         instance.destroy()
         elapsed_hrs = (time.monotonic() - job_start) / 3600
         total_cost = round(elapsed_hrs * cost_hr, 4)
