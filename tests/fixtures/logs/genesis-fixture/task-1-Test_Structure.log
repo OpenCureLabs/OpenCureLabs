@@ -1,0 +1,25 @@
+2026-03-23 10:00:00 - INFO     - nat.cli.commands.start:192 - Starting NAT from config file: 'coordinator/labclaw_workflow.yaml'
+2026-03-23 10:00:00 - INFO     - labclaw:84 - Registered LabClaw skill: molecular_docking
+2026-03-23 10:00:00 - INFO     - labclaw:84 - Registered LabClaw skill: structure_prediction
+2026-03-23 10:00:00 - INFO     - labclaw:84 - Registered LabClaw skill: variant_pathogenicity
+
+Configuration Summary:
+--------------------
+Workflow Type: hierarchical_coordinator
+Number of Functions: 12
+
+2026-03-23 10:00:01 - INFO     - nat.runtime.session:327 - Shared workflow built (entry_function=None)
+2026-03-23 10:00:01 - INFO     - labclaw.db:27 - Connecting to PostgreSQL: postgresql://localhost:5433/opencurelabs
+2026-03-23 10:00:01 - INFO     - labclaw.db.agent_runs:20 - Started agent run 100 for coordinator
+2026-03-23 10:00:02 - INFO     - httpx:1740 - HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/openai/chat/completions "HTTP/1.1 200 OK"
+2026-03-23 10:00:02 - INFO     - labclaw.db.agent_runs:20 - Started agent run 101 for tumor_immunology
+2026-03-23 10:00:03 - INFO     - httpx:1740 - HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/openai/chat/completions "HTTP/1.1 200 OK"
+2026-03-23 10:00:03 - INFO     - labclaw:49 - [structure_prediction] Running locally (compute=local)
+2026-03-23 10:00:03 - INFO     - labclaw.skills.structure:61 - Predicting structure for TP53 via esmfold
+2026-03-23 10:00:04 - WARNING  - labclaw.skills.structure:128 - ESMFold HTTP error: 413 Client Error: Request Entity Too Large for url: https://api.esmatlas.com/foldSequence/v1/pdb/ — falling back to AlphaFold
+2026-03-23 10:00:04 - INFO     - labclaw.skills.structure:134 - Falling back to AlphaFold DB for TP53
+2026-03-23 10:00:05 - ERROR    - nat.builder.function:202 - Error with ainvoke in function with input: {"protein_id": "TP53"}. Error: 500 Server Error: Internal Server Error for url: https://alphafold.ebi.ac.uk/api/prediction/P04637
+2026-03-23 10:00:05 - INFO     - labclaw.db.agent_runs:32 - Completed agent run 101 with status: failed
+2026-03-23 10:00:05 - ERROR    - nat.runtime.runner:243 - Error running workflow: 500 Server Error: Internal Server Error for url: https://alphafold.ebi.ac.uk/api/prediction/P04637
+2026-03-23 10:00:05 - INFO     - labclaw.db.agent_runs:32 - Completed agent run 100 with status: failed
+Error: Cannot exit the context without completing the workflow

@@ -1,0 +1,18 @@
+2026-03-22 01:26:20,849 labclaw.compute.batch_dispatcher INFO: === CONTINUOUS MODE ===
+  [batch] === CONTINUOUS MODE ===
+2026-03-22 01:26:20,849 labclaw.compute.batch_dispatcher INFO: Provisioning 5 instances (max $0.50/hr each)...
+2026-03-22 01:26:36,874 labclaw.compute.pool_manager ERROR: Failed to provision from offer 33299522: 400 Client Error: Bad Request for url: https://console.vast.ai/api/v0/asks/33299522/
+2026-03-22 01:26:36,874 labclaw.compute.pool_manager ERROR: Failed to provision from offer 33299525: 400 Client Error: Bad Request for url: https://console.vast.ai/api/v0/asks/33299525/
+2026-03-22 01:26:37,494 labclaw.compute.pool_manager INFO: Provisioned instance 33317981 (RTX 4070, $0.136/hr)
+2026-03-22 01:27:55,208 labclaw.compute.worker INFO: Worker started: instance=33317981, host=ssh8.vast.ai:37984
+2026-03-22 01:28:30,554 labclaw.compute.batch_dispatcher INFO: Submitted batch 5fba4d with 5 jobs
+2026-03-22 01:29:09,585 labclaw.compute.batch_queue INFO: Job 2364 pending (retry 1): Remote execution failed (exit 1): VCF not found
+2026-03-22 01:30:09,585 labclaw.compute.batch_queue INFO: Job 2364 pending (retry 2): Remote execution failed (exit 1): VCF not found
+2026-03-22 01:31:09,585 labclaw.compute.batch_queue INFO: Job 2364 failed (retry 3): Remote execution failed (exit 1): VCF not found
+Traceback (most recent call last):
+  File "/workspace/labclaw/compute/worker.py", line 45, in run_job
+    result = execute_remote(job)
+  File "/workspace/labclaw/compute/worker.py", line 92, in execute_remote
+    raise RemoteExecutionError(f"Exit code {rc}: {stderr}")
+labclaw.compute.worker.RemoteExecutionError: Exit code 1: VCF not found at /data/sample.vcf
+2026-03-22 01:32:00,000 labclaw.compute.batch_dispatcher INFO: Batch complete: 4 succeeded, 1 failed

@@ -1,0 +1,18 @@
+2026-03-23 10:02:00 - INFO     - nat.cli.commands.start:192 - Starting NAT from config file: 'coordinator/labclaw_workflow.yaml'
+2026-03-23 10:02:01 - INFO     - labclaw.db.agent_runs:20 - Started agent run 300 for coordinator
+2026-03-23 10:02:02 - INFO     - httpx:1740 - HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/openai/chat/completions "HTTP/1.1 200 OK"
+2026-03-23 10:02:02 - INFO     - labclaw:40 - [neoantigen_prediction] Dispatching to Vast.ai...
+2026-03-23 10:02:03 - ERROR    - labclaw:43 - Vast.ai dispatch failed: 400 Client Error: Bad Request for url: https://console.vast.ai/api/v0/asks/12345/
+2026-03-23 10:02:03 - INFO     - labclaw:49 - [neoantigen_prediction] Running locally (compute=local)
+/root/opencurelabs/.venv/lib/python3.12/site-packages/mhcflurry/amino_acid.py:132: FutureWarning: Downcasting behavior in `replace` is deprecated
+  result = df.replace(letter_to_index_dict)
+[W::vcf_parse] Contig '17' is not defined in the header.
+1/1 [==============================] - 0s 28ms/step
+2026-03-23 10:02:30 - INFO     - labclaw.reviewer.grok:78 - Requesting Grok critique for neoantigen_prediction
+2026-03-23 10:02:40 - INFO     - httpx:1025 - HTTP Request: POST https://api.x.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-03-23 10:02:40 - WARNING  - labclaw.reviewer.grok:114 - Failed to parse Grok critique JSON: Invalid control character at: line 17 column 61 (char 1642)
+2026-03-23 10:02:40 - INFO     - labclaw.orchestrator:200 - Grok critique for neoantigen_prediction: score=None, rec=revise
+2026-03-23 10:02:50 - WARNING  - labclaw.guardrails.safety_check:40 - Safety check BLOCKED: Confidence score 0.0089 below minimum threshold 0.1
+2026-03-23 10:02:50 - WARNING  - labclaw.orchestrator:262 - Safety check blocked publishing for neoantigen_prediction: Confidence score 0.0089 below minimum threshold 0.1
+2026-03-23 10:02:50 - INFO     - labclaw.db.experiment_results:25 - Stored result 101 (type: neoantigen_prediction, novel: True, synthetic: False, status: blocked)
+2026-03-23 10:02:50 - INFO     - labclaw.db.agent_runs:32 - Completed agent run 300 with status: completed

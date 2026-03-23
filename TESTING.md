@@ -210,6 +210,7 @@ pytest -m "not gpu"
 | `test_guardrails_edge.py` | 17 | Unit | Safety check edge cases, novelty filter, output validator |
 | `test_hierarchical.py` | 10 | Unit | Specialist agent config, YAML structure, domain prompts |
 | `test_load_connectors.py` | 17 | Unit | HTTP 429 retry, exponential backoff, concurrent requests |
+| `test_log_analysis.py` | 67 | Unit+Integration | Log line parsing, error pattern matching, fixture scanning, real-log scanning |
 | `test_neoantigen.py` | 38 | Unit | HLA alleles, VCF parsing, peptide windows, codon mutation |
 | `test_neoantigen_canine.py` | 11 | Unit | CanFam3.1 species config, DLA/FLA alleles, vet dispatch |
 | `test_orchestrator.py` | 6 | Integration | Config loading, post-execute validation/review/safety/publish |
@@ -416,6 +417,72 @@ functions are detected automatically.
 | `TestCreateInstance` | 2 | Create success, failure |
 | `TestDispatch` | 1 | Missing API key |
 
+### test_log_analysis.py — Log Analyzer
+
+Scans genesis, runall, and batch log files for errors, warnings, and API issues.
+The scanner (`scripts/log_analyzer.py`) can also be run standalone as a CLI tool.
+
+**CLI usage:**
+
+```bash
+# Scan the most recent genesis run
+python scripts/log_analyzer.py --latest-genesis
+
+# JSON output for automation
+python scripts/log_analyzer.py --latest-genesis --json
+
+# Scan a specific file or directory
+python scripts/log_analyzer.py logs/runall-20260323-133520-1.log
+python scripts/log_analyzer.py logs/genesis-20260323-133653/
+
+# Only critical findings
+python scripts/log_analyzer.py --severity CRITICAL
+
+# Include dependency noise (CUDA, FutureWarning, etc.)
+python scripts/log_analyzer.py --include-noise
+```
+
+**Exit codes:** 0 = clean, 1 = HIGH findings, 2 = CRITICAL findings.
+
+**Error categories detected:**
+
+| Category | Severity | Source |
+|----------|----------|--------|
+| `alphafold_api` | CRITICAL | AlphaFold EBI 500/502/503 errors |
+| `esmfold_api` | HIGH | ESMFold 413 / API errors |
+| `gemini_api` | CRITICAL | Gemini API errors, RECITATION, quota |
+| `grok_api` | HIGH | Grok JSON parse failure, xAI HTTP errors, score=None |
+| `vastai` | HIGH | Provision failure, dispatch failure, remote exec failure |
+| `nat_coordinator` | CRITICAL | Workflow init, ainvoke errors, context errors |
+| `safety_block` | MEDIUM | Safety check confidence gating |
+| `agent_failure` | HIGH | Agent runs completed with status: failed |
+| `traceback` | HIGH | Python tracebacks (collapsed to single finding) |
+| `dependency_noise` | LOW | FutureWarning, CUDA, vcf_parse (hidden by default) |
+
+| Class | Tests | What |
+|-------|-------|------|
+| `TestParseLineGenesis` | 4 | Genesis/runall log format parsing |
+| `TestParseLineBatch` | 2 | Batch log format parsing (comma millis) |
+| `TestParseLineUnstructured` | 6 | Non-log lines return None |
+| `TestPatternAlphaFold` | 2 | AlphaFold API 500 error detection |
+| `TestPatternESMFold` | 1 | ESMFold 413 error detection |
+| `TestPatternGemini` | 3 | Gemini HTTP errors, 200 OK exclusion, RECITATION |
+| `TestPatternGrok` | 4 | JSON parse failure, score=None, 200 OK exclusion, xAI HTTP |
+| `TestPatternVastai` | 4 | Provision, dispatch, remote exec, retry failures |
+| `TestPatternNAT` | 4 | Workflow init, workflow error, ainvoke, context exit |
+| `TestPatternSafety` | 2 | Safety BLOCKED detection, PASSED exclusion |
+| `TestPatternAgentFailure` | 2 | Failed status detection, completed exclusion |
+| `TestPatternTraceback` | 1 | Traceback detection |
+| `TestPatternNoise` | 4 | FutureWarning, vcf_parse, CUDA — LOW severity |
+| `TestLogDiscovery` | 4 | File discovery, directory scanning, latest genesis |
+| `TestScanFixtureGenesis` | 3 | Fixture genesis dir — category counts, clean file, noise toggle |
+| `TestScanFixtureBatch` | 2 | Fixture batch — vastai/traceback counts, traceback collapsing |
+| `TestSeverityFiltering` | 3 | CRITICAL-only, MEDIUM+, LOW (all) filtering |
+| `TestFormatText` | 3 | Human-readable output: header, severity counts, findings |
+| `TestFormatJSON` | 2 | Valid JSON output, structure validation |
+| `TestCLI` | 6 | CLI argv: fixture dir, clean file, JSON, severity, missing path, batch |
+| `TestRealLogIntegration` | 5 | Real logs: genesis, structured output, noise, runall, batch (marked `integration`) |
+
 ---
 
 ## Adding New Tests
@@ -429,6 +496,8 @@ functions are detected automatically.
    - API endpoints → `TestClient(app)`
    - Database → mock `psycopg2.connect`
 5. **Mark GPU tests** with `@pytest.mark.gpu` so CI can skip them.
+6. **Mark real-log tests** with `@pytest.mark.integration` — they run against
+   the actual `logs/` directory and are skipped in CI.
 6. **Run before committing:** `pytest -x` — the pre-commit hook runs the
    security scanner but not tests, so verify locally.
 

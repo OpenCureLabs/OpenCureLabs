@@ -1,0 +1,19 @@
+2026-03-23 10:01:00 - INFO     - nat.cli.commands.start:192 - Starting NAT from config file: 'coordinator/labclaw_workflow.yaml'
+2026-03-23 10:01:00 - INFO     - labclaw:84 - Registered LabClaw skill: variant_pathogenicity
+2026-03-23 10:01:01 - INFO     - nat.runtime.session:327 - Shared workflow built (entry_function=None)
+2026-03-23 10:01:01 - INFO     - labclaw.db.agent_runs:20 - Started agent run 200 for coordinator
+2026-03-23 10:01:02 - INFO     - httpx:1740 - HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/openai/chat/completions "HTTP/1.1 200 OK"
+2026-03-23 10:01:02 - INFO     - labclaw.db.agent_runs:20 - Started agent run 201 for variant_analysis
+2026-03-23 10:01:03 - INFO     - httpx:1740 - HTTP Request: POST https://generativelanguage.googleapis.com/v1beta/openai/chat/completions "HTTP/1.1 200 OK"
+2026-03-23 10:01:03 - INFO     - labclaw:49 - [variant_pathogenicity] Running locally (compute=local)
+2026-03-23 10:01:10 - INFO     - labclaw.guardrails.output_validator:19 - Output validation passed for VariantOutput
+2026-03-23 10:01:10 - INFO     - labclaw.guardrails.novelty_filter:19 - Result flagged as NOVEL (type: variant_pathogenicity)
+2026-03-23 10:01:10 - INFO     - labclaw.reviewer.grok:78 - Requesting Grok critique for variant_pathogenicity
+2026-03-23 10:01:20 - INFO     - httpx:1025 - HTTP Request: POST https://api.x.ai/v1/chat/completions "HTTP/1.1 200 OK"
+2026-03-23 10:01:20 - INFO     - labclaw.reviewer.grok:107 - Grok critique: overall_score=7, recommendation=accept
+2026-03-23 10:01:20 - INFO     - labclaw.guardrails.safety_check:50 - Safety check PASSED
+2026-03-23 10:01:20 - INFO     - labclaw.db.experiment_results:25 - Stored result 100 (type: variant_pathogenicity, novel: True, synthetic: False, status: published)
+2026-03-23 10:01:20 - INFO     - labclaw.publishers.pdf:40 - Generating PDF report
+2026-03-23 10:01:21 - INFO     - labclaw.publishers.r2:52 - Published variant_pathogenicity result to R2
+2026-03-23 10:01:21 - INFO     - labclaw.db.agent_runs:32 - Completed agent run 201 with status: completed
+2026-03-23 10:01:21 - INFO     - labclaw.db.agent_runs:32 - Completed agent run 200 with status: completed
