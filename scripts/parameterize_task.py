@@ -135,6 +135,18 @@ def parameterize(description: str, species: str = "human", data_mode: str | None
         # No parameterization possible — return original description
         return description
 
+    # Resolve placeholder sequences before sending to the coordinator LLM.
+    # The LLM rejects AUTO_RESOLVE as invalid; the skill's UniProt lookup
+    # never fires because the LLM refuses to call the tool.
+    if task.input_data.get("sequence") == "AUTO_RESOLVE" and task.input_data.get("protein_id"):
+        from agentiq_labclaw.skills.structure import StructurePredictionSkill
+
+        seq, _ = StructurePredictionSkill._fetch_uniprot_sequence(
+            task.input_data["protein_id"]
+        )
+        if seq:
+            task.input_data["sequence"] = seq
+
     params = json.dumps(task.input_data, indent=2)
 
     # Resolve which specialist agent owns this skill
