@@ -66,8 +66,22 @@ command -v gum &>/dev/null && HAS_GUM=true
 parameterize_task() {
     local desc="$1"
     local species="${LABCLAW_SPECIES:-human}"
-    python3 "$PROJECT_DIR/scripts/parameterize_task.py" "$desc" --species "$species" 2>/dev/null \
+    local dm_flag=""
+    [[ -n "${DATA_MODE:-}" ]] && dm_flag="--data-mode $DATA_MODE"
+    python3 "$PROJECT_DIR/scripts/parameterize_task.py" "$desc" --species "$species" $dm_flag 2>/dev/null \
         || echo "$desc"
+}
+
+# In public-database mode, skip tasks that require local data files
+# (neoantigen and QC tasks need VCF/FASTQ that won't exist locally).
+_skip_local_task() {
+    if [[ "${DATA_MODE:-public}" == "public" ]]; then
+        local desc_lower="${1,,}"
+        case "$desc_lower" in
+            *neoantigen*|*"quality control"*|*"data quality"*|*"check data quality"*|*"check "*" data quality"*) return 0 ;;
+        esac
+    fi
+    return 1
 }
 
 # ── Task catalog ─────────────────────────────────────────────────────────────
@@ -493,27 +507,33 @@ if $HAS_GUM; then
             ALL_TASKS=()
             ALL_LABELS=()
             ALL_DOMAINS=()
+
             for t in "${CANCER_TASKS[@]}"; do
+                _skip_local_task "${t#*|}" && continue
                 ALL_TASKS+=("${t#*|}")
                 ALL_LABELS+=("${t%%|*}")
                 ALL_DOMAINS+=("Cancer")
             done
             for t in "${DRUG_TASKS[@]}"; do
+                _skip_local_task "${t#*|}" && continue
                 ALL_TASKS+=("${t#*|}")
                 ALL_LABELS+=("${t%%|*}")
                 ALL_DOMAINS+=("Drug Discovery")
             done
             for t in "${RARE_TASKS[@]}"; do
+                _skip_local_task "${t#*|}" && continue
                 ALL_TASKS+=("${t#*|}")
                 ALL_LABELS+=("${t%%|*}")
                 ALL_DOMAINS+=("Rare Disease")
             done
             for t in "${CANINE_TASKS[@]}"; do
+                _skip_local_task "${t#*|}" && continue
                 ALL_TASKS+=("${t#*|}")
                 ALL_LABELS+=("${t%%|*}")
                 ALL_DOMAINS+=("Veterinary 🐕")
             done
             for t in "${FELINE_TASKS[@]}"; do
+                _skip_local_task "${t#*|}" && continue
                 ALL_TASKS+=("${t#*|}")
                 ALL_LABELS+=("${t%%|*}")
                 ALL_DOMAINS+=("Veterinary 🐈")
@@ -1190,6 +1210,13 @@ if $HAS_GUM; then
             TASK_NUM=$((i + 1))
             LABEL="${RUN_ALL_LABELS[$i]}"
             CURRENT_TASK="${RUN_ALL_TASKS[$i]}"
+
+            # Skip tasks requiring local data in public-database mode
+            if _skip_local_task "$CURRENT_TASK"; then
+                gum style --foreground 242 "  ⏭ [R${ROUND} ${TASK_NUM}/$TOTAL_ALL] $LABEL — skipped (needs local data)" 2>/dev/null || true
+                continue
+            fi
+
             [[ "$DATA_MODE" == "public" ]] && CURRENT_TASK="$CURRENT_TASK Use public databases (TCGA/ClinVar/ChEMBL) for data sourcing."
             [[ "${AGENT_NUM:-1}" -gt 1 ]] 2>/dev/null && CURRENT_TASK="$CURRENT_TASK Deploy $AGENT_NUM parallel agents."
             [[ "$USE_VAST" == "yes" ]] && CURRENT_TASK="$CURRENT_TASK Use Vast.ai cloud GPU for compute."
@@ -1351,26 +1378,31 @@ select domain in "${DOMAINS[@]}"; do
             ALL_LABELS=()
             ALL_DOMAINS=()
             for t in "${CANCER_TASKS[@]}"; do
+                _skip_local_task "${t#*|}" && continue
                 ALL_TASKS+=("${t#*|}")
                 raw="${t%%|*}"; ALL_LABELS+=("${raw%% ~*}")
                 ALL_DOMAINS+=("Cancer")
             done
             for t in "${DRUG_TASKS[@]}"; do
+                _skip_local_task "${t#*|}" && continue
                 ALL_TASKS+=("${t#*|}")
                 raw="${t%%|*}"; ALL_LABELS+=("${raw%% ~*}")
                 ALL_DOMAINS+=("Drug Discovery")
             done
             for t in "${RARE_TASKS[@]}"; do
+                _skip_local_task "${t#*|}" && continue
                 ALL_TASKS+=("${t#*|}")
                 raw="${t%%|*}"; ALL_LABELS+=("${raw%% ~*}")
                 ALL_DOMAINS+=("Rare Disease")
             done
             for t in "${CANINE_TASKS[@]}"; do
+                _skip_local_task "${t#*|}" && continue
                 ALL_TASKS+=("${t#*|}")
                 raw="${t%%|*}"; ALL_LABELS+=("${raw%% ~*}")
                 ALL_DOMAINS+=("Veterinary 🐕")
             done
             for t in "${FELINE_TASKS[@]}"; do
+                _skip_local_task "${t#*|}" && continue
                 ALL_TASKS+=("${t#*|}")
                 raw="${t%%|*}"; ALL_LABELS+=("${raw%% ~*}")
                 ALL_DOMAINS+=("Veterinary 🐈")

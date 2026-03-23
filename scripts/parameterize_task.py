@@ -107,13 +107,17 @@ def _detect_domain(description: str, species: str = "human") -> str | None:
     return None
 
 
-def parameterize(description: str, species: str = "human") -> str:
+def parameterize(description: str, species: str = "human", data_mode: str | None = None) -> str:
     """Convert a high-level task into a parameterized coordinator instruction."""
     target_skill = _detect_skill(description)
     domain = _detect_domain(description, species)
 
     # Generate a batch of tasks and pick one matching the target skill
-    tasks = generate_batch(count=20, domain=domain, species=species if species != "human" else None)
+    tasks = generate_batch(
+        count=20, domain=domain,
+        species=species if species != "human" else None,
+        data_mode=data_mode,
+    )
     random.shuffle(tasks)
 
     task = None
@@ -153,6 +157,8 @@ if __name__ == "__main__":
     )
     parser.add_argument("description", help="High-level task description")
     parser.add_argument("--species", default="human", choices=["human", "dog", "cat"])
+    parser.add_argument("--data-mode", choices=["public", "mydata"],
+                        help="Data source: public databases or local files")
     args = parser.parse_args()
 
-    print(parameterize(args.description, args.species))
+    print(parameterize(args.description, args.species, data_mode=args.data_mode))

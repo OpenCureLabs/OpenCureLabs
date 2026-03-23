@@ -23,6 +23,16 @@ distribution:
   neoantigen_cat:        0.40   # Feline: somatic variant → neoantigen prediction
   variant_cat:           0.40   # Feline: variant pathogenicity scoring
 
+# Skills that require local data files (VCF, FASTQ, etc.).
+# When data_mode="public", these skills are excluded from the batch and their
+# weight is redistributed to the remaining public-capable skills automatically.
+requires_local_data:
+  - neoantigen_prediction   # Needs somatic VCF file
+  - neoantigen_dog           # Needs somatic VCF file (canine)
+  - neoantigen_cat           # Needs somatic VCF file (feline)
+  - sequencing_qc_cancer     # Needs FASTQ files
+  - sequencing_qc_rare       # Needs FASTQ files
+
 # Custom tasks — specific jobs to include in every batch run.
 # These are added ON TOP of the distribution-based tasks.
 # Uncomment and modify to add your own targets.

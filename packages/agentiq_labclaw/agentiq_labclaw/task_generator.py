@@ -422,6 +422,16 @@ DOMAIN_FILTERS = {
     "feline":         {"neoantigen_cat", "variant_cat", "sequencing_qc_cancer"},
 }
 
+# Skills that require local data files (VCF, FASTQ).  Excluded when
+# data_mode="public" so compute isn't wasted on guaranteed-synthetic results.
+LOCAL_DATA_SKILLS: set[str] = {
+    "neoantigen_prediction",
+    "neoantigen_dog",
+    "neoantigen_cat",
+    "sequencing_qc_cancer",
+    "sequencing_qc_rare",
+}
+
 
 # ── Public API ───────────────────────────────────────────────────────────────
 
@@ -431,6 +441,7 @@ def generate_batch(
     species: str | None = None,
     config_path: str | None = None,
     seed: int | None = None,
+    data_mode: str | None = None,
 ) -> list[BatchTask]:
     """Generate a batch of parameterized research tasks.
 
@@ -443,6 +454,8 @@ def generate_batch(
         config_path: Path to a YAML config with custom task templates.
                      Falls back to built-in defaults if absent.
         seed:        Random seed for reproducibility.
+        data_mode:   "public" to exclude skills requiring local files (VCF/FASTQ),
+                     "mydata" to include all, None for backward compatibility (all).
 
     Returns:
         List of BatchTask objects ready for batch_queue.submit_batch().
@@ -458,15 +471,23 @@ def generate_batch(
 
     # Load distribution — from YAML config or built-in defaults
     if config_path and Path(config_path).exists():
-        distribution, custom_tasks = _load_yaml_config(config_path)
+        distribution, custom_tasks, local_data_skills = _load_yaml_config(config_path)
     else:
         distribution = dict(DEFAULT_DISTRIBUTION)
         custom_tasks = []
+        local_data_skills = LOCAL_DATA_SKILLS
 
     # Filter by domain if requested
     if domain:
         allowed = DOMAIN_FILTERS.get(domain, set())
         distribution = {k: v for k, v in distribution.items() if k in allowed}
+
+    # Filter out skills requiring local data when running in public-database mode
+    if data_mode == "public":
+        excluded = {k for k in distribution if k in local_data_skills}
+        if excluded:
+            logger.info("Public data mode: excluding local-data skills %s", excluded)
+        distribution = {k: v for k, v in distribution.items() if k not in local_data_skills}
 
     # Normalize weights
     total_weight = sum(distribution.values())
@@ -499,12 +520,15 @@ def generate_batch(
     return tasks
 
 
-def _load_yaml_config(config_path: str) -> tuple[dict, list[BatchTask]]:
-    """Load task distribution and custom tasks from YAML config."""
+def _load_yaml_config(config_path: str) -> tuple[dict, list[BatchTask], set[str]]:
+    """Load task distribution, custom tasks, and local-data skills from YAML config."""
     with open(config_path) as f:
         cfg = yaml.safe_load(f) or {}
 
     distribution = cfg.get("distribution", dict(DEFAULT_DISTRIBUTION))
+
+    local_data_skills = set(cfg.get("requires_local_data", LOCAL_DATA_SKILLS))
+
     custom_tasks = []
 
     for task_def in cfg.get("custom_tasks", []):
@@ -517,7 +541,7 @@ def _load_yaml_config(config_path: str) -> tuple[dict, list[BatchTask]]:
             estimated_gpu_min=task_def.get("estimated_gpu_min", 5),
         ))
 
-    return distribution, custom_tasks
+    return distribution, custom_tasks, local_data_skills
 
 
 # ── CLI entry point ──────────────────────────────────────────────────────────
@@ -532,6 +556,7 @@ if __name__ == "__main__":
     parser.add_argument("--species", choices=["human", "dog", "cat"], help="Species shortcut (sets domain)")
     parser.add_argument("--config", help="Path to research_tasks.yaml")
     parser.add_argument("--seed", type=int, help="Random seed")
+    parser.add_argument("--data-mode", choices=["public", "mydata"], help="Data source mode")
     parser.add_argument("--json", action="store_true", help="Output as JSON")
     args = parser.parse_args()
 
@@ -541,6 +566,7 @@ if __name__ == "__main__":
         species=args.species,
         config_path=args.config,
         seed=args.seed,
+        data_mode=args.data_mode,
     )
 
     if args.json:
