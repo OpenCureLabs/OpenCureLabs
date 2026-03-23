@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - CI pipeline with tests, ruff, and bandit
 - Commitizen conventional commits enforcement
 
+## v0.40.0 (2026-03-23)
+
+### Feat
+
+- synthetic data isolation guardrail — block publishing of synthetic results
+
 ## v0.39.6 (2026-03-23)
 
 ### Fix
