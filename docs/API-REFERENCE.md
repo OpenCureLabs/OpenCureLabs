@@ -20,7 +20,6 @@
    - [Novelty Filter](#novelty-filter)
    - [Safety Check](#safety-check)
 4. [Publishers](#publishers)
-   - [GitHubPublisher](#githubpublisher)
    - [PDFPublisher](#pdfpublisher)
 5. [Database Layer](#database-layer)
    - [Connection Manager](#connection-manager)
@@ -205,22 +204,6 @@ Blocks publication if:
 
 Publishers deliver results to external systems.
 
-### GitHubPublisher
-
-**File:** `agentiq_labclaw/publishers/github_publisher.py`
-
-```python
-from agentiq_labclaw.publishers.github_publisher import GitHubPublisher
-
-pub = GitHubPublisher(repo_path="/path/to/OpenCureLabs")
-```
-
-| Method | Parameters | Returns | Description |
-|---|---|---|---|
-| `commit_and_push` | `files: list[str]`, `message: str`, `branch: str = "main"` | `bool` | `git add` + `git commit -m` + `git push origin {branch}` |
-| `commit_result` | `result_path: str`, `pipeline_name: str` | `bool` | Commits with message `"result: {pipeline_name} output"` |
-
----
 
 ### PDFPublisher
 

@@ -144,9 +144,6 @@ workflow:
 #   safety_check: true
 #
 # publishers:
-#   github:
-#     enabled: true
-#     repo: https://github.com/OpenCureLabs/OpenCureLabs.git
 #   pdf:
 #     enabled: true
 #     output_dir: reports/

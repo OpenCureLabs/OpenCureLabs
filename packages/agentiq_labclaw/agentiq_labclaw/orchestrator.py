@@ -27,7 +27,6 @@ GUARDRAILS_DEFAULTS: dict = {
 }
 
 PUBLISHER_DEFAULTS: dict = {
-    "github": {"enabled": True},
     "pdf": {"enabled": True},
     "r2": {"enabled": True},
 }
@@ -69,7 +68,7 @@ def _publisher_enabled(name: str) -> bool:
     """Check if a publisher is enabled in config (falls back to defaults).
 
     Solo mode (OPENCURELABS_MODE=solo): only PDF runs locally.
-    R2 and GitHub are silenced so personal data never leaves the machine.
+    R2 is silenced so personal data never leaves the machine.
     """
     # Solo mode: only PDF (local file). All external publishers are silenced.
     if os.environ.get("OPENCURELABS_MODE") == "solo":
@@ -338,18 +337,6 @@ async def post_execute(
             logger.info("Generated PDF report: %s", pdf_path)
         except Exception as e:
             logger.warning("PDF publish error: %s", e)
-
-    # GitHub commit
-    if _publisher_enabled("github") and pdf_path:
-        try:
-            from agentiq_labclaw.publishers.github_publisher import GitHubPublisher
-
-            github = GitHubPublisher()
-            github.commit_result(pdf_path, skill_name)
-            orch["published"].append("github")
-            logger.info("Committed %s result to GitHub", skill_name)
-        except Exception as e:
-            logger.warning("GitHub publish error: %s", e)
 
     # R2 global dataset — writes to OpenCure Labs' central public bucket via ingest Worker
     if _publisher_enabled("r2") and not os.environ.get("PYTEST_CURRENT_TEST"):

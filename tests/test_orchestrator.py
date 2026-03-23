@@ -55,7 +55,6 @@ class TestOrchestratorConfig:
         if hasattr(_get_config, '_cache'):
             del _get_config._cache
 
-        assert _publisher_enabled("github") is True
         assert _publisher_enabled("pdf") is True
         assert _publisher_enabled("nonexistent") is False
 
@@ -106,8 +105,7 @@ class TestPostExecuteReviewer:
         with patch("reviewer.grok_reviewer.GrokReviewer.critique", return_value=mock_critique), \
              patch("agentiq_labclaw.db.critique_log.log_critique", return_value=1), \
              patch("agentiq_labclaw.guardrails.safety_check.safety_check", return_value=(True, None)), \
-             patch("agentiq_labclaw.publishers.pdf_publisher.PDFPublisher.generate_report", return_value="/tmp/test.pdf"), \
-             patch("agentiq_labclaw.publishers.github_publisher.GitHubPublisher.commit_result", return_value=True):
+             patch("agentiq_labclaw.publishers.pdf_publisher.PDFPublisher.generate_report", return_value="/tmp/test.pdf"):
 
             result = await post_execute("test_skill", output, run_id=1)
 
@@ -139,8 +137,7 @@ class TestPostExecuteReviewer:
              patch("agentiq_labclaw.db.experiment_results.store_result", return_value=1), \
              patch("agentiq_labclaw.guardrails.novelty_filter.db_check_novelty", return_value=True), \
              patch("agentiq_labclaw.guardrails.safety_check.safety_check", return_value=(True, None)), \
-             patch("agentiq_labclaw.publishers.pdf_publisher.PDFPublisher.generate_report", return_value="/tmp/test.pdf"), \
-             patch("agentiq_labclaw.publishers.github_publisher.GitHubPublisher.commit_result", return_value=True):
+             patch("agentiq_labclaw.publishers.pdf_publisher.PDFPublisher.generate_report", return_value="/tmp/test.pdf"):
 
             result = await post_execute("neoantigen_prediction", output, run_id=1)
 
@@ -191,8 +188,7 @@ class TestPostExecutePublishers:
         output = MockSkillOutput(result_data={"data": 1}, novel=False, critique_required=False)
 
         with patch("agentiq_labclaw.guardrails.safety_check.safety_check", return_value=(True, None)), \
-             patch("agentiq_labclaw.publishers.pdf_publisher.PDFPublisher.generate_report", return_value="/tmp/report.pdf") as mock_pdf, \
-             patch("agentiq_labclaw.publishers.github_publisher.GitHubPublisher.commit_result", return_value=True):
+             patch("agentiq_labclaw.publishers.pdf_publisher.PDFPublisher.generate_report", return_value="/tmp/report.pdf") as mock_pdf:
 
             result = await post_execute("test_skill", output, run_id=1)
 

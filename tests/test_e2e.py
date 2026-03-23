@@ -144,12 +144,6 @@ class TestGuardrailsIntegration:
 class TestPublishersIntegration:
     """Test publisher classes are importable and constructable."""
 
-    def test_github_publisher(self):
-        from agentiq_labclaw.publishers.github_publisher import GitHubPublisher
-
-        pub = GitHubPublisher(repo_path="/tmp/test_repo")
-        assert pub.repo_path.name == "test_repo"
-
     def test_pdf_publisher(self, tmp_path):
         from agentiq_labclaw.publishers.pdf_publisher import PDFPublisher
 
@@ -245,8 +239,7 @@ class TestFullPipeline:
              patch("agentiq_labclaw.db.experiment_results.store_result", return_value=1), \
              patch("agentiq_labclaw.guardrails.novelty_filter.db_check_novelty", return_value=True), \
              patch("agentiq_labclaw.guardrails.safety_check.safety_check", return_value=(True, None)), \
-             patch("agentiq_labclaw.publishers.pdf_publisher.PDFPublisher.generate_report", return_value="/tmp/neo.pdf"), \
-             patch("agentiq_labclaw.publishers.github_publisher.GitHubPublisher.commit_result", return_value=True):
+             patch("agentiq_labclaw.publishers.pdf_publisher.PDFPublisher.generate_report", return_value="/tmp/neo.pdf"):
 
             enriched = await post_execute("neoantigen_prediction", result, run_id=1)
 
@@ -256,4 +249,3 @@ class TestFullPipeline:
         assert len(orch["critiques"]) == 2
         assert orch["safety"]["safe"] is True
         assert any("pdf:" in p for p in orch["published"])
-        assert "github" in orch["published"]

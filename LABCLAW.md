@@ -75,7 +75,6 @@ packages/
       chembl.py            # ChEMBL compound queries
       discovered_sources.py # Handles Grok-registered dynamic sources
     publishers/
-      github_publisher.py  # Commits results and code to GitHub
       pdf_publisher.py     # Generates and stores PDF reports
     db/
       agent_runs.py        # PostgreSQL interface for run logging
@@ -339,7 +338,6 @@ grok --max-tool-rounds 200 --prompt "search bioRxiv for new neoantigen datasets 
 | Guardrails layer | ✅ Implemented (output validator, novelty filter, safety check) |
 | PostgreSQL integration | ✅ Implemented (5 DB modules) |
 | Grok source registration | ✅ Implemented |
-| GitHub publisher | ✅ Implemented |
 | PDF publisher | ✅ Scaffold (Markdown placeholder) |
 | Vast.ai dispatcher | ✅ Scaffold (API integration TODO) |
 | Ollama local LLM | ❌ Removed (coordinator uses Gemini API) |
