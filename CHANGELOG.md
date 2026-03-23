@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - CI pipeline with tests, ruff, and bandit
 - Commitizen conventional commits enforcement
 
+## v0.42.1 (2026-03-23)
+
+### Fix
+
+- **ci**: resolve ruff lint failures blocking CI
+
 ## v0.42.0 (2026-03-23)
 
 ### Feat
