@@ -92,22 +92,35 @@ def print_summary(cur, species=None):
             species_filter = "WHERE species = %s"
             params = [species]
         cur.execute(
-            f"SELECT COUNT(*), COUNT(*) FILTER (WHERE novel = TRUE) FROM experiment_results {species_filter}",
+            f"SELECT COUNT(*),"
+            f" COUNT(*) FILTER (WHERE novel = TRUE AND COALESCE(synthetic, FALSE) = FALSE),"
+            f" COUNT(*) FILTER (WHERE COALESCE(synthetic, FALSE) = TRUE)"
+            f" FROM experiment_results {species_filter}",
             params,
         )
-        total, novel = cur.fetchone()
+        total, novel, synth = cur.fetchone()
         sp_label = f" ({SPECIES_EMOJI.get(species, '')} {species})" if species else ""
-        print(f"\n  {BOLD}Results:{RESET}     {total} total, {GREEN}{novel} novel{RESET}{sp_label}")
+        synth_label = f", {YELLOW}{synth} synthetic{RESET}" if synth else ""
+        print(f"\n  {BOLD}Results:{RESET}     {total} total, {GREEN}{novel} novel{RESET}{synth_label}{sp_label}")
 
+        non_synth_filter = "AND COALESCE(synthetic, FALSE) = FALSE"
         cur.execute(
-            f"SELECT id, result_type, novel, timestamp, COALESCE(species, 'human') as species FROM experiment_results"
-            f" {species_filter}"
+            f"SELECT id, result_type, novel, timestamp, COALESCE(species, 'human') as species,"
+            f" COALESCE(synthetic, FALSE) as synthetic"
+            f" FROM experiment_results"
+            f" {'WHERE' if not species_filter else species_filter + ' AND'} COALESCE(synthetic, FALSE) = FALSE"
+            f" ORDER BY timestamp DESC LIMIT 5"
+            if not species_filter else
+            f"SELECT id, result_type, novel, timestamp, COALESCE(species, 'human') as species,"
+            f" COALESCE(synthetic, FALSE) as synthetic"
+            f" FROM experiment_results"
+            f" {species_filter} {non_synth_filter}"
             f" ORDER BY timestamp DESC LIMIT 5",
             params,
         )
         rows = cur.fetchall()
         if rows:
-            for rid, rtype, novel, ts, sp in rows:
+            for rid, rtype, novel, ts, sp, synth_flag in rows:
                 marker = f"{GREEN}🆕 NOVEL{RESET}" if novel else f"{BLUE}📊 repl{RESET}"
                 ts_str = ts.strftime("%Y-%m-%d %H:%M") if ts else "—"
                 sp_icon = SPECIES_EMOJI.get(sp, "🧬")
@@ -171,7 +184,7 @@ def print_novel(cur, species=None):
         f"SELECT e.id, e.result_type, e.result_data, e.timestamp, p.pipeline_name, COALESCE(e.species, 'human') as species"
         f" FROM experiment_results e"
         f" LEFT JOIN pipeline_runs p ON e.pipeline_run_id = p.id"
-        f" WHERE e.novel = TRUE {species_filter}"
+        f" WHERE e.novel = TRUE AND COALESCE(e.synthetic, FALSE) = FALSE {species_filter}"
         f" ORDER BY e.timestamp DESC",
         params,
     )

@@ -30,7 +30,7 @@ class PDFPublisher:
         self.output_dir = Path(output_dir)
         self.output_dir.mkdir(parents=True, exist_ok=True)
 
-    def generate_report(self, title: str, sections: list[dict], critique: dict | None = None) -> str:
+    def generate_report(self, title: str, sections: list[dict], critique: dict | None = None, synthetic: bool = False) -> str:
         """
         Generate a PDF report.
 
@@ -47,6 +47,23 @@ class PDFPublisher:
         doc = SimpleDocTemplate(str(pdf_path), pagesize=A4, topMargin=2*cm, bottomMargin=2*cm)
         styles = getSampleStyleSheet()
         elements = []
+
+        # Synthetic data disclaimer banner
+        if synthetic:
+            disclaimer_style = ParagraphStyle(
+                "SyntheticDisclaimer",
+                parent=styles["Heading2"],
+                textColor=colors.white,
+                backColor=colors.HexColor("#cc0000"),
+                alignment=1,  # center
+                spaceAfter=12,
+                spaceBefore=6,
+            )
+            elements.append(Paragraph(
+                "⚠ SYNTHETIC DATA — NOT FOR CLINICAL OR PRODUCTION USE ⚠",
+                disclaimer_style,
+            ))
+            elements.append(Spacer(1, 0.3 * cm))
 
         # Title
         elements.append(Paragraph(title, styles["Title"]))

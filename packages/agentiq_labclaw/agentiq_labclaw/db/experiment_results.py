@@ -11,17 +11,18 @@ logger = logging.getLogger("labclaw.db.experiment_results")
 def store_result(
     pipeline_run_id: int, result_type: str, result_data: dict,
     novel: bool = False, status: str = "published",
+    synthetic: bool = False,
 ) -> int:
     """Store an experiment result. Returns the result ID."""
     conn = get_connection()
     with conn.cursor() as cur:
         cur.execute(
-            "INSERT INTO experiment_results (pipeline_run_id, result_type, result_data, novel, status)"
-            " VALUES (%s, %s, %s, %s, %s) RETURNING id",
-            (pipeline_run_id, result_type, json.dumps(result_data), novel, status),
+            "INSERT INTO experiment_results (pipeline_run_id, result_type, result_data, novel, status, synthetic)"
+            " VALUES (%s, %s, %s, %s, %s, %s) RETURNING id",
+            (pipeline_run_id, result_type, json.dumps(result_data), novel, status, synthetic),
         )
         result_id = cur.fetchone()[0]
-    logger.info("Stored result %d (type: %s, novel: %s, status: %s)", result_id, result_type, novel, status)
+    logger.info("Stored result %d (type: %s, novel: %s, synthetic: %s, status: %s)", result_id, result_type, novel, synthetic, status)
     return result_id
 
 

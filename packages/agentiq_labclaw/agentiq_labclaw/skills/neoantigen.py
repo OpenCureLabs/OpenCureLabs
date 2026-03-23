@@ -72,6 +72,7 @@ class NeoantigenOutput(BaseModel):
     novel: bool
     critique_required: bool
     species: str = "human"  # propagated to R2/D1 for filtering
+    synthetic: bool = False  # True when generated from synthetic VCF (not real patient data)
 
 
 # ---------------------------------------------------------------------------
@@ -488,9 +489,11 @@ class NeoantigenSkill(LabClawSkill):
 
         # 1. Parse VCF
         vcf_path = input_data.vcf_path
+        is_synthetic = False
         if not Path(vcf_path).exists():
             # Generate synthetic VCF from the sample ID for demo/batch mode
             vcf_path = _generate_synthetic_vcf(vcf_path, input_data.sample_id)
+            is_synthetic = True
             logger.info("Generated synthetic VCF: %s", vcf_path)
 
         variants = _parse_vcf_variants(vcf_path)
@@ -630,6 +633,7 @@ class NeoantigenSkill(LabClawSkill):
             novel=has_candidates,
             critique_required=has_candidates,
             species=input_data.species,
+            synthetic=is_synthetic,
         )
 
     @staticmethod

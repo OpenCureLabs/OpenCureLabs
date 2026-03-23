@@ -47,6 +47,7 @@ class SequencingQCOutput(BaseModel):
     qc_report_path: str
     novel: bool
     critique_required: bool
+    synthetic: bool = False  # True when generated from synthetic data (not real FASTQ)
 
 
 @labclaw_skill(
@@ -208,4 +209,5 @@ class SequencingQCSkill(LabClawSkill):
             qc_report_path=str(report_path),
             novel=False,
             critique_required=not pass_qc,
+            synthetic=True,
         )

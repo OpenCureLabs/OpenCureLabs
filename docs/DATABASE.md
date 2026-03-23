@@ -36,7 +36,10 @@ activity, pipeline results, scientific critiques, and discovered data sources.
 │ input_data      │  │    │ reviewer         │   │   │ result_type         │   │
 │ output_path     │  └────│──────────────────│───┘   │ result_data         │   │
 │ started_at      │       │ critique_json    │       │ novel               │   │
-│ status          │       │ timestamp        │       │ timestamp           │   │
+│ status          │       │ timestamp        │       │ synthetic           │   │
+│                 │       │                  │       │ status              │   │
+│                 │       │                  │       │ species             │   │
+│                 │       │                  │       │ timestamp           │   │
 └─────────────────┘       └──────────────────┘       └─────────────────────┘
         ▲                         ▲                           ▲
         │                         │                           │
@@ -110,10 +113,13 @@ Stores computed scientific results with novelty tracking for deduplication.
 | `result_type` | `TEXT` | nullable | Type of result (e.g., `neoantigen`, `variant`, `qsar`) |
 | `result_data` | `JSONB` | nullable | Full result payload as JSON |
 | `novel` | `BOOLEAN` | DEFAULT FALSE | Whether this is a novel (non-replicated) finding |
+| `synthetic` | `BOOLEAN` | DEFAULT FALSE | Whether this result was generated from synthetic/demo data (not real experimental input). Synthetic results are stored for auditing but **never** published to R2, GitHub, or PDF reports. |
+| `status` | `TEXT` | DEFAULT 'published' | Result lifecycle status: `published`, `blocked`, `synthetic` |
+| `species` | `TEXT` | DEFAULT 'human' | Species: `human`, `dog`, `cat` |
 | `timestamp` | `TIMESTAMP` | DEFAULT NOW() | When the result was stored |
 
 **DB module:** `agentiq_labclaw.db.experiment_results`
-- `store_result(pipeline_run_id, result_type, result_data, novel)` → returns `result_id`
+- `store_result(pipeline_run_id, result_type, result_data, novel, status, synthetic)` → returns `result_id`
 - `check_novelty(result_type, result_data)` → returns `bool` (True if no matching prior result)
 
 ---

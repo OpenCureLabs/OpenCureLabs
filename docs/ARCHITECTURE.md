@@ -38,7 +38,7 @@ stored and published.
 ┌─────────────────────────────────────────────────────────────────────┐
 │              Post-Execution Orchestrator (orchestrator.py)           │
 │                                                                      │
-│   output_validator → novelty_filter → safety_check                  │
+│   output_validator → novelty_filter → synthetic_guard → safety_check│
 │         │                                                            │
 │         ▼                                                            │
 │   ┌──────────────────────────────┐                                  │
@@ -394,14 +394,17 @@ review, publication, and public availability.
 │  │  or Vast.ai) │         │                       │                   │
 │  └─────────────┘         │ 1. Validate (schema)  │                   │
 │        ▲                  │ 2. Dedup (novelty)    │                   │
-│  SSH   │ result           │ 3. Safety check       │                   │
-│  stdin │ stdout           │ 4. Grok Tier 1 ──────────→ xAI API       │
-│        │                  │    (scientific review) │◁── critique JSON  │
-│  ┌─────┴───────┐         │ 5. Store → PostgreSQL  │                   │
-│  │  Vast.ai    │         │ 6. PDF report          │                   │
-│  │  GPU        │         │ 7. GitHub commit       │                   │
-│  │  (optional) │         │ 8. R2Publisher ────────────────┐           │
-│  └─────────────┘         └───────────────────────┘       │           │
+│  SSH   │ result           │ 3. Synthetic guard ─── if synthetic:      │
+│  stdin │ stdout           │    store status=      │ skip review +     │
+│        │                  │    'synthetic', return │ publishing        │
+│  ┌─────┴───────┐         │ 4. Safety check       │                   │
+│  │  Vast.ai    │         │ 5. Grok Tier 1 ──────────→ xAI API       │
+│  │  GPU        │         │    (scientific review) │◁── critique JSON  │
+│  │  (optional) │         │ 6. Store → PostgreSQL  │                   │
+│  └─────────────┘         │ 7. PDF report          │                   │
+│                           │ 8. GitHub commit       │                   │
+│                           │ 9. R2Publisher ────────────────┐           │
+│                           └───────────────────────┘       │           │
 │                                                           │           │
 │                            Ed25519 sign payload           │           │
 │                            X-Contributor-Key header       │           │
@@ -499,6 +502,66 @@ review, publication, and public availability.
   `published` or `blocked`. All D1 rows are created at submission time.
 - **`latest.json`** is rebuilt on each PATCH that sets `status=published` — it
   contains the 100 most recent published results and is served from R2.
+
+---
+
+## Synthetic Data Isolation
+
+When running in batch/genesis mode without real experimental input files (VCF,
+FASTQ, PDB), certain skills generate **synthetic data** so the pipeline can
+exercise the full code path for testing. Synthetic data is never published to
+production channels.
+
+### Skills with Synthetic Fallbacks
+
+| Skill | Trigger | What's Generated |
+|---|---|---|
+| `neoantigen_prediction` | VCF file path doesn't exist | Synthetic VCF with curated somatic variants (TP53, BRCA1, EGFR, KRAS, PIK3CA, BRAF, PTEN) |
+| `sequencing_qc` | FASTQ file paths don't exist | Plausible QC metrics (total reads, Q30, GC content, adapter contamination) |
+| `molecular_docking` | PDB file doesn't exist | Auto-downloaded from RCSB PDB (not synthetic — real structure) |
+| `structure_prediction` | Sequence = `AUTO_RESOLVE` | Fetched from UniProt (not synthetic — real sequence) |
+
+### Isolation Mechanism
+
+```
+Skill output  ──→  synthetic: true  ──→  Orchestrator detects flag
+                                              │
+                                              ▼
+                                   ┌─────────────────────┐
+                                   │ Store in PostgreSQL  │
+                                   │ status = 'synthetic' │
+                                   │ synthetic = TRUE     │
+                                   │                     │
+                                   │ ✗ Skip Grok review  │
+                                   │ ✗ Skip PDF report   │
+                                   │ ✗ Skip GitHub commit│
+                                   │ ✗ Skip R2 publish   │
+                                   └─────────────────────┘
+```
+
+1. **Source flagging**: Output Pydantic models include `synthetic: bool = False`.
+   Skills set `synthetic=True` when generating from synthetic inputs.
+2. **Orchestrator guard**: `post_execute()` checks `result_dict["synthetic"]`
+   before any review or publishing. Synthetic results short-circuit immediately.
+3. **DB column**: `experiment_results.synthetic BOOLEAN DEFAULT FALSE` — indexed
+   for efficient filtering. Dashboard excludes synthetic results from novel
+   findings count.
+4. **PDF watermark**: If a synthetic result ever reaches the PDF publisher (e.g.
+   direct call), a red `⚠ SYNTHETIC DATA — NOT FOR CLINICAL OR PRODUCTION USE ⚠`
+   banner is rendered at the top of the report.
+
+### Querying Synthetic vs Real Results
+
+```sql
+-- Count synthetic vs production results
+SELECT synthetic, COUNT(*) FROM experiment_results GROUP BY synthetic;
+
+-- Show only production novel findings
+SELECT * FROM experiment_results WHERE novel = TRUE AND synthetic = FALSE;
+
+-- Audit all synthetic results
+SELECT * FROM experiment_results WHERE synthetic = TRUE ORDER BY timestamp DESC;
+```
 
 ---
 

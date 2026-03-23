@@ -121,7 +121,39 @@ async def post_execute(
 
     novel = result_dict.get("novel", False)
     critique_required = result_dict.get("critique_required", False)
+    is_synthetic = result_dict.get("synthetic", False)
     critique_completed = False
+
+    # ── Synthetic data guard ─────────────────────────────────────────────
+    # Synthetic results (generated from missing input files) are stored for
+    # auditing but NEVER published to R2, GitHub, or PDF reports.
+    if is_synthetic:
+        logger.info(
+            "Synthetic result detected for %s — skipping review and publishing",
+            skill_name,
+        )
+        orch["safety"] = {"safe": True, "reason": "synthetic — publishing blocked"}
+        if pipeline_run_id is not None:
+            try:
+                from agentiq_labclaw.db.experiment_results import store_result
+
+                store_result(
+                    pipeline_run_id=pipeline_run_id,
+                    result_type=skill_name,
+                    result_data=result_dict,
+                    novel=novel,
+                    status="synthetic",
+                    synthetic=True,
+                )
+            except Exception as e:
+                logger.warning("Failed to store synthetic result: %s", e)
+            try:
+                from agentiq_labclaw.db.pipeline_runs import complete_pipeline
+
+                complete_pipeline(pipeline_run_id, "completed")
+            except Exception as e:
+                logger.debug("Could not complete pipeline_run: %s", e)
+        return enriched
 
     # ── Step 1: Output validation ────────────────────────────────────────
     if _guardrails_enabled("output_validation"):
@@ -300,6 +332,7 @@ async def post_execute(
                 title=f"{skill_name} Result",
                 sections=sections,
                 critique=critique_data,
+                synthetic=is_synthetic,
             )
             orch["published"].append(f"pdf:{pdf_path}")
             logger.info("Generated PDF report: %s", pdf_path)
