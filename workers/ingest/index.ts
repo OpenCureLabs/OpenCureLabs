@@ -362,7 +362,7 @@ async function handlePatchResult(request: Request, env: Env): Promise<Response> 
         .bind(body.status, now, id)
         .run();
 
-    // If batch_critique provided, append to R2 object
+    // If batch_critique provided, append to R2 object and index in critiques table
     if (body.batch_critique) {
         const row = await env.RESULTS_DB.prepare("SELECT r2_url, skill, date FROM results WHERE id = ?")
             .bind(id)
@@ -380,6 +380,42 @@ async function handlePatchResult(request: Request, env: Env): Promise<Response> 
                     httpMetadata: { contentType: "application/json" },
                 });
             }
+
+            // Also insert into critiques table so the frontend sees the review
+            const bc = body.batch_critique as Record<string, unknown>;
+            const critiqueId = crypto.randomUUID();
+            const critiqueKey = `critiques/${row.skill}/${row.date}/grok_sweep/${critiqueId}.json`;
+            const critiqueUrl = `${PUBLIC_BASE_URL}/${critiqueKey}`;
+
+            const critiqueObject = {
+                id: critiqueId,
+                result_id: id,
+                reviewer: "grok_sweep",
+                overall_score: bc.verification_score ?? null,
+                recommendation: bc.recommendation ?? null,
+                critique_data: bc,
+                created_at: now,
+            };
+
+            await env.RESULTS_BUCKET.put(critiqueKey, JSON.stringify(critiqueObject, null, 2), {
+                httpMetadata: { contentType: "application/json" },
+            });
+
+            await env.RESULTS_DB.prepare(
+                `INSERT INTO critiques (id, result_id, reviewer, overall_score, recommendation, critique_data, r2_url, created_at)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+            )
+                .bind(
+                    critiqueId,
+                    id,
+                    "grok_sweep",
+                    (bc.verification_score as number) ?? null,
+                    (bc.recommendation as string) ?? null,
+                    JSON.stringify(bc),
+                    critiqueUrl,
+                    now
+                )
+                .run();
         }
     }
 
