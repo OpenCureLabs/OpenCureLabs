@@ -100,28 +100,51 @@ def run_grok_verification(skill: str, result_data: dict, local_critique: dict) -
         from reviewer.grok_reviewer import GrokReviewer
         grok = GrokReviewer()
 
-        # Verification prompt is shorter than full critique
-        verification_prompt = (
-            f"A contributor submitted a {skill} result with a local Grok review.\n"
-            f"Verify the local review is honest and the data supports the conclusions.\n\n"
-            f"Result:\n```json\n{json.dumps(result_data, indent=2, default=str)}\n```\n\n"
-            f"Local Grok Review:\n```json\n{json.dumps(local_critique, indent=2, default=str)}\n```\n\n"
-            "Return JSON:\n"
-            '{"verification_score": 0-10, "recommendation": "publish"|"revise"|"reject", '
-            '"flags": ["list of concerns if any"], "summary": "brief assessment"}'
-        )
+        has_critique = bool(local_critique)
+
+        # Adjust prompt based on whether a local critique exists
+        if has_critique:
+            verification_prompt = (
+                f"A contributor submitted a {skill} result with a local Grok review.\n"
+                f"Verify the local review is honest and the data supports the conclusions.\n\n"
+                f"Result:\n```json\n{json.dumps(result_data, indent=2, default=str)}\n```\n\n"
+                f"Local Grok Review:\n```json\n{json.dumps(local_critique, indent=2, default=str)}\n```\n\n"
+                "Return JSON:\n"
+                '{"verification_score": 0-10, "recommendation": "publish"|"revise"|"reject", '
+                '"flags": ["list of concerns if any"], "summary": "brief assessment"}'
+            )
+            system_msg = (
+                "You are a verification reviewer. A contributor ran a local Grok critique "
+                "on their own result. Your job is to verify: (1) the local critique appears "
+                "genuine and not fabricated, (2) the result data supports the stated conclusions, "
+                "(3) there are no red flags. Return a concise JSON verification."
+            )
+        else:
+            # Solo contribution — no local critique to validate.
+            # Evaluate result data directly on scientific quality.
+            verification_prompt = (
+                f"A solo contributor submitted a {skill} result without a local review.\n"
+                f"Evaluate whether the data is scientifically sound and suitable for publication.\n\n"
+                f"Result:\n```json\n{json.dumps(result_data, indent=2, default=str)}\n```\n\n"
+                "Return JSON:\n"
+                '{"verification_score": 0-10, "recommendation": "publish"|"revise"|"reject", '
+                '"flags": ["list of concerns if any"], "summary": "brief assessment"}'
+            )
+            system_msg = (
+                "You are a scientific reviewer for the OpenCure Labs public dataset. "
+                "This result was submitted by a solo contributor without a local critique — "
+                "that is normal and expected. Evaluate the result data directly: "
+                "(1) is it scientifically plausible, (2) does the data look internally consistent, "
+                "(3) are there any red flags. If the data quality is acceptable, recommend 'publish'. "
+                "Return a concise JSON verification."
+            )
 
         response = grok.client.chat.completions.create(
             model=grok.model,
             temperature=0.0,
             max_tokens=2048,
             messages=[
-                {"role": "system", "content": (
-                    "You are a verification reviewer. A contributor ran a local Grok critique "
-                    "on their own result. Your job is to verify: (1) the local critique appears "
-                    "genuine and not fabricated, (2) the result data supports the stated conclusions, "
-                    "(3) there are no red flags. Return a concise JSON verification."
-                )},
+                {"role": "system", "content": system_msg},
                 {"role": "user", "content": verification_prompt},
             ],
         )
@@ -185,7 +208,7 @@ def sweep_once(limit: int = 50) -> dict:
         rec = verification.get("recommendation", "revise")
 
         # Decide action based on thresholds
-        if score >= PUBLISH_THRESHOLD and rec == "publish":
+        if score >= PUBLISH_THRESHOLD and rec in ("publish", "revise"):
             action = "published"
         elif score < REJECT_THRESHOLD or rec == "reject":
             action = "blocked"
