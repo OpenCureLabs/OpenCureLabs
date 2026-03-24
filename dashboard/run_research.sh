@@ -592,6 +592,45 @@ if $HAS_GUM; then
             if [[ "$DATA_MODE" == "mydata" ]]; then
                 GENESIS_DATA_SUFFIX="Use uploaded files in data/ for analysis. Focus on the patient's own data."
                 DATA_SOURCE_LABEL="📁 My data — files in data/"
+
+                # Show what was found and where to put files
+                echo ""
+                _data_summary=""
+                _file_list=""
+                if [[ "$FILE_COUNT" -gt 0 ]]; then
+                    _data_summary="  ✅ Found $FILE_COUNT file(s) in data/"
+                    _file_list=$(echo "$DATA_FILES" | head -8 | while read -r f; do
+                        echo "     $(basename "$f")"
+                    done)
+                    if [[ $(echo "$DATA_FILES" | wc -l) -gt 8 ]]; then
+                        _file_list="$_file_list
+     … and $(($(echo "$DATA_FILES" | wc -l) - 8)) more"
+                    fi
+                else
+                    _data_summary="  ⚠️  No data files found yet"
+                fi
+
+                printf '%s\n' \
+                    "" \
+                    "  📁  M Y   D A T A" \
+                    "" \
+                    "$_data_summary" \
+                    "$_file_list" \
+                    "" \
+                    "  Put your files in:  data/" \
+                    "" \
+                    "  Supported formats:" \
+                    "    Genomics    .vcf .bam .fastq .fastq.gz" \
+                    "    Sequences   .fasta .fa" \
+                    "    Structures  .pdb" \
+                    "    Compounds   .sdf" \
+                    "    Tables      .csv .tsv" \
+                    "" \
+                | (gum style \
+                    --border rounded \
+                    --border-foreground 39 \
+                    --foreground 252 \
+                    --padding "0 1" 2>/dev/null || cat)
             else
                 GENESIS_DATA_SUFFIX="Use public databases (TCGA/ClinVar/ChEMBL) for data sourcing."
                 DATA_SOURCE_LABEL="🌐 Public databases — TCGA, ClinVar, ChEMBL"
@@ -1230,6 +1269,46 @@ teardown_all_instances()
         *"My data"*) DATA_MODE="mydata" ;;
     esac
 
+    if [[ "$DATA_MODE" == "mydata" ]]; then
+        echo ""
+        _data_summary=""
+        _file_list=""
+        if [[ "$FILE_COUNT" -gt 0 ]]; then
+            _data_summary="  ✅ Found $FILE_COUNT file(s) in data/"
+            _file_list=$(echo "$DATA_FILES" | head -8 | while read -r f; do
+                echo "     $(basename "$f")"
+            done)
+            if [[ $(echo "$DATA_FILES" | wc -l) -gt 8 ]]; then
+                _file_list="$_file_list
+     … and $(($(echo "$DATA_FILES" | wc -l) - 8)) more"
+            fi
+        else
+            _data_summary="  ⚠️  No data files found yet"
+        fi
+
+        printf '%s\n' \
+            "" \
+            "  📁  M Y   D A T A" \
+            "" \
+            "$_data_summary" \
+            "$_file_list" \
+            "" \
+            "  Put your files in:  data/" \
+            "" \
+            "  Supported formats:" \
+            "    Genomics    .vcf .bam .fastq .fastq.gz" \
+            "    Sequences   .fasta .fa" \
+            "    Structures  .pdb" \
+            "    Compounds   .sdf" \
+            "    Tables      .csv .tsv" \
+            "" \
+        | (gum style \
+            --border rounded \
+            --border-foreground 39 \
+            --foreground 252 \
+            --padding "0 1" 2>/dev/null || cat)
+    fi
+
     # ── Follow-up questions ──────────────────────────────────────────
     TASK="$BASE_TASK"
     if [[ -n "${SELECTED_LABEL:-}" ]]; then
@@ -1605,6 +1684,28 @@ select domain in "${DOMAINS[@]}"; do
             if [[ "$DATA_MODE" == "mydata" ]]; then
                 GENESIS_DATA_SUFFIX="Use uploaded files in data/ for analysis. Focus on the patient's own data."
                 DATA_SOURCE_LABEL="📁 My data — files in data/"
+
+                echo ""
+                if [[ "$FILE_COUNT" -gt 0 ]]; then
+                    echo -e "${GREEN}  ✅ Found $FILE_COUNT file(s) in data/${RESET}"
+                    echo "$DATA_FILES" | head -8 | while read -r f; do
+                        echo -e "     $(basename "$f")"
+                    done
+                    [[ $(echo "$DATA_FILES" | wc -l) -gt 8 ]] && \
+                        echo "     … and $(($(echo "$DATA_FILES" | wc -l) - 8)) more"
+                else
+                    echo -e "${YELLOW}  ⚠️  No data files found yet${RESET}"
+                fi
+                echo ""
+                echo -e "  ${BOLD}Put your files in:${RESET}  data/"
+                echo ""
+                echo -e "  ${DIM}Supported formats:${RESET}"
+                echo -e "  ${DIM}  Genomics    .vcf .bam .fastq .fastq.gz${RESET}"
+                echo -e "  ${DIM}  Sequences   .fasta .fa${RESET}"
+                echo -e "  ${DIM}  Structures  .pdb${RESET}"
+                echo -e "  ${DIM}  Compounds   .sdf${RESET}"
+                echo -e "  ${DIM}  Tables      .csv .tsv${RESET}"
+                echo ""
             else
                 GENESIS_DATA_SUFFIX="Use public databases (TCGA/ClinVar/ChEMBL) for data sourcing."
                 DATA_SOURCE_LABEL="🌐 Public databases — TCGA, ClinVar, ChEMBL"
@@ -2003,6 +2104,30 @@ select dm in "${DATA_MODES[@]}"; do
         *) echo "Invalid choice." ;;
     esac
 done
+
+if [[ "$DATA_MODE" == "mydata" ]]; then
+    echo ""
+    if [[ "$FILE_COUNT" -gt 0 ]]; then
+        echo -e "${GREEN}  ✅ Found $FILE_COUNT file(s) in data/${RESET}"
+        echo "$DATA_FILES" | head -8 | while read -r f; do
+            echo -e "     $(basename "$f")"
+        done
+        [[ $(echo "$DATA_FILES" | wc -l) -gt 8 ]] && \
+            echo "     … and $(($(echo "$DATA_FILES" | wc -l) - 8)) more"
+    else
+        echo -e "${YELLOW}  ⚠️  No data files found yet${RESET}"
+    fi
+    echo ""
+    echo -e "  ${BOLD}Put your files in:${RESET}  data/"
+    echo ""
+    echo -e "  ${DIM}Supported formats:${RESET}"
+    echo -e "  ${DIM}  Genomics    .vcf .bam .fastq .fastq.gz${RESET}"
+    echo -e "  ${DIM}  Sequences   .fasta .fa${RESET}"
+    echo -e "  ${DIM}  Structures  .pdb${RESET}"
+    echo -e "  ${DIM}  Compounds   .sdf${RESET}"
+    echo -e "  ${DIM}  Tables      .csv .tsv${RESET}"
+    echo ""
+fi
 
 # ── Follow-up questions ──────────────────────────────────────────────
 if [[ -n "${SELECTED_LABEL:-}" ]]; then
