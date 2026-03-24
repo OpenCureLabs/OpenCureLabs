@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - CI pipeline with tests, ruff, and bandit
 - Commitizen conventional commits enforcement
 
+## v0.50.3 (2026-03-24)
+
+### Fix
+
+- **dashboard**: suppress Zellij OSC 11 color query artifacts
+
 ## v0.50.2 (2026-03-24)
 
 ### Fix
