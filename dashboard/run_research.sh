@@ -728,28 +728,82 @@ if $HAS_GUM; then
                 [[ $PARALLEL -eq 1 ]] && MODE_LABEL="sequential" || MODE_LABEL="$PARALLEL parallel"
             fi
 
-            # ── Budget display (only for Vast.ai batch mode) ──────────────
+            # ── Budget picker (Vast.ai batch mode) ─────────────────────
             if [[ "${BATCH_MODE:-0}" -eq 1 ]]; then
                 API_BALANCE=$(get_vast_balance)
-                ENV_CAP="${VAST_AI_BUDGET:-0}"
-                if [[ "$ENV_CAP" != "0" ]] && [[ -n "$ENV_CAP" ]]; then
-                    VAST_BUDGET=$(python3 -c "print(min(float('$ENV_CAP'), float('$API_BALANCE')))" 2>/dev/null || echo "$ENV_CAP")
-                else
-                    VAST_BUDGET="$API_BALANCE"
-                fi
+                VAST_SPENT=$(psql -p 5433 -d opencurelabs -t -A -c \
+                    "SELECT COALESCE(SUM(total_cost), 0) FROM vast_spend" 2>/dev/null || echo "0")
+                AVAILABLE=$(python3 -c "print(f'{max(0, float(\"$API_BALANCE\") - float(\"$VAST_SPENT\")):.0f}')" 2>/dev/null || echo "$API_BALANCE")
+
                 echo ""
-                if python3 -c "exit(0 if float('$VAST_BUDGET') > 0 else 1)" 2>/dev/null; then
-                    VAST_SPENT=$(psql -p 5433 -d opencurelabs -t -A -c \
-                        "SELECT COALESCE(SUM(total_cost), 0) FROM vast_spend" 2>/dev/null || echo "0")
-                    VAST_REMAINING=$(python3 -c "print(f'{max(0, float(\"$VAST_BUDGET\") - float(\"$VAST_SPENT\")):.2f}')" 2>/dev/null || echo "?")
+                if python3 -c "exit(0 if float('$AVAILABLE') > 0 else 1)" 2>/dev/null; then
                     gum style --foreground 214 \
-                        "  💰 Vast.ai balance: \$$API_BALANCE — budget: \$$VAST_BUDGET (spent: \$$VAST_SPENT)" 2>/dev/null || true
-                    gum style --foreground 46 \
-                        "  🔄 Continuous mode — loops until budget exhausted" 2>/dev/null || true
+                        "  💰 Vast.ai — \$$API_BALANCE balance, \$$VAST_SPENT spent this session" 2>/dev/null \
+                        || echo -e "${YELLOW}  💰 Vast.ai — \$$API_BALANCE balance, \$$VAST_SPENT spent this session${RESET}"
+
+                    # Build budget options based on available balance
+                    BUDGET_OPTS=()
+                    for amt in 5 10 25 50; do
+                        if python3 -c "exit(0 if $amt <= float('$AVAILABLE') else 1)" 2>/dev/null; then
+                            case $amt in
+                                5)  BUDGET_OPTS+=("\$5  — Quick test (a few tasks)") ;;
+                                10) BUDGET_OPTS+=("\$10 — Small run") ;;
+                                25) BUDGET_OPTS+=("\$25 — Medium run") ;;
+                                50) BUDGET_OPTS+=("\$50 — Big run") ;;
+                            esac
+                        fi
+                    done
+                    BUDGET_OPTS+=("\$$AVAILABLE — Full send (entire balance)")
+                    BUDGET_OPTS+=("Custom amount...")
+
+                    echo ""
+                    BUDGET_CHOICE=$(gum choose \
+                        --header "How much to spend on this run?" \
+                        --header.foreground 214 \
+                        --cursor.foreground 46 \
+                        --item.foreground 252 \
+                        --selected.foreground 46 \
+                        --selected.bold \
+                        "${BUDGET_OPTS[@]}" \
+                    ) || { echo "Cancelled."; read -r; exit 0; }
+
+                    case "$BUDGET_CHOICE" in
+                        *"Custom"*)
+                            VAST_BUDGET=$(gum input \
+                                --header "Enter budget in USD (1-$AVAILABLE):" \
+                                --placeholder "$AVAILABLE" \
+                                --width 10 2>/dev/null) || VAST_BUDGET="$AVAILABLE"
+                            # Validate
+                            if ! [[ "$VAST_BUDGET" =~ ^[0-9]+\.?[0-9]*$ ]]; then
+                                VAST_BUDGET="$AVAILABLE"
+                            elif python3 -c "exit(0 if float('$VAST_BUDGET') > float('$AVAILABLE') else 1)" 2>/dev/null; then
+                                VAST_BUDGET="$AVAILABLE"
+                                gum style --foreground 196 "  ⚠️  Capped to \$$AVAILABLE (account balance)" 2>/dev/null || true
+                            elif python3 -c "exit(0 if float('$VAST_BUDGET') < 1 else 1)" 2>/dev/null; then
+                                VAST_BUDGET=1
+                            fi
+                            ;;
+                        *)
+                            # Extract dollar amount from choice string
+                            VAST_BUDGET=$(echo "$BUDGET_CHOICE" | grep -oP '^\$\K[0-9]+')
+                            ;;
+                    esac
+
+                    export VAST_AI_BUDGET="$VAST_BUDGET"
+                    echo ""
+                    gum style --foreground 46 --bold \
+                        "  🔒 Budget locked: \$$VAST_BUDGET — continuous until exhausted" 2>/dev/null \
+                        || echo -e "${GREEN}  🔒 Budget locked: \$$VAST_BUDGET — continuous until exhausted${RESET}"
                 else
+                    VAST_BUDGET=0
                     gum style --foreground 196 \
-                        "  ⚠️  No Vast.ai balance or budget — will run once" 2>/dev/null || true
+                        "  ⚠️  No Vast.ai balance — will run once locally" 2>/dev/null \
+                        || echo -e "${RED}  ⚠️  No Vast.ai balance — will run once locally${RESET}"
                 fi
+            else
+                # Local modes — fetch balance for loop control
+                API_BALANCE=$(get_vast_balance)
+                VAST_BUDGET="$API_BALANCE"
             fi
 
             echo ""
@@ -1547,24 +1601,70 @@ select domain in "${DOMAINS[@]}"; do
                 [[ $PARALLEL -eq 1 ]] && MODE_LABEL="sequential" || MODE_LABEL="$PARALLEL parallel"
             fi
 
-            API_BALANCE=$(get_vast_balance)
-            ENV_CAP="${VAST_AI_BUDGET:-0}"
-            if [[ "$ENV_CAP" != "0" ]] && [[ -n "$ENV_CAP" ]]; then
-                VAST_BUDGET=$(python3 -c "print(min(float('$ENV_CAP'), float('$API_BALANCE')))" 2>/dev/null || echo "$ENV_CAP")
-            else
-                VAST_BUDGET="$API_BALANCE"
-            fi
-            if python3 -c "exit(0 if float('$VAST_BUDGET') > 0 else 1)" 2>/dev/null; then
+            # ── Budget picker (Vast.ai batch mode — fallback) ─────────
+            if [[ "${BATCH_MODE:-0}" -eq 1 ]]; then
+                API_BALANCE=$(get_vast_balance)
                 VAST_SPENT=$(psql -p 5433 -d opencurelabs -t -A -c \
                     "SELECT COALESCE(SUM(total_cost), 0) FROM vast_spend" 2>/dev/null || echo "0")
-                echo -e "  💰 Vast.ai balance: \$$API_BALANCE — budget: \$$VAST_BUDGET (spent: \$$VAST_SPENT)"
-                echo -e "  🔄 Continuous — loops until budget exhausted"
+                AVAILABLE=$(python3 -c "print(f'{max(0, float(\"$API_BALANCE\") - float(\"$VAST_SPENT\")):.0f}')" 2>/dev/null || echo "$API_BALANCE")
+
+                echo ""
+                if python3 -c "exit(0 if float('$AVAILABLE') > 0 else 1)" 2>/dev/null; then
+                    echo -e "${YELLOW}  💰 Vast.ai — \$$API_BALANCE balance, \$$VAST_SPENT spent this session${RESET}"
+                    echo ""
+                    echo -e "${BOLD}How much to spend on this run?${RESET}"
+
+                    BUDGET_MENU=()
+                    for amt in 5 10 25 50; do
+                        if python3 -c "exit(0 if $amt <= float('$AVAILABLE') else 1)" 2>/dev/null; then
+                            case $amt in
+                                5)  BUDGET_MENU+=("\$5  — Quick test") ;;
+                                10) BUDGET_MENU+=("\$10 — Small run") ;;
+                                25) BUDGET_MENU+=("\$25 — Medium run") ;;
+                                50) BUDGET_MENU+=("\$50 — Big run") ;;
+                            esac
+                        fi
+                    done
+                    BUDGET_MENU+=("\$$AVAILABLE — Full send (entire balance)")
+                    BUDGET_MENU+=("Custom amount")
+
+                    PS3="Budget: "
+                    select bc in "${BUDGET_MENU[@]}"; do
+                        case "$bc" in
+                            *"Custom"*)
+                                read -rp "Enter budget in USD (1-$AVAILABLE): " VAST_BUDGET
+                                if ! [[ "$VAST_BUDGET" =~ ^[0-9]+\.?[0-9]*$ ]]; then
+                                    VAST_BUDGET="$AVAILABLE"
+                                elif python3 -c "exit(0 if float('$VAST_BUDGET') > float('$AVAILABLE') else 1)" 2>/dev/null; then
+                                    VAST_BUDGET="$AVAILABLE"
+                                    echo -e "${RED}  ⚠️  Capped to \$$AVAILABLE${RESET}"
+                                elif python3 -c "exit(0 if float('$VAST_BUDGET') < 1 else 1)" 2>/dev/null; then
+                                    VAST_BUDGET=1
+                                fi
+                                break ;;
+                            "")
+                                echo "Invalid choice." ;;
+                            *)
+                                VAST_BUDGET=$(echo "$bc" | grep -oP '^\$\K[0-9]+')
+                                break ;;
+                        esac
+                    done
+
+                    export VAST_AI_BUDGET="$VAST_BUDGET"
+                    echo ""
+                    echo -e "${GREEN}  🔒 Budget locked: \$$VAST_BUDGET — continuous until exhausted${RESET}"
+                else
+                    VAST_BUDGET=0
+                    echo -e "${RED}  ⚠️  No Vast.ai balance — will run once locally${RESET}"
+                fi
             else
-                echo -e "${RED}  ⚠️  No Vast.ai balance or budget — will run once${RESET}"
+                # Local modes — fetch balance for loop control
+                API_BALANCE=$(get_vast_balance)
+                VAST_BUDGET="$API_BALANCE"
             fi
 
             echo ""
-            read -rp "Launch Genesis Mode? ($TOTAL tasks, $MODE_LABEL, continuous) [y/N] " genesis_confirm
+            read -rp "Launch Genesis Mode? ($TOTAL tasks, $MODE_LABEL) [y/N] " genesis_confirm
             case "$genesis_confirm" in
                 [yY]*)
                     GENESIS_TOTAL_OK=0
