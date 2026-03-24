@@ -46,6 +46,8 @@ class PoolInstance:
     status: str = "provisioning"  # provisioning | setup | ready | busy | failed | destroyed
     jobs_done: int = 0
     provisioned_at: float = 0.0  # time.monotonic() when created
+    setup_at: float = 0.0  # time.monotonic() when transitioned to setup
+    health_failures: int = 0  # consecutive failed health checks
 
 
 # ── DB helpers ───────────────────────────────────────────────────────────────
@@ -647,6 +649,7 @@ class PoolManager:
                         inst.ssh_host = info.get("ssh_host")
                         inst.ssh_port = info.get("ssh_port", 22)
                         inst.status = "setup"
+                        inst.setup_at = time.monotonic()
                         _db_update_status(
                             inst.instance_id, "setup",
                             ssh_host=inst.ssh_host,
@@ -686,10 +689,38 @@ class PoolManager:
             # SSH check with built-in retries (3 attempts, 5s gap each).
             # Only flag as dead if all retries fail — avoids killing instances
             # that have a momentary SSH hiccup after GPU-intensive work.
+            #
+            # Philosophy: false-killing a healthy instance is MORE expensive
+            # than letting a dead one linger a few extra minutes.  So we use
+            # a grace period for setup + a consecutive-failure "strikes"
+            # system before declaring anything dead.
             if inst.ssh_host and inst.status in ("ready", "busy", "setup"):
+                # Grace period: setup instances get 10 min before any SSH
+                # checks.  Large Docker images + pip installs + model
+                # downloads can easily take that long.
+                if inst.status == "setup" and inst.setup_at:
+                    setup_age = time.monotonic() - inst.setup_at
+                    if setup_age < 600:  # 10 minutes
+                        continue
                 alive = _check_ssh_alive(inst.ssh_host, inst.ssh_port)
-                if not alive:
-                    dead.append(inst)
+                if alive:
+                    inst.health_failures = 0  # reset on success
+                else:
+                    inst.health_failures += 1
+                    # Strikes threshold: setup instances get 3 consecutive
+                    # failures before being killed, ready/busy get 2.
+                    threshold = 3 if inst.status == "setup" else 2
+                    if inst.health_failures >= threshold:
+                        dead.append(inst)
+                        logger.info(
+                            "Instance %d (%s) failed %d consecutive health checks — marking dead",
+                            inst.instance_id, inst.gpu_name, inst.health_failures,
+                        )
+                    else:
+                        logger.warning(
+                            "Instance %d (%s) SSH failed (strike %d/%d) — will retry",
+                            inst.instance_id, inst.gpu_name, inst.health_failures, threshold,
+                        )
             elif inst.status == "provisioning":
                 # Only kill provisioning instances stuck for >8 minutes
                 age_min = (time.monotonic() - inst.provisioned_at) / 60 if inst.provisioned_at else 999

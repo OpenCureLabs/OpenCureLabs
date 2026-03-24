@@ -923,6 +923,7 @@ if $HAS_GUM; then
             GENESIS_TOTAL_OK=0
             GENESIS_TOTAL_FAILED=0
             GENESIS_START=$(date +%s)
+            export GENESIS_START
             ROUND=0
 
             export LABCLAW_COMPUTE=local
@@ -1879,6 +1880,7 @@ select domain in "${DOMAINS[@]}"; do
                     GENESIS_TOTAL_OK=0
                     GENESIS_TOTAL_FAILED=0
                     GENESIS_START=$(date +%s)
+                    export GENESIS_START
                     ROUND=0
 
                     export LABCLAW_COMPUTE=local

@@ -94,14 +94,26 @@ def _record_spend_end(spend_id, total_cost):
 
 
 def get_total_spend():
-    """Get total Vast.ai spend recorded in the database."""
+    """Get Vast.ai spend for the current session.
+
+    If GENESIS_START is set (Unix timestamp), only count spend since that
+    time.  Otherwise fall back to summing all rows.
+    """
     conn = _get_db_connection()
     if not conn:
         return 0.0
     try:
         _ensure_spend_table(conn)
         cur = conn.cursor()
-        cur.execute("SELECT COALESCE(SUM(total_cost), 0) FROM vast_spend")
+        genesis_start = os.environ.get("GENESIS_START")
+        if genesis_start:
+            cur.execute(
+                "SELECT COALESCE(SUM(total_cost), 0) FROM vast_spend "
+                "WHERE started_at >= to_timestamp(%s)",
+                (float(genesis_start),),
+            )
+        else:
+            cur.execute("SELECT COALESCE(SUM(total_cost), 0) FROM vast_spend")
         total = float(cur.fetchone()[0])
         cur.close()
         conn.close()
