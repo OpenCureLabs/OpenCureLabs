@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - CI pipeline with tests, ruff, and bandit
 - Commitizen conventional commits enforcement
 
+## v0.43.3 (2026-03-24)
+
+### Fix
+
+- **compute**: improve Vast.ai host reliability and SSH robustness
+
 ## v0.43.2 (2026-03-24)
 
 ### Fix
