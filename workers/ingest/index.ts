@@ -211,10 +211,7 @@ async function handlePost(request: Request, env: Env): Promise<Response> {
         return json({ error: `Unknown skill '${payload.skill}'. Valid skills: ${KNOWN_SKILLS.join(", ")}` }, 400);
     }
 
-    // Validate local_critique is present
-    if (!payload.local_critique) {
-        return json({ error: "Missing required field: local_critique (Grok review)" }, 400);
-    }
+    // local_critique is optional — results without it go to pending for sweep review
 
     const id = crypto.randomUUID();
     const now = new Date();
@@ -239,7 +236,7 @@ async function handlePost(request: Request, env: Env): Promise<Response> {
                 ? (resultData.species as string)
                 : "human";
 
-    // Write full result object to R2 (includes local_critique)
+    // Write full result object to R2 (includes local_critique if provided)
     const resultObject = {
         id,
         skill: payload.skill,
@@ -248,7 +245,7 @@ async function handlePost(request: Request, env: Env): Promise<Response> {
         status,
         species,
         result_data: payload.result_data,
-        local_critique: payload.local_critique,
+        ...(payload.local_critique ? { local_critique: payload.local_critique } : {}),
         created_at: createdAt,
     };
 

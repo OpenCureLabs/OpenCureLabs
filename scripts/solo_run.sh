@@ -105,23 +105,21 @@ offer_r2_contribution() {
         if gum confirm "Contribute anonymized findings?" \
             --affirmative "Yes, contribute" --negative "No, keep private" \
             --default=false; then
-            gum spin --spinner dot --title "Publishing to global dataset..." -- \
-                PROJECT_DIR="$PROJECT_DIR" python3 - <<'PYEOF' 2>/dev/null
+            if gum spin --spinner dot --title "Publishing to global dataset..." -- \
+                python3 -c "
 import sys, json, os, pathlib
 sys.path.insert(0, os.environ['PROJECT_DIR'] + '/packages/agentiq_labclaw')
 os.environ['OPENCURELABS_MODE'] = 'contribute'
 from agentiq_labclaw.publishers.r2_publisher import R2Publisher
 f = pathlib.Path(os.environ['PROJECT_DIR']) / 'reports' / 'last_result.json'
 data = json.loads(f.read_text())
-result = R2Publisher().publish_result(
-    data['skill_name'], data['result'],
-    novel=data['result'].get('novel', False), status='published'
-)
-if result:
-    print(result.get('url', ''))
-PYEOF
-            && gum style --foreground 46 "✅ Contributed! View at https://opencurelabs.ai" \
-            || gum style --foreground 196 "Could not reach ingest server — results are safe locally."
+r = R2Publisher().publish_result(data['skill_name'], data['result'], novel=data['result'].get('novel', False), status='published')
+if not r: sys.exit(1)
+" 2>/dev/null; then
+                gum style --foreground 46 "✅ Contributed! View at https://opencurelabs.ai"
+            else
+                gum style --foreground 196 "Could not reach ingest server — results are safe locally."
+            fi
         fi
     else
         echo -e "${CYAN}── Contribute to OpenCure Labs? ──${RESET}"
@@ -132,21 +130,20 @@ PYEOF
         case "$_contrib" in
             [yY]*)
                 echo "Publishing..."
-                PROJECT_DIR="$PROJECT_DIR" python3 - <<'PYEOF' 2>/dev/null
+                if python3 -c "
 import sys, json, os, pathlib
 sys.path.insert(0, os.environ['PROJECT_DIR'] + '/packages/agentiq_labclaw')
 os.environ['OPENCURELABS_MODE'] = 'contribute'
 from agentiq_labclaw.publishers.r2_publisher import R2Publisher
 f = pathlib.Path(os.environ['PROJECT_DIR']) / 'reports' / 'last_result.json'
 data = json.loads(f.read_text())
-result = R2Publisher().publish_result(
-    data['skill_name'], data['result'],
-    novel=data['result'].get('novel', False), status='published'
-)
-if result:
-    print('Published:', result.get('url', ''))
-PYEOF
-                echo -e "${GREEN}✅ Contributed! View at https://opencurelabs.ai${RESET}"
+r = R2Publisher().publish_result(data['skill_name'], data['result'], novel=data['result'].get('novel', False), status='published')
+if not r: sys.exit(1)
+" 2>/dev/null; then
+                    echo -e "${GREEN}✅ Contributed! View at https://opencurelabs.ai${RESET}"
+                else
+                    echo -e "${RED}Could not reach ingest server — results are safe locally.${RESET}"
+                fi
                 ;;
         esac
     fi
