@@ -92,7 +92,7 @@ All GPU compute is orchestrated from `packages/agentiq_labclaw/agentiq_labclaw/c
 | `LABCLAW_DOCKER_IMAGE` | No | `ghcr.io/opencurelabs/labclaw-gpu:latest` | Docker image for instances |
 | `LABCLAW_IMAGE_LOGIN` | No | — | Private registry credentials (`user:token`) |
 | `GITHUB_REPOSITORY` | No | `OpenCureLabs/OpenCureLabs` | Repo for wheel download |
-| `GITHUB_TOKEN` | No | — | PAT for private repo wheel access |
+| `GITHUB_TOKEN` | No | — | PAT for private repo wheel access (public repos don't need this) |
 
 ### CLI Options
 

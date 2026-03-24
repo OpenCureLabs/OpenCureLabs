@@ -457,7 +457,7 @@ su - postgres -c "pg_restore -p 5433 -d opencurelabs backup.dump"
 | **Core** | pydantic ≥2.0, psycopg2-binary ≥2.9, requests ≥2.28, pyyaml ≥6.0 |
 | **ML/AI** | numpy ≥1.26, pandas ≥2.2, scikit-learn ≥1.4, pyarrow ≥17.0 |
 | **Bioinformatics** | pysam ≥0.22, biopython ≥1.83, pyensembl ≥2.3, mhcflurry ≥2.1, rdkit ≥2024.3 |
-| **LLM APIs** | anthropic ≥0.25, openai ≥1.20 |
+| **LLM APIs** | openai ≥1.20 (xAI Grok + Gemini via OpenAI-compatible API), langchain-openai ≥0.3 |
 | **NeMo AgentIQ** | nvidia-nat |
 | **Web** | fastapi ≥0.110, uvicorn ≥0.29, reportlab ≥4.1 |
 | **Dev/QA** | pytest ≥7.0, pytest-cov ≥4.0, ruff ≥0.4, bandit ≥1.7, pip-audit ≥2.7, detect-secrets ≥1.4 |

@@ -457,7 +457,8 @@ GITHUB_REPOSITORY=YourOrg/YourFork
 ```
 
 For **private forks**, also set `GITHUB_TOKEN` as an environment variable so the
-Vast.ai instance can download the wheel via the GitHub API.
+Vast.ai instance can download the wheel via the GitHub API. Public repos
+(including the main OpenCureLabs repo) do not need this.
 
 ### 6. Test It
 

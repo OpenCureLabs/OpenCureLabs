@@ -1,6 +1,6 @@
 # Veterinary Genomics — Multi-Species Support
 
-> **Status:** Planned  
+> **Status:** Implemented (task routing, DB schema, dashboard filtering); core pipeline species-gating in progress  
 > **Target species:** Canine (*Canis lupus familiaris*), Feline (*Felis catus*)  
 > **Use case:** Personalized cancer vaccine design for veterinary oncology
 
