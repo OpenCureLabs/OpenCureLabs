@@ -630,6 +630,9 @@ if $HAS_GUM; then
                 --margin "0 0" 2>/dev/null || cat)
 
             # ── Throughput mode ───────────────────────────────────────
+            _EXEC_PICK=1
+            while [[ $_EXEC_PICK -eq 1 ]]; do
+            _EXEC_PICK=0
             echo ""
             VAST_INSTANCES=$(gum choose \
                 --header "Execution mode:" \
@@ -646,7 +649,7 @@ if $HAS_GUM; then
                 "999 — Continuous batch (Vast.ai pool, loops until budget exhausted)" \
             ) || { echo "Cancelled."; read -r; exit 0; }
             if [[ "$VAST_INSTANCES" == *"Back"* ]]; then
-                _STEP=1; continue
+                _STEP=1; continue 2
             fi
             PARALLEL="${VAST_INSTANCES%%[[:space:]]*}"
             if [[ $PARALLEL -ge 100 ]]; then
@@ -655,7 +658,8 @@ if $HAS_GUM; then
                 # Prompt for batch parameters before confirmation
                 gum style --foreground 242 --italic \
                     "Each task is one research job (e.g. tumor analysis, drug screen)." \
-                    "Tasks are queued and distributed across your GPU pool." 2>/dev/null || true
+                    "Tasks are queued and distributed across your GPU pool." \
+                    "Enter 0 or press Esc to go back." 2>/dev/null || true
                 echo ""
                 BATCH_COUNT=$(gum input \
                     --header "How many research tasks per cycle? (1-500)" \
@@ -663,7 +667,8 @@ if $HAS_GUM; then
                     --value "100" \
                     --header.foreground 214 \
                     --prompt.foreground 46 \
-                ) || BATCH_COUNT=100
+                ) || { _EXEC_PICK=1; continue; }
+                if [[ "$BATCH_COUNT" == "0" ]]; then _EXEC_PICK=1; continue; fi
                 # Validate: integer between 1-500
                 if ! [[ "$BATCH_COUNT" =~ ^[0-9]+$ ]] || [[ "$BATCH_COUNT" -lt 1 ]]; then
                     BATCH_COUNT=100
@@ -683,7 +688,8 @@ if $HAS_GUM; then
                     --value "$((BATCH_COUNT / 10 < 1 ? 1 : BATCH_COUNT / 10 > 20 ? 20 : BATCH_COUNT / 10))" \
                     --header.foreground 214 \
                     --prompt.foreground 46 \
-                ) || POOL_SIZE=$((BATCH_COUNT / 10 < 1 ? 1 : BATCH_COUNT / 10 > 20 ? 20 : BATCH_COUNT / 10))
+                ) || { _EXEC_PICK=1; continue; }
+                if [[ "$POOL_SIZE" == "0" ]]; then _EXEC_PICK=1; continue; fi
                 # Validate: integer between 1-20
                 if ! [[ "$POOL_SIZE" =~ ^[0-9]+$ ]] || [[ "$POOL_SIZE" -lt 1 ]]; then
                     POOL_SIZE=$((BATCH_COUNT / 10 < 1 ? 1 : BATCH_COUNT / 10 > 20 ? 20 : BATCH_COUNT / 10))
@@ -736,6 +742,7 @@ if $HAS_GUM; then
                 BATCH_MODE=0
                 [[ $PARALLEL -eq 1 ]] && MODE_LABEL="sequential" || MODE_LABEL="$PARALLEL parallel"
             fi
+            done  # end _EXEC_PICK loop
 
             # ── Budget picker (Vast.ai batch mode) ─────────────────────
             if [[ "${BATCH_MODE:-0}" -eq 1 ]]; then
@@ -1569,6 +1576,10 @@ select domain in "${DOMAINS[@]}"; do
             echo -e "  $TOTAL tasks · 5 domains · $DATA_SOURCE_LABEL"
             echo ""
 
+            _EXEC_PICK_FB=1
+            while [[ $_EXEC_PICK_FB -eq 1 ]]; do
+            _EXEC_PICK_FB=0
+
             echo -e "${BOLD}Execution mode:${RESET}"
             PARALLEL_OPTS=("1 — Sequential" "3 — Fast parallel" "6 — Max throughput" "12 — All at once" "999 — Continuous batch (Vast.ai pool, loops until budget)")
             select po in "${PARALLEL_OPTS[@]}"; do
@@ -1585,9 +1596,11 @@ select domain in "${DOMAINS[@]}"; do
                 echo ""
                 echo -e "${DIM}Each task is one research job (e.g. tumor analysis, drug screen).${RESET}"
                 echo -e "${DIM}Tasks are queued and distributed across your GPU pool.${RESET}"
+                echo -e "${DIM}Enter 0 to go back to execution mode.${RESET}"
                 echo ""
-                read -rp "How many research tasks per cycle? (1-500) [100] " BATCH_COUNT
+                read -rp "How many research tasks per cycle? (1-500, 0=back) [100] " BATCH_COUNT
                 BATCH_COUNT="${BATCH_COUNT:-100}"
+                if [[ "$BATCH_COUNT" == "0" ]]; then _EXEC_PICK_FB=1; continue; fi
                 # Validate
                 if ! [[ "$BATCH_COUNT" =~ ^[0-9]+$ ]] || [[ "$BATCH_COUNT" -lt 1 ]]; then
                     BATCH_COUNT=100
@@ -1602,8 +1615,9 @@ select domain in "${DOMAINS[@]}"; do
                 echo -e "${DIM}GPU instances run tasks in parallel — more = faster but each costs ~\$0.50/hr.${RESET}"
                 echo -e "${DIM}Aim for ~10 tasks per instance. Recommended: $REC_POOL for $BATCH_COUNT tasks.${RESET}"
                 echo ""
-                read -rp "How many Vast.ai GPU instances? (1-20) [$REC_POOL] " POOL_SIZE
+                read -rp "How many Vast.ai GPU instances? (1-20, 0=back) [$REC_POOL] " POOL_SIZE
                 POOL_SIZE="${POOL_SIZE:-$REC_POOL}"
+                if [[ "$POOL_SIZE" == "0" ]]; then _EXEC_PICK_FB=1; continue; fi
                 if ! [[ "$POOL_SIZE" =~ ^[0-9]+$ ]] || [[ "$POOL_SIZE" -lt 1 ]]; then
                     POOL_SIZE=$REC_POOL
                 elif [[ "$POOL_SIZE" -gt 20 ]]; then
@@ -1619,6 +1633,7 @@ select domain in "${DOMAINS[@]}"; do
                 BATCH_MODE=0
                 [[ $PARALLEL -eq 1 ]] && MODE_LABEL="sequential" || MODE_LABEL="$PARALLEL parallel"
             fi
+            done  # end _EXEC_PICK_FB loop
 
             # ── Budget picker (Vast.ai batch mode — fallback) ─────────
             if [[ "${BATCH_MODE:-0}" -eq 1 ]]; then
