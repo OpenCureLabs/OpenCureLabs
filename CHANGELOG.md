@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - CI pipeline with tests, ruff, and bandit
 - Commitizen conventional commits enforcement
 
+## v0.50.7 (2026-03-24)
+
+### Fix
+
+- **worker**: write critique row when sweep PATCHes result
+
 ## v0.50.6 (2026-03-24)
 
 ### Fix
