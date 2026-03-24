@@ -227,6 +227,10 @@ def run_batch(
 def _monitor_loop(batch_id, queue, pool, workers, threads, callback=None, idle_timeout=0):
     """Poll batch status every 10s until all jobs are done or all workers dead."""
     stall_count = 0
+    stall_cycles = 0  # how many times health-check fired due to stall
+    max_stall_cycles = int(os.environ.get("LABCLAW_MAX_STALL_CYCLES", "3"))
+    batch_timeout = int(os.environ.get("LABCLAW_BATCH_TIMEOUT", "1800"))  # 30 min default
+    batch_start = time.monotonic()
     last_done = -1
     while not _shutdown.is_set():
         alive = [t for t in threads if t.is_alive()]
@@ -257,6 +261,16 @@ def _monitor_loop(batch_id, queue, pool, workers, threads, callback=None, idle_t
 
         if callback:
             callback(progress)
+
+        # Hard batch timeout — prevent indefinite runs
+        elapsed = time.monotonic() - batch_start
+        if batch_timeout > 0 and elapsed > batch_timeout:
+            _log(
+                "BATCH TIMEOUT: %dm%ds elapsed (limit %dm) — stopping",
+                int(elapsed // 60), int(elapsed % 60), batch_timeout // 60,
+            )
+            queue.reclaim_stale_jobs(stale_minutes=1)
+            break
 
         # Check if done
         if pending == 0 and running == 0:
@@ -328,21 +342,44 @@ def _monitor_loop(batch_id, queue, pool, workers, threads, callback=None, idle_t
             stall_count += 1
         else:
             stall_count = 0
+            stall_cycles = 0  # real progress resets escalation
             last_done = done
 
         if stall_count >= 12 and (pending > 0 or running > 0):  # 12 × 10s = 2 min
-            _log("Stall detected (%d iterations no progress) — running health check", stall_count)
+            stall_cycles += 1
+            _log(
+                "Stall detected (%d iterations no progress, cycle %d/%d) — running health check",
+                stall_count, stall_cycles, max_stall_cycles,
+            )
+
+            if stall_cycles >= max_stall_cycles:
+                _log(
+                    "MAX STALL CYCLES reached (%d) — giving up on %d remaining jobs",
+                    max_stall_cycles, pending + running,
+                )
+                queue.reclaim_stale_jobs(stale_minutes=1)
+                break
+
             replaced = pool.health_check(progress_fn=_log)
             if replaced:
                 _log("Health check replaced %d instances mid-cycle — restarting workers", replaced)
-                # Stop all old workers and launch fresh ones for the current pool
                 for w in workers:
                     w.stop()
                 for t in threads:
                     t.join(timeout=10)
                 workers, threads = _launch_workers(pool, queue, batch_id, idle_timeout=idle_timeout)
-            # Reclaim any jobs stuck on dead instances
-            queue.reclaim_stale_jobs(stale_minutes=1)
+            elif pending > 0 and running == 0:
+                # Jobs waiting but nobody running them — relaunch workers on alive instances
+                _log("Orphaned jobs detected (pending=%d, running=0) — relaunching workers", pending)
+                queue.reclaim_stale_jobs(stale_minutes=1)
+                for w in workers:
+                    w.stop()
+                for t in threads:
+                    t.join(timeout=10)
+                workers, threads = _launch_workers(pool, queue, batch_id, idle_timeout=idle_timeout)
+            else:
+                # Reclaim any jobs stuck on dead instances
+                queue.reclaim_stale_jobs(stale_minutes=1)
             stall_count = 0
 
         time.sleep(10)
