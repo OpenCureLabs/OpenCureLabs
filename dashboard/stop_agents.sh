@@ -2,23 +2,35 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # OpenCure Labs — Stop running agents without quitting the dashboard
 # ─────────────────────────────────────────────────────────────────────────────
-set -euo pipefail
+set +e   # don't exit on pkill returning 1 (no processes found)
 
 echo -e '\033[1;93m⏹  Stopping agents...\033[0m'
 
 killed=0
 
-# Kill nat run processes (the agent coordinator)
-if pkill -f "nat run" 2>/dev/null; then
+# Kill all nat run processes first (children), then the launcher / loop.
+# Order matters: kill children before parent so the parent's wait() doesn't
+# see child exit codes and loop to the next Genesis round.
+if pkill -TERM -f "nat run" 2>/dev/null; then
     echo "  ✓ Stopped nat run"
     ((killed++)) || true
 fi
 
-# Kill run_research.sh (the launcher script / continuous loop)
-if pkill -f "run_research.sh" 2>/dev/null; then
+# Kill the entire run_research.sh process group so the `while true` outer
+# loop and all of its children (parallel nat run subshells) die together.
+# -KILL as a fallback after TERM in case the script has blocked signals.
+if pkill -TERM -f "run_research.sh" 2>/dev/null; then
     echo "  ✓ Stopped run_research.sh"
     ((killed++)) || true
+    sleep 1
+    # Force-kill anything that survived SIGTERM
+    pkill -KILL -f "run_research.sh" 2>/dev/null || true
+    pkill -KILL -f "nat run" 2>/dev/null || true
 fi
+
+# Also kill any orphaned nat / agentiq processes left behind
+pkill -TERM -f "agentiq_labclaw" 2>/dev/null || true
+pkill -TERM -f "nemoagent\|nemo_agent\|nat run" 2>/dev/null || true
 
 if [ "$killed" -eq 0 ]; then
     echo -e '\033[2m  No agents were running.\033[0m'

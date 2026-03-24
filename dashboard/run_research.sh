@@ -26,15 +26,21 @@ _on_error() {
 trap '_on_error $LINENO' ERR
 
 # ── Teardown handler: destroy Vast.ai instances on interrupt / exit ───────────
+_GENESIS_STOP=0
 _teardown_vast() {
+    _GENESIS_STOP=1
     echo ""
     echo -e "\033[1;93m── Tearing down Vast.ai instances before exit... ──\033[0m"
+    # Kill any running nat run children
+    pkill -TERM -f "nat run" 2>/dev/null || true
+    sleep 1
+    pkill -KILL -f "nat run" 2>/dev/null || true
     python3 -c "
 from agentiq_labclaw.compute.vast_dispatcher import teardown_all_instances
 teardown_all_instances()
 " 2>&1 | sed 's/^/  /' || true
 }
-trap '_teardown_vast' INT TERM
+trap '_teardown_vast; exit 0' INT TERM
 
 PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 CONFIG="coordinator/labclaw_workflow.yaml"
@@ -767,6 +773,9 @@ if $HAS_GUM; then
             fi
 
             while true; do
+                # Check stop flag (set by SIGINT/SIGTERM trap)
+                [[ "$_GENESIS_STOP" -eq 1 ]] && break
+
                 ROUND=$((ROUND + 1))
 
                 # ── Budget check before each round ───────────────────
@@ -866,6 +875,8 @@ if $HAS_GUM; then
                                 ROUND_FAILED=$((ROUND_FAILED + 1))
                                 gum style --foreground 196 "  ❌ [R${ROUND} ${GLOBAL_NUM}/$TOTAL] $LABEL — failed (see ${BATCH_LOGS[$j]})"
                             fi
+                            # Abort batch loop if stop requested
+                            [[ "$_GENESIS_STOP" -eq 1 ]] && break
                         done
 
                         TASK_IDX=$BATCH_END
