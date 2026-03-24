@@ -14,6 +14,12 @@
 # ──────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
+# ── Prevent OSC 11 terminal color query artifacts in Zellij ───────────────────
+# gum and other TUI tools query the terminal background color via OSC 11.
+# Zellij doesn't always intercept the response, leaking ^[]11;rgb:... into output.
+# Setting COLORFGBG tells tools "white on black" without needing to query.
+export COLORFGBG="15;0"
+
 # ── Error trap: catch crashes in Zellij floating panes ────────────────────────
 # Without this, set -e + close_on_exit causes "flash and close" with no output.
 _on_error() {
