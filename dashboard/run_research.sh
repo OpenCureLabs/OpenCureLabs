@@ -653,8 +653,12 @@ if $HAS_GUM; then
                 BATCH_MODE=1
                 CONTINUOUS_BATCH=1
                 # Prompt for batch parameters before confirmation
+                gum style --foreground 242 --italic \
+                    "Each task is one research job (e.g. tumor analysis, drug screen)." \
+                    "Tasks are queued and distributed across your GPU pool." 2>/dev/null || true
+                echo ""
                 BATCH_COUNT=$(gum input \
-                    --header "How many tasks? (max 500)" \
+                    --header "How many research tasks per cycle? (1-500)" \
                     --placeholder "100" \
                     --value "100" \
                     --header.foreground 214 \
@@ -668,16 +672,21 @@ if $HAS_GUM; then
                     gum style --foreground 196 "  ⚠️  Capped to 500 tasks (budget protection)"
                 fi
 
+                echo ""
+                gum style --foreground 242 --italic \
+                    "GPU instances run tasks in parallel — more instances = faster," \
+                    "but each costs ~\$0.50/hr. Aim for ~10 tasks per instance." 2>/dev/null || true
+                echo ""
                 POOL_SIZE=$(gum input \
-                    --header "Instance pool size? (max 20)" \
-                    --placeholder "10" \
-                    --value "10" \
+                    --header "How many Vast.ai GPU instances? (1-20, rec: $((BATCH_COUNT / 10 < 1 ? 1 : BATCH_COUNT / 10 > 20 ? 20 : BATCH_COUNT / 10)))" \
+                    --placeholder "$((BATCH_COUNT / 10 < 1 ? 1 : BATCH_COUNT / 10 > 20 ? 20 : BATCH_COUNT / 10))" \
+                    --value "$((BATCH_COUNT / 10 < 1 ? 1 : BATCH_COUNT / 10 > 20 ? 20 : BATCH_COUNT / 10))" \
                     --header.foreground 214 \
                     --prompt.foreground 46 \
-                ) || POOL_SIZE=10
+                ) || POOL_SIZE=$((BATCH_COUNT / 10 < 1 ? 1 : BATCH_COUNT / 10 > 20 ? 20 : BATCH_COUNT / 10))
                 # Validate: integer between 1-20
                 if ! [[ "$POOL_SIZE" =~ ^[0-9]+$ ]] || [[ "$POOL_SIZE" -lt 1 ]]; then
-                    POOL_SIZE=10
+                    POOL_SIZE=$((BATCH_COUNT / 10 < 1 ? 1 : BATCH_COUNT / 10 > 20 ? 20 : BATCH_COUNT / 10))
                 elif [[ "$POOL_SIZE" -gt 20 ]]; then
                     POOL_SIZE=20
                     gum style --foreground 196 "  ⚠️  Capped to 20 instances (budget protection)"
@@ -1574,7 +1583,10 @@ select domain in "${DOMAINS[@]}"; do
                 BATCH_MODE=1
                 CONTINUOUS_BATCH=1
                 echo ""
-                read -rp "How many tasks? (1-500) [100] " BATCH_COUNT
+                echo -e "${DIM}Each task is one research job (e.g. tumor analysis, drug screen).${RESET}"
+                echo -e "${DIM}Tasks are queued and distributed across your GPU pool.${RESET}"
+                echo ""
+                read -rp "How many research tasks per cycle? (1-500) [100] " BATCH_COUNT
                 BATCH_COUNT="${BATCH_COUNT:-100}"
                 # Validate
                 if ! [[ "$BATCH_COUNT" =~ ^[0-9]+$ ]] || [[ "$BATCH_COUNT" -lt 1 ]]; then
@@ -1583,10 +1595,17 @@ select domain in "${DOMAINS[@]}"; do
                     BATCH_COUNT=500
                     echo -e "${RED}  ⚠️  Capped to 500 tasks (budget protection)${RESET}"
                 fi
-                read -rp "Instance pool size? (1-20) [10] " POOL_SIZE
-                POOL_SIZE="${POOL_SIZE:-10}"
+                REC_POOL=$((BATCH_COUNT / 10))
+                [[ $REC_POOL -lt 1 ]] && REC_POOL=1
+                [[ $REC_POOL -gt 20 ]] && REC_POOL=20
+                echo ""
+                echo -e "${DIM}GPU instances run tasks in parallel — more = faster but each costs ~\$0.50/hr.${RESET}"
+                echo -e "${DIM}Aim for ~10 tasks per instance. Recommended: $REC_POOL for $BATCH_COUNT tasks.${RESET}"
+                echo ""
+                read -rp "How many Vast.ai GPU instances? (1-20) [$REC_POOL] " POOL_SIZE
+                POOL_SIZE="${POOL_SIZE:-$REC_POOL}"
                 if ! [[ "$POOL_SIZE" =~ ^[0-9]+$ ]] || [[ "$POOL_SIZE" -lt 1 ]]; then
-                    POOL_SIZE=10
+                    POOL_SIZE=$REC_POOL
                 elif [[ "$POOL_SIZE" -gt 20 ]]; then
                     POOL_SIZE=20
                     echo -e "${RED}  ⚠️  Capped to 20 instances (budget protection)${RESET}"
