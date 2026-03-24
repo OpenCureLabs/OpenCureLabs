@@ -195,6 +195,73 @@ def _find_reusable_instance(api_key: str):
     return None
 
 
+def _seed_pool_from_running(api_key: str):
+    """Pick up any running 'opencurelabs' Vast.ai instances not yet in the pool.
+
+    Called before provisioning a new instance. Inserts them as 'ready' so
+    _claim_pool_instance() can grab them. This handles the case where instances
+    were provisioned before pool tracking was active (e.g. after a code deploy
+    mid-run, or instances left over from a previous session).
+    """
+    headers = {"Authorization": f"Bearer {api_key}"}
+    try:
+        resp = requests.get(f"{VAST_API}/instances/", headers=headers, timeout=30)
+        resp.raise_for_status()
+        data = resp.json()
+        instances = data.get("instances", data) if isinstance(data, dict) else data
+    except Exception as e:
+        logger.debug("Could not list instances for pool seeding: %s", e)
+        return
+
+    conn = _get_db_connection()
+    if not conn:
+        return
+
+    seeded = 0
+    try:
+        cur = conn.cursor()
+        for inst in instances:
+            status = inst.get("actual_status") or ""
+            client = inst.get("label") or inst.get("client_id") or ""
+            if status != "running" or "opencurelabs" not in client.lower():
+                continue
+            ssh_host = inst.get("ssh_host")
+            ssh_port = inst.get("ssh_port", 22)
+            if not ssh_host:
+                continue
+            iid = inst.get("id")
+            gpu_name = inst.get("gpu_name", "GPU")
+            cost_hr = inst.get("dph_total", 0)
+            # INSERT only if not already tracked
+            cur.execute(
+                """
+                INSERT INTO vast_pool
+                    (instance_id, ssh_host, ssh_port, gpu_name, cost_per_hr, status, ready_at)
+                VALUES (%s, %s, %s, %s, %s, 'ready', NOW())
+                ON CONFLICT (instance_id) DO NOTHING
+                """,
+                (iid, ssh_host, ssh_port, gpu_name, cost_hr),
+            )
+            if cur.rowcount:
+                seeded += 1
+                logger.info(
+                    "Seeded pool from orphaned running instance %d (%s) at %s:%d",
+                    iid, gpu_name, ssh_host, ssh_port,
+                )
+        conn.commit()
+        cur.close()
+        conn.close()
+    except Exception as e:
+        logger.debug("Pool seeding failed: %s", e)
+        try:
+            conn.close()
+        except Exception:
+            pass
+
+    if seeded:
+        logger.info("Pool seeded with %d orphaned instance(s)", seeded)
+
+
 # ── Pool-aware instance management ──────────────────────────────────────────
 
 def _claim_pool_instance():
@@ -599,15 +666,75 @@ def dispatch(skill, input_data):
                 )
 
     # ── No pool instance available (or pool instance failed) — provision a new one ──
-    # 1. Find offer
-    offer = _find_cheapest_offer(vast_key, skill.gpu_required)
-    offer_id = offer["id"]
-    cost_hr = offer.get("dph_total", 0)
-    gpu_name = offer.get("gpu_name", "CPU")
-    logger.info("Selected offer %d: %s GPU, $%.3f/hr", offer_id, gpu_name, cost_hr)
+    # Before provisioning, seed pool from any orphaned running instances
+    # (e.g. deployed before pool tracking, or left from a previous session).
+    # Another parallel task may claim one, or we get it on next round.
+    _seed_pool_from_running(vast_key)
 
-    # 2. Provision
-    instance_id = _create_instance(vast_key, offer_id)
+    # Try again after seeding — may have new ready instances
+    claimed = _claim_pool_instance()
+    if claimed:
+        inst_id, ssh_host, ssh_port, gpu_name, cost_hr = claimed
+        logger.info(
+            "[%s] Claimed seeded pool instance %d (%s) at %s:%d",
+            skill.name, inst_id, gpu_name, ssh_host, ssh_port,
+        )
+        spend_id = _record_spend_start(skill.name, inst_id, gpu_name, cost_hr)
+        job_start = time.monotonic()
+        _pool_ok2 = False
+        try:
+            result = _run_remote(skill.name, input_data, ssh_host, ssh_port, skill.output_schema)
+            logger.info("Vast.ai dispatch succeeded for %s (seeded instance %d)", skill.name, inst_id)
+            _release_pool_instance(inst_id)
+            _pool_ok2 = True
+            return result
+        except Exception as _seed_exc:
+            logger.warning("[%s] Seeded instance %d failed (%s) — provisioning fresh", skill.name, inst_id, _seed_exc)
+            try:
+                VastInstance(vast_key, inst_id).destroy()
+            except Exception:
+                pass
+            _release_pool_instance(inst_id, destroy=True)
+        finally:
+            elapsed_hrs = (time.monotonic() - job_start) / 3600
+            total_cost = round(elapsed_hrs * cost_hr, 4)
+            _record_spend_end(spend_id, total_cost)
+            if _pool_ok2:
+                logger.info(
+                    "Vast.ai job complete (seeded): %s, %.1f min, $%.4f",
+                    skill.name, elapsed_hrs * 60, total_cost,
+                )
+
+    # 1. Find offer + create instance  — retry up to 5× on stale offer (400)
+    instance_id = None
+    cost_hr = 0.0
+    gpu_name = "CPU"
+    for _attempt in range(5):
+        try:
+            offer = _find_cheapest_offer(vast_key, skill.gpu_required)
+            offer_id = offer["id"]
+            cost_hr = offer.get("dph_total", 0)
+            gpu_name = offer.get("gpu_name", "CPU")
+            logger.info(
+                "Selected offer %d: %s GPU, $%.3f/hr (attempt %d)",
+                offer_id, gpu_name, cost_hr, _attempt + 1,
+            )
+            instance_id = _create_instance(vast_key, offer_id)
+            break  # success
+        except Exception as _offer_err:
+            err_str = str(_offer_err)
+            if "400" in err_str or "Bad Request" in err_str:
+                logger.warning(
+                    "Offer %d already taken (attempt %d/5) — retrying fresh offer",
+                    offer_id if "offer_id" in dir() else -1, _attempt + 1,
+                )
+                time.sleep(1)
+                continue
+            raise  # non-400 error — propagate immediately
+
+    if instance_id is None:
+        raise RuntimeError("Could not create Vast.ai instance after 5 offer attempts")
+
     instance = VastInstance(vast_key, instance_id)
     job_start = time.monotonic()
 
