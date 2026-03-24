@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - CI pipeline with tests, ruff, and bandit
 - Commitizen conventional commits enforcement
 
+## v0.51.0 (2026-03-24)
+
+### Feat
+
+- **website**: add logo and favicon to header
+
 ## v0.50.7 (2026-03-24)
 
 ### Fix
