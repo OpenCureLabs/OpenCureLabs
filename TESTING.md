@@ -13,8 +13,7 @@ issues you hit.
 - **Disk:** ~5 GB free.
 - **API keys:** At minimum you need a free **Gemini** key (`GENAI_API_KEY`).
   The Grok reviewer agent needs an **xAI** key (`XAI_API_KEY`) — get it at
-  [console.x.ai](https://console.x.ai). `ANTHROPIC_API_KEY` is optional (the
-  Claude Opus module is archived and not active in the current pipeline).
+  [console.x.ai](https://console.x.ai).
 
 ---
 

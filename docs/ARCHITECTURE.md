@@ -610,10 +610,8 @@ when Grok finds a new dataset, it calls this skill to write to
 |---|---|---|
 | `GENAI_API_KEY` | Yes | Gemini API — coordinator LLM |
 | `XAI_API_KEY` | Yes | Grok scientific reviewer, researcher, and literature monitor |
-| `ANTHROPIC_API_KEY` | No | Archived Claude Opus reviewer (not active) |
 | `OPENCURELABS_ADMIN_KEY` | No | Admin PATCH for sweep verification |
 | `VAST_AI_KEY` | No | Burst GPU compute (Vast.ai) |
-| `NVIDIA_API_KEY` | No | NIM endpoints (if needed) |
 | `POSTGRES_URL` | No | Database connection (default: `postgresql://localhost:5433/opencurelabs`) |
 | `LABCLAW_COMPUTE` | No | Compute mode: `local` (default) or `vast_ai` |
 

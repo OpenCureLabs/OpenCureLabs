@@ -195,7 +195,6 @@ Configure these in `.env` (never committed to git):
 | `XAI_API_KEY` | xAI Grok | Reviewer agent (scientific critique + literature) | No |
 | `OPENCURELABS_INGEST_URL` | Cloudflare Worker | Optional — contribute results to global dataset | Yes |
 | `OPENCURELABS_ADMIN_KEY` | Ingest Worker | Optional — admin PATCH for sweep verification | N/A |
-| `ANTHROPIC_API_KEY` | Anthropic Claude | Optional — archived reviewer module | No |
 | `VAST_AI_KEY` | Vast.ai | Optional — cloud burst compute | No |
 
 At minimum, you need **`GENAI_API_KEY`** to run the coordinator. Add **`XAI_API_KEY`** to enable the Grok critique loop.
@@ -251,7 +250,7 @@ Grok lives on the VM as a persistent agent, running via **[grok-cli](https://git
 
 This triple-role design means Grok is not just a passive critic but an **active lab member** — expanding the data surface area of the platform continuously while also keeping results anchored in the current state of the literature.
 
-> **Note:** A Claude Opus module (`reviewer/claude_reviewer.py`) exists in the codebase but is not active in the current pipeline. Contributors who have an `ANTHROPIC_API_KEY` can re-enable it for local experimentation.
+> **Note:** A Claude Opus module (`reviewer/claude_reviewer.py`) exists in the codebase but is not active in the current pipeline. Grok is the sole reviewer.
 
 ---
 
@@ -467,9 +466,6 @@ See [docs/QUICKSTART.md](docs/QUICKSTART.md) for manual setup and troubleshootin
 ```bash
 # Install the NeMo Agent Toolkit CLI
 pip install nvidia-nat
-
-# Set your NVIDIA API key (for NIM inference)
-export NVIDIA_API_KEY="your_key_here"  # from build.nvidia.com
 
 # Run the coordinator workflow
 nat run --config_file coordinator/labclaw_workflow.yaml --input "analyze TCGA BRCA cohort"

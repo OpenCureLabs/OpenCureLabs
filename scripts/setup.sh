@@ -330,7 +330,6 @@ if [[ -f "$PROJECT_DIR/.env" ]]; then
         info "Edit .env and add your keys."
         info "  GENAI_API_KEY is required for the coordinator (Gemini LLM)."
         info "  XAI_API_KEY is required for the Grok reviewer agent."
-        info "  ANTHROPIC_API_KEY is optional (archived Claude Opus reviewer)."
     else
         ok "Required API keys are configured"
     fi
@@ -342,7 +341,7 @@ else
     info ""
     info "  Required:  GENAI_API_KEY (coordinator LLM)"
     info "  Required:  XAI_API_KEY (Grok reviewer agent)"
-    info "  Optional:  ANTHROPIC_API_KEY, NVIDIA_API_KEY, VAST_AI_KEY"
+    info "  Optional:  VAST_AI_KEY"
 fi
 
 # ══════════════════════════════════════════════════════════════════════════════

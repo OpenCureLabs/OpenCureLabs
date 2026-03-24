@@ -96,7 +96,7 @@ sudo -u postgres psql -p 5433 -d opencurelabs -f db/schema.sql
 
 # Environment variables
 cp .env.example .env
-# Edit .env — minimum required: XAI_API_KEY (ANTHROPIC_API_KEY is optional)
+# Edit .env — minimum required: GENAI_API_KEY + XAI_API_KEY
 
 # Verify your setup — run the neoantigen test
 python tests/test_neoantigen.py

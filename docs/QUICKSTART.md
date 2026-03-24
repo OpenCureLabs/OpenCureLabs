@@ -187,7 +187,6 @@ nano .env
 
 | Key | Where to get it | Used by |
 |---|---|---|
-| `NVIDIA_API_KEY` | [build.nvidia.com](https://build.nvidia.com) | NIM endpoints (optional) |
 | `VAST_AI_KEY` | [vast.ai](https://vast.ai) | Burst GPU compute |
 
 ### 7. Verify Installation

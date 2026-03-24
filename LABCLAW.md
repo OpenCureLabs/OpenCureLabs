@@ -197,9 +197,7 @@ LabClaw does **not** require NVIDIA hosted NIM endpoints. The coordinator LLM ca
 | Option | Setup | Notes |
 |---|---|---|
 | **Gemini API (current)** | `GENAI_API_KEY` in .env | Uses Gemini 2.0 Flash Lite for coordinator reasoning |
-| **Anthropic API** | `ANTHROPIC_API_KEY` in .env | Uses Claude for coordinator reasoning |
 | **xAI API** | `XAI_API_KEY` in .env | Uses Grok for coordinator reasoning |
-| **Hosted NIM** | `NVIDIA_API_KEY` in .env | Optional, only if self-hosted NIMs aren't viable |
 
 The RTX 5070 is reserved for scientific compute (structure prediction, docking, ML). The coordinator LLM should be lightweight — its job is routing and reasoning, not heavy inference.
 
