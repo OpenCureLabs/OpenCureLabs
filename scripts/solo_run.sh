@@ -16,7 +16,7 @@
 # ──────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
-PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+export PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 CONFIG="coordinator/labclaw_workflow.yaml"
 LOG="logs/solo_run.log"
 
@@ -115,7 +115,7 @@ f = pathlib.Path(os.environ['PROJECT_DIR']) / 'reports' / 'last_result.json'
 data = json.loads(f.read_text())
 r = R2Publisher().publish_result(data['skill_name'], data['result'], novel=data['result'].get('novel', False), status='published')
 if not r: sys.exit(1)
-" 2>/dev/null; then
+"; then
                 gum style --foreground 46 "✅ Contributed! View at https://opencurelabs.ai"
             else
                 gum style --foreground 196 "Could not reach ingest server — results are safe locally."
@@ -139,7 +139,7 @@ f = pathlib.Path(os.environ['PROJECT_DIR']) / 'reports' / 'last_result.json'
 data = json.loads(f.read_text())
 r = R2Publisher().publish_result(data['skill_name'], data['result'], novel=data['result'].get('novel', False), status='published')
 if not r: sys.exit(1)
-" 2>/dev/null; then
+"; then
                     echo -e "${GREEN}✅ Contributed! View at https://opencurelabs.ai${RESET}"
                 else
                     echo -e "${RED}Could not reach ingest server — results are safe locally.${RESET}"
