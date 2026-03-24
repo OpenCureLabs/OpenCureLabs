@@ -393,7 +393,7 @@ manager.
 |---|---|---|---|
 | `resolve_wheel_url` | — | `str \| None` | Queries GitHub API for the latest `.whl` release asset. Supports private repos via `GITHUB_TOKEN`. Returns `None` if no wheel found. |
 | `build_onstart_script` | `wheel_url: str \| None` | `str` | Generates the Vast.ai onstart bash script. Uses wheel URL if available, falls back to git clone. |
-| `attach_ssh_key` | `instance_id: int` | `bool` | Reads `~/.ssh/xpclabs.pub` and POSTs it to `/instances/{id}/ssh/`. Required because account-level SSH keys are not automatically authorized on new instances. |
+| `attach_ssh_key` | `instance_id: int` | `bool` | Reads `~/.ssh/opencurelabs.pub` and POSTs it to `/instances/{id}/ssh/`. Required because account-level SSH keys are not automatically authorized on new instances. |
 
 **Environment variables:**
 
@@ -404,7 +404,7 @@ manager.
 | `GITHUB_REPOSITORY` | `OpenCureLabs/OpenCureLabs` | Repo slug for wheel resolution. Set this if you forked the repo. |
 
 **SSH key requirement:** OpenCure Labs expects an ed25519 key pair at
-`~/.ssh/xpclabs` (private) and `~/.ssh/xpclabs.pub` (public). The public key
+`~/.ssh/opencurelabs` (private) and `~/.ssh/opencurelabs.pub` (public). The public key
 must be registered with your Vast.ai account (`vastai create ssh-key`) before
 provisioning instances.
 

@@ -26,7 +26,7 @@ import threading
 
 logger = logging.getLogger("labclaw.compute.worker")
 
-SSH_KEY_PATH = os.path.expanduser("~/.ssh/xpclabs")
+SSH_KEY_PATH = os.path.expanduser(os.environ.get("SSH_KEY_NAME", "~/.ssh/opencurelabs"))
 
 
 class Worker:

@@ -286,7 +286,7 @@ This prevents orphaned Vast.ai instances (which would keep billing) and ghost
 Workers execute skills on remote instances via SSH:
 
 ```bash
-ssh -i ~/.ssh/xpclabs \
+ssh -i ~/.ssh/opencurelabs \
     -o StrictHostKeyChecking=no \
     -o ConnectTimeout=10 \
     -p $PORT root@$HOST \

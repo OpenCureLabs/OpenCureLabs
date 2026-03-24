@@ -29,7 +29,7 @@ import requests
 logger = logging.getLogger("labclaw.compute.pool_manager")
 
 VAST_API = "https://console.vast.ai/api/v0"
-SSH_KEY_PATH = os.path.expanduser("~/.ssh/xpclabs")
+SSH_KEY_PATH = os.path.expanduser(os.environ.get("SSH_KEY_NAME", "~/.ssh/opencurelabs"))
 DEFAULT_IMAGE = os.environ.get("LABCLAW_DOCKER_IMAGE", "ghcr.io/opencurelabs/labclaw-gpu:latest")
 
 

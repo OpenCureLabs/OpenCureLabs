@@ -536,7 +536,7 @@ def _create_instance(api_key: str, offer_id: int, image: str = "pytorch/pytorch:
 
 def _wait_for_setup(ssh_host: str, ssh_port: int, timeout: int = 180):
     """Wait for the onstart script to finish installing agentiq_labclaw."""
-    ssh_key = os.path.expanduser("~/.ssh/xpclabs")
+    ssh_key = os.path.expanduser(os.environ.get("SSH_KEY_NAME", "~/.ssh/opencurelabs"))
     ssh_opts = [
         "ssh", "-o", "StrictHostKeyChecking=no",
         "-o", "ConnectTimeout=10",
@@ -566,7 +566,7 @@ def _wait_for_setup(ssh_host: str, ssh_port: int, timeout: int = 180):
 def _run_remote(skill_name, input_data, ssh_host, ssh_port, output_schema):
     """Execute a skill remotely on a Vast.ai instance via SSH."""
     input_json = json.dumps(input_data.model_dump(), default=str)
-    ssh_key = os.path.expanduser("~/.ssh/xpclabs")
+    ssh_key = os.path.expanduser(os.environ.get("SSH_KEY_NAME", "~/.ssh/opencurelabs"))
 
     remote_script = (
         "import json, sys; "

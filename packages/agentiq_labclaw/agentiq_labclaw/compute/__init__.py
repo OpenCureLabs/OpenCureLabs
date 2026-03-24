@@ -12,7 +12,7 @@ logger = logging.getLogger("labclaw.compute")
 GITHUB_API = "https://api.github.com"
 VAST_API = "https://console.vast.ai/api/v0"
 DEFAULT_REPO = "OpenCureLabs/OpenCureLabs"
-SSH_KEY_PATH = os.path.expanduser("~/.ssh/xpclabs")
+SSH_KEY_PATH = os.path.expanduser(os.environ.get("SSH_KEY_NAME", "~/.ssh/opencurelabs"))
 
 
 def resolve_wheel_url() -> str | None:

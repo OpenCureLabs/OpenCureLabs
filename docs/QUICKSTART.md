@@ -360,10 +360,10 @@ OpenCure Labs uses SSH to connect to Vast.ai instances. Generate a dedicated
 key pair:
 
 ```bash
-ssh-keygen -t ed25519 -f ~/.ssh/xpclabs -N "" -C "opencurelabs-agent"
+ssh-keygen -t ed25519 -f ~/.ssh/opencurelabs -N "" -C "opencurelabs-agent"
 ```
 
-This creates `~/.ssh/xpclabs` (private) and `~/.ssh/xpclabs.pub` (public).
+This creates `~/.ssh/opencurelabs` (private) and `~/.ssh/opencurelabs.pub` (public).
 
 ### 4. Register Your SSH Key with Vast.ai
 
@@ -378,7 +378,7 @@ pip install vastai
 vastai set api-key YOUR_KEY_HERE
 
 # Register your SSH public key
-vastai create ssh-key ~/.ssh/xpclabs.pub
+vastai create ssh-key ~/.ssh/opencurelabs.pub
 
 # Verify it's registered
 vastai show ssh-keys
@@ -390,7 +390,7 @@ new instance that OpenCure Labs provisions.
 > **Important:** `vastai create ssh-key` registers the key on your *account*.
 > OpenCure Labs also auto-attaches it to each new instance via the API. If you
 > see SSH authentication failures, check that:
-> - `~/.ssh/xpclabs` and `~/.ssh/xpclabs.pub` both exist
+> - `~/.ssh/opencurelabs` and `~/.ssh/opencurelabs.pub` both exist
 > - `vastai show ssh-keys` lists your key
 > - The key was created *before* provisioning instances
 
@@ -612,8 +612,8 @@ session.
 | `.env not found` | `cp .env.example .env && nano .env` |
 | Pre-commit hook blocks commit | Fix findings, or bypass with `git commit --no-verify` |
 | Zellij session exists | `bash dashboard/lab.sh` will reattach automatically |
-| Vast.ai instances timeout (0 ready) | Run `vastai show ssh-keys` — if empty, run `vastai create ssh-key ~/.ssh/xpclabs.pub` |
-| Vast.ai SSH asks for password | Key not attached. Check `~/.ssh/xpclabs.pub` exists and was registered before provisioning |
+| Vast.ai instances timeout (0 ready) | Run `vastai show ssh-keys` — if empty, run `vastai create ssh-key ~/.ssh/opencurelabs.pub` |
+| Vast.ai SSH asks for password | Key not attached. Check `~/.ssh/opencurelabs.pub` exists and was registered before provisioning |
 | Vast.ai pip install fails | Check `/tmp/labclaw_setup.log` on the instance. Ensure GitHub Release has a `.whl` attached |
 | Vast.ai wheel filename error | Ensure the wheel was built with `python -m build` (produces a valid `name-version-py3-none-any.whl`) |
 

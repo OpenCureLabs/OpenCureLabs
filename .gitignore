@@ -13,6 +13,7 @@ data/human/
 data/canine/
 data/feline/
 logs/*.log
+logs/genesis-*/
 db/data/
 .DS_Store
 *.swp
