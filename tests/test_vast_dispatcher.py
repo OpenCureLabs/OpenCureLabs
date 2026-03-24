@@ -298,22 +298,33 @@ class TestDispatchReuse:
     @patch("agentiq_labclaw.compute.vast_dispatcher._run_remote")
     @patch("agentiq_labclaw.compute.vast_dispatcher._claim_pool_instance")
     @patch("agentiq_labclaw.compute.vast_dispatcher.check_budget", return_value=(True, 10.0, 20.0))
-    def test_pool_failure_destroys_instance(
-        self, mock_budget, mock_claim, mock_remote, mock_vi, mock_release, mock_spend_start,
-        mock_spend_end, monkeypatch,
+    @patch("agentiq_labclaw.compute.vast_dispatcher._find_cheapest_offer")
+    @patch("agentiq_labclaw.compute.vast_dispatcher._create_instance")
+    def test_pool_failure_falls_through_to_provision(
+        self, mock_create, mock_offer, mock_budget, mock_claim, mock_remote, mock_vi,
+        mock_release, mock_spend_start, mock_spend_end, monkeypatch,
     ):
-        """When a pool instance fails, it is destroyed and evicted from the pool."""
+        """When a pool instance fails SSH, it is evicted and dispatch falls through to provision a new instance."""
         monkeypatch.setenv("VAST_AI_KEY", "test-key")
         mock_claim.return_value = (100, "74.48.78.46", 22222, "RTX 5090", 0.316)
-        mock_remote.side_effect = RuntimeError("SSH failed")
+        # Pool SSH fails; second run_remote (on new instance) succeeds
+        mock_remote.side_effect = [RuntimeError("SSH failed"), {"result": "ok"}]
+        mock_offer.return_value = {"id": 999, "dph_total": 0.40, "gpu_name": "RTX 5090"}
+        mock_create.return_value = 200
 
-        skill = MagicMock()
-        skill.name = "qsar"
+        inst = MagicMock()
+        inst.wait_until_ready.return_value = {"ssh_host": "1.2.3.4", "ssh_port": 22}
+        mock_vi.return_value = inst
 
-        with pytest.raises(RuntimeError, match="SSH failed"):
-            dispatch(skill, MagicMock())
+        with patch("agentiq_labclaw.compute.vast_dispatcher._wait_for_setup"):
+            with patch("agentiq_labclaw.compute.vast_dispatcher._register_pool_instance"):
+                skill = MagicMock()
+                skill.name = "qsar"
+                skill.gpu_required = True
+                result = dispatch(skill, MagicMock())
 
-        # Spend should still be recorded
-        mock_spend_end.assert_called_once()
-        # Instance should be evicted from pool
-        mock_release.assert_called_once_with(100, destroy=True)
+        assert result == {"result": "ok"}
+        # Dead pool instance should be evicted
+        mock_release.assert_any_call(100, destroy=True)
+        # Spend should be recorded for both the failed claim and the new instance
+        assert mock_spend_end.call_count == 2

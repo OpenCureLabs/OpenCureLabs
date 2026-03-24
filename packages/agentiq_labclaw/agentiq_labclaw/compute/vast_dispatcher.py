@@ -568,31 +568,37 @@ def dispatch(skill, input_data):
         )
         spend_id = _record_spend_start(skill.name, inst_id, gpu_name, cost_hr)
         job_start = time.monotonic()
+        _pool_ok = False
         try:
             result = _run_remote(skill.name, input_data, ssh_host, ssh_port, skill.output_schema)
             logger.info(
                 "Vast.ai dispatch succeeded for %s (pool instance %d)", skill.name, inst_id,
             )
             _release_pool_instance(inst_id)  # return to pool for next task
+            _pool_ok = True
             return result
-        except Exception:
-            # Instance may be broken — destroy it and evict from pool
+        except Exception as _pool_exc:
+            # Instance is dead or broken — evict from pool and fall through to provision a fresh one
+            logger.warning(
+                "[%s] Pool instance %d failed (%s) — evicting and provisioning fresh",
+                skill.name, inst_id, _pool_exc,
+            )
             try:
                 VastInstance(vast_key, inst_id).destroy()
             except Exception as destroy_err:
                 logger.warning("Could not destroy failed pool instance %d: %s", inst_id, destroy_err)
             _release_pool_instance(inst_id, destroy=True)
-            raise
         finally:
             elapsed_hrs = (time.monotonic() - job_start) / 3600
             total_cost = round(elapsed_hrs * cost_hr, 4)
             _record_spend_end(spend_id, total_cost)
-            logger.info(
-                "Vast.ai job complete (pool): %s, %.1f min, $%.4f",
-                skill.name, elapsed_hrs * 60, total_cost,
-            )
+            if _pool_ok:
+                logger.info(
+                    "Vast.ai job complete (pool): %s, %.1f min, $%.4f",
+                    skill.name, elapsed_hrs * 60, total_cost,
+                )
 
-    # ── No pool instance available — provision a new one ──
+    # ── No pool instance available (or pool instance failed) — provision a new one ──
     # 1. Find offer
     offer = _find_cheapest_offer(vast_key, skill.gpu_required)
     offer_id = offer["id"]
