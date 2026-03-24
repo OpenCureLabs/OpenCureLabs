@@ -564,8 +564,6 @@ if $HAS_GUM; then
                 "  🚀  G E N E S I S   M O D E" \
                 "" \
                 "  $TOTAL tasks across 5 domains" \
-                "  Continuous until budget exhausted" \
-                "  Vast.ai cloud GPU burst — enabled" \
                 "  Public databases — TCGA, ClinVar, ChEMBL" \
                 "" \
                 "  ┌─ Cancer (5 tasks) ──────────────────────┐" \
@@ -691,37 +689,38 @@ if $HAS_GUM; then
                 [[ $PARALLEL -eq 1 ]] && MODE_LABEL="sequential" || MODE_LABEL="$PARALLEL parallel"
             fi
 
-            # ── Budget display (pull from Vast.ai account) ────────────────
-            API_BALANCE=$(get_vast_balance)
-            ENV_CAP="${VAST_AI_BUDGET:-0}"
-            # Use API balance; VAST_AI_BUDGET as optional cap
-            if [[ "$ENV_CAP" != "0" ]] && [[ -n "$ENV_CAP" ]]; then
-                VAST_BUDGET=$(python3 -c "print(min(float('$ENV_CAP'), float('$API_BALANCE')))" 2>/dev/null || echo "$ENV_CAP")
-            else
-                VAST_BUDGET="$API_BALANCE"
-            fi
-            echo ""
-            if python3 -c "exit(0 if float('$VAST_BUDGET') > 0 else 1)" 2>/dev/null; then
-                VAST_SPENT=$(psql -p 5433 -d opencurelabs -t -A -c \
-                    "SELECT COALESCE(SUM(total_cost), 0) FROM vast_spend" 2>/dev/null || echo "0")
-                VAST_REMAINING=$(python3 -c "print(f'{max(0, float(\"$VAST_BUDGET\") - float(\"$VAST_SPENT\")):.2f}')" 2>/dev/null || echo "?")
-                gum style --foreground 214 \
-                    "  💰 Vast.ai balance: \$$API_BALANCE — budget: \$$VAST_BUDGET (spent: \$$VAST_SPENT)" 2>/dev/null || true
-                gum style --foreground 46 \
-                    "  🔄 Continuous mode — loops until budget exhausted" 2>/dev/null || true
-            else
-                gum style --foreground 196 \
-                    "  ⚠️  No Vast.ai balance or budget — will run once" 2>/dev/null || true
+            # ── Budget display (only for Vast.ai batch mode) ──────────────
+            if [[ "${BATCH_MODE:-0}" -eq 1 ]]; then
+                API_BALANCE=$(get_vast_balance)
+                ENV_CAP="${VAST_AI_BUDGET:-0}"
+                if [[ "$ENV_CAP" != "0" ]] && [[ -n "$ENV_CAP" ]]; then
+                    VAST_BUDGET=$(python3 -c "print(min(float('$ENV_CAP'), float('$API_BALANCE')))" 2>/dev/null || echo "$ENV_CAP")
+                else
+                    VAST_BUDGET="$API_BALANCE"
+                fi
+                echo ""
+                if python3 -c "exit(0 if float('$VAST_BUDGET') > 0 else 1)" 2>/dev/null; then
+                    VAST_SPENT=$(psql -p 5433 -d opencurelabs -t -A -c \
+                        "SELECT COALESCE(SUM(total_cost), 0) FROM vast_spend" 2>/dev/null || echo "0")
+                    VAST_REMAINING=$(python3 -c "print(f'{max(0, float(\"$VAST_BUDGET\") - float(\"$VAST_SPENT\")):.2f}')" 2>/dev/null || echo "?")
+                    gum style --foreground 214 \
+                        "  💰 Vast.ai balance: \$$API_BALANCE — budget: \$$VAST_BUDGET (spent: \$$VAST_SPENT)" 2>/dev/null || true
+                    gum style --foreground 46 \
+                        "  🔄 Continuous mode — loops until budget exhausted" 2>/dev/null || true
+                else
+                    gum style --foreground 196 \
+                        "  ⚠️  No Vast.ai balance or budget — will run once" 2>/dev/null || true
+                fi
             fi
 
             echo ""
-            gum confirm "Launch Genesis Mode? ($TOTAL tasks, $MODE_LABEL, continuous)" \
+            gum confirm "Launch Genesis Mode? ($TOTAL tasks, $MODE_LABEL)" \
                 --affirmative "🚀 SEND IT" --negative "Cancel" \
                 || { echo "Cancelled."; read -r; exit 0; }
 
             # ── Genesis Continuous Loop ───────────────────────────────────
             echo ""
-            gum style --foreground 214 --bold "🚀 Genesis Mode activated — $TOTAL tasks, $MODE_LABEL, continuous" 2>/dev/null || true
+            gum style --foreground 214 --bold "🚀 Genesis Mode activated — $TOTAL tasks, $MODE_LABEL" 2>/dev/null || true
             echo ""
 
             GENESIS_TOTAL_OK=0
