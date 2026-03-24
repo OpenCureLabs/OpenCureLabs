@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - CI pipeline with tests, ruff, and bandit
 - Commitizen conventional commits enforcement
 
+## v0.44.5 (2026-03-24)
+
+### Fix
+
+- **dashboard**: Alt+S needs bash -c for $PROJECT_DIR expansion
+
 ## v0.44.4 (2026-03-24)
 
 ### Fix
