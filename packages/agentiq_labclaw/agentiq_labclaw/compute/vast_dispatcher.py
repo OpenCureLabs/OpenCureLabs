@@ -464,7 +464,11 @@ class VastInstance:
 
 
 def _find_cheapest_offer(api_key: str, gpu_required: bool) -> dict:
-    """Search Vast.ai offers for the cheapest suitable GPU instance."""
+    """Search Vast.ai offers for the cheapest suitable GPU instance.
+
+    Filters by reliability2 >= 0.9 (host uptime score) to avoid flaky machines.
+    Also requires minimum CPU RAM and symmetric internet to ensure stable SSH.
+    """
     headers = {"Authorization": f"Bearer {api_key}"}
 
     query = {
@@ -472,6 +476,9 @@ def _find_cheapest_offer(api_key: str, gpu_required: bool) -> dict:
         "rentable": {"eq": True},
         "disk_space": {"gte": 20},
         "inet_down": {"gte": 100},
+        "inet_up": {"gte": 50},
+        "reliability2": {"gte": 0.90},
+        "cpu_ram": {"gte": 8},
     }
     if gpu_required:
         query["gpu_ram"] = {"gte": 8}
@@ -500,6 +507,7 @@ def _create_instance(api_key: str, offer_id: int, image: str = "pytorch/pytorch:
 
     payload = {
         "client_id": "opencurelabs",
+        "label": "opencurelabs",
         "image": image,
         "disk": 20,
         "onstart": onstart_script,

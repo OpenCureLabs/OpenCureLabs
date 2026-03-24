@@ -54,6 +54,10 @@ def build_onstart_script(wheel_url: str | None = None) -> str:
 
     For private repos, injects a GITHUB_TOKEN header so the instance can
     download the release asset.
+
+    Also injects the orchestrator SSH public key directly into authorized_keys
+    so SSH access is guaranteed regardless of whether the Vast.ai API key
+    attachment endpoint succeeds.
     """
     gh_token = os.environ.get("GITHUB_TOKEN", "")
 
@@ -89,11 +93,28 @@ def build_onstart_script(wheel_url: str | None = None) -> str:
     # orphaned instances (crashed orchestrator) still get cleaned up.
     ttl = os.environ.get("LABCLAW_INSTANCE_TTL", "3600")  # default 60 min
 
+    # Inject orchestrator SSH public key directly into authorized_keys.
+    # This guarantees SSH access even if the Vast.ai API key-attach call fails.
+    ssh_key_inject = ""
+    pub_path = f"{SSH_KEY_PATH}.pub"
+    try:
+        with open(pub_path) as _f:
+            pub_key = _f.read().strip()
+        ssh_key_inject = (
+            "mkdir -p ~/.ssh && chmod 700 ~/.ssh\n"
+            f"echo '{pub_key}' >> ~/.ssh/authorized_keys\n"
+            "chmod 600 ~/.ssh/authorized_keys\n"
+            "echo '[labclaw] SSH key injected'\n"
+        )
+    except FileNotFoundError:
+        logger.debug("SSH public key not found at %s — skipping injection", pub_path)
+
     return (
         "#!/bin/bash\n"
         "set -e\n"
         "exec > /tmp/labclaw_setup.log 2>&1\n"
         "echo '[labclaw] Starting setup...'\n"
+        f"{ssh_key_inject}"
         "# Heartbeat-based self-destruct: shuts down if heartbeat stale for TTL\n"
         "touch /tmp/labclaw_heartbeat\n"
         f"(while true; do sleep 60; "
