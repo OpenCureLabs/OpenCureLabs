@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - CI pipeline with tests, ruff, and bandit
 - Commitizen conventional commits enforcement
 
+## v0.44.0 (2026-03-24)
+
+### Feat
+
+- **dashboard**: drop 100-batch mode; 1/3/6/12 run local, 999 is sole Vast.ai path
+
 ## v0.43.4 (2026-03-24)
 
 ### Fix
