@@ -1345,15 +1345,17 @@ teardown_all_instances()
 
     # ── Vast.ai burst (compute-heavy tasks) ──────────────────────────
     USE_VAST="no"
-    case "${SELECTED_LABEL:-}" in
-        "Train Drug Predictor"|"Screen Drug Candidates"|"Predict Protein Shape"|"Predict Target Shape")
-            echo ""
-            if gum confirm "Use cloud GPU (Vast.ai) for faster results?" \
-                --affirmative "Yes, use cloud" --negative "No, local GPU"; then
-                USE_VAST="yes"
-            fi
-            ;;
-    esac
+    if [[ "${DATA_MODE:-public}" == "public" ]]; then
+        case "${SELECTED_LABEL:-}" in
+            "Train Drug Predictor"|"Screen Drug Candidates"|"Predict Protein Shape"|"Predict Target Shape")
+                echo ""
+                if gum confirm "Use cloud GPU (Vast.ai) for faster results?" \
+                    --affirmative "Yes, use cloud" --negative "No, local GPU"; then
+                    USE_VAST="yes"
+                fi
+                ;;
+        esac
+    fi
 
     _STEP=6
     ;;
@@ -2148,15 +2150,17 @@ done
 
 # ── Vast.ai (compute-heavy tasks) ────────────────────────────────────
 USE_VAST="no"
-case "${SELECTED_LABEL:-}" in
-    "Train Drug Predictor"|"Screen Drug Candidates"|"Predict Protein Shape"|"Predict Target Shape")
-        echo ""
-        read -rp "Use cloud GPU (Vast.ai)? [y/N] " vast_confirm
-        case "$vast_confirm" in
-            [yY]*) USE_VAST="yes" ;;
-        esac
-        ;;
-esac
+if [[ "${DATA_MODE:-public}" == "public" ]]; then
+    case "${SELECTED_LABEL:-}" in
+        "Train Drug Predictor"|"Screen Drug Candidates"|"Predict Protein Shape"|"Predict Target Shape")
+            echo ""
+            read -rp "Use cloud GPU (Vast.ai)? [y/N] " vast_confirm
+            case "$vast_confirm" in
+                [yY]*) USE_VAST="yes" ;;
+            esac
+            ;;
+    esac
+fi
 
 # ── Append options ───────────────────────────────────────────────────
 [[ "$DATA_MODE" == "public" ]] && TASK="$TASK Use public databases (TCGA/ClinVar/ChEMBL) for data sourcing."
