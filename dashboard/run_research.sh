@@ -165,11 +165,12 @@ ask_input() {
 ask_file() {
     local prompt="$1" placeholder="$2" result start_dir="${3:-$PROJECT_DIR/data}"
     if $HAS_GUM; then
-        gum style --foreground 242 --italic "  Browse for a file (Enter to select, Esc to skip):" 2>/dev/null || true
-        result=$(gum file --all --height 12 "$start_dir" 2>/dev/null) || true
-        if [[ -z "$result" ]]; then
-            result=$(ask_input "$prompt" "$placeholder")
-        fi
+        result=$(gum input \
+            --prompt "$prompt " \
+            --prompt.foreground 46 \
+            --placeholder "$placeholder" \
+            --width 80 \
+        ) || true
     else
         read -rp "$prompt " result
     fi
