@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - CI pipeline with tests, ruff, and bandit
 - Commitizen conventional commits enforcement
 
+## v0.44.1 (2026-03-24)
+
+### Fix
+
+- **dashboard**: hide Vast.ai UI for local modes (1/3/6/12)
+
 ## v0.44.0 (2026-03-24)
 
 ### Feat
