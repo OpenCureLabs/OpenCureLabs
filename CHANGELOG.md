@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - CI pipeline with tests, ruff, and bandit
 - Commitizen conventional commits enforcement
 
+## v0.44.3 (2026-03-24)
+
+### Fix
+
+- **dashboard**: Alt+S no longer kills itself — use exec to avoid self-match
+
 ## v0.44.2 (2026-03-24)
 
 ### Fix
