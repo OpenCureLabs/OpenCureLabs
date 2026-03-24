@@ -658,44 +658,85 @@ if $HAS_GUM; then
                 # Prompt for batch parameters before confirmation
                 gum style --foreground 242 --italic \
                     "Each task is one research job (e.g. tumor analysis, drug screen)." \
-                    "Tasks are queued and distributed across your GPU pool." \
-                    "Enter 0 or press Esc to go back." 2>/dev/null || true
+                    "Tasks are queued and distributed across your GPU pool." 2>/dev/null || true
                 echo ""
-                BATCH_COUNT=$(gum input \
-                    --header "How many research tasks per cycle? (1-500)" \
-                    --placeholder "100" \
-                    --value "100" \
+                _TASK_PICK=$(gum choose \
+                    --header "How many research tasks per cycle?" \
                     --header.foreground 214 \
-                    --prompt.foreground 46 \
+                    --cursor.foreground 46 \
+                    --item.foreground 252 \
+                    --selected.foreground 46 \
+                    --selected.bold \
+                    "⬅ Back" \
+                    "25 tasks" \
+                    "50 tasks" \
+                    "100 tasks" \
+                    "250 tasks" \
+                    "500 tasks" \
+                    "Custom" \
                 ) || { _EXEC_PICK=1; continue; }
-                if [[ "$BATCH_COUNT" == "0" ]]; then _EXEC_PICK=1; continue; fi
-                # Validate: integer between 1-500
-                if ! [[ "$BATCH_COUNT" =~ ^[0-9]+$ ]] || [[ "$BATCH_COUNT" -lt 1 ]]; then
-                    BATCH_COUNT=100
-                elif [[ "$BATCH_COUNT" -gt 500 ]]; then
-                    BATCH_COUNT=500
-                    gum style --foreground 196 "  ⚠️  Capped to 500 tasks (budget protection)"
+                if [[ "$_TASK_PICK" == *"Back"* ]]; then _EXEC_PICK=1; continue; fi
+                if [[ "$_TASK_PICK" == "Custom" ]]; then
+                    BATCH_COUNT=$(gum input \
+                        --header "Enter task count (1-500):" \
+                        --placeholder "100" \
+                        --value "100" \
+                        --header.foreground 214 \
+                        --prompt.foreground 46 \
+                    ) || { _EXEC_PICK=1; continue; }
+                    # Validate: integer between 1-500
+                    if ! [[ "$BATCH_COUNT" =~ ^[0-9]+$ ]] || [[ "$BATCH_COUNT" -lt 1 ]]; then
+                        BATCH_COUNT=100
+                    elif [[ "$BATCH_COUNT" -gt 500 ]]; then
+                        BATCH_COUNT=500
+                        gum style --foreground 196 "  ⚠️  Capped to 500 tasks (budget protection)"
+                    fi
+                else
+                    BATCH_COUNT="${_TASK_PICK%% *}"
                 fi
 
+                _REC_POOL=$((BATCH_COUNT / 10 < 1 ? 1 : BATCH_COUNT / 10 > 20 ? 20 : BATCH_COUNT / 10))
                 echo ""
                 gum style --foreground 242 --italic \
                     "GPU instances run tasks in parallel — more instances = faster," \
                     "but each costs ~\$0.50/hr. Aim for ~10 tasks per instance." 2>/dev/null || true
                 echo ""
-                POOL_SIZE=$(gum input \
-                    --header "How many Vast.ai GPU instances? (1-20, rec: $((BATCH_COUNT / 10 < 1 ? 1 : BATCH_COUNT / 10 > 20 ? 20 : BATCH_COUNT / 10)))" \
-                    --placeholder "$((BATCH_COUNT / 10 < 1 ? 1 : BATCH_COUNT / 10 > 20 ? 20 : BATCH_COUNT / 10))" \
-                    --value "$((BATCH_COUNT / 10 < 1 ? 1 : BATCH_COUNT / 10 > 20 ? 20 : BATCH_COUNT / 10))" \
+                _POOL_PICK=$(gum choose \
+                    --header "How many Vast.ai GPU instances?" \
                     --header.foreground 214 \
-                    --prompt.foreground 46 \
+                    --cursor.foreground 46 \
+                    --item.foreground 252 \
+                    --selected.foreground 46 \
+                    --selected.bold \
+                    "⬅ Back" \
+                    "Recommended: $_REC_POOL (for $BATCH_COUNT tasks)" \
+                    "1 instance" \
+                    "2 instances" \
+                    "5 instances" \
+                    "10 instances" \
+                    "20 instances" \
+                    "Custom" \
                 ) || { _EXEC_PICK=1; continue; }
-                if [[ "$POOL_SIZE" == "0" ]]; then _EXEC_PICK=1; continue; fi
-                # Validate: integer between 1-20
-                if ! [[ "$POOL_SIZE" =~ ^[0-9]+$ ]] || [[ "$POOL_SIZE" -lt 1 ]]; then
-                    POOL_SIZE=$((BATCH_COUNT / 10 < 1 ? 1 : BATCH_COUNT / 10 > 20 ? 20 : BATCH_COUNT / 10))
-                elif [[ "$POOL_SIZE" -gt 20 ]]; then
-                    POOL_SIZE=20
-                    gum style --foreground 196 "  ⚠️  Capped to 20 instances (budget protection)"
+                if [[ "$_POOL_PICK" == *"Back"* ]]; then _EXEC_PICK=1; continue; fi
+                if [[ "$_POOL_PICK" == "Custom" ]]; then
+                    POOL_SIZE=$(gum input \
+                        --header "Enter instance count (1-20):" \
+                        --placeholder "$_REC_POOL" \
+                        --value "$_REC_POOL" \
+                        --header.foreground 214 \
+                        --prompt.foreground 46 \
+                    ) || { _EXEC_PICK=1; continue; }
+                    # Validate: integer between 1-20
+                    if ! [[ "$POOL_SIZE" =~ ^[0-9]+$ ]] || [[ "$POOL_SIZE" -lt 1 ]]; then
+                        POOL_SIZE=$_REC_POOL
+                    elif [[ "$POOL_SIZE" -gt 20 ]]; then
+                        POOL_SIZE=20
+                        gum style --foreground 196 "  ⚠️  Capped to 20 instances (budget protection)"
+                    fi
+                elif [[ "$_POOL_PICK" == Recommended* ]]; then
+                    POOL_SIZE=$_REC_POOL
+                else
+                    POOL_SIZE="${_POOL_PICK%% *}"
                 fi
 
                 TOTAL="$BATCH_COUNT"
@@ -1596,33 +1637,56 @@ select domain in "${DOMAINS[@]}"; do
                 echo ""
                 echo -e "${DIM}Each task is one research job (e.g. tumor analysis, drug screen).${RESET}"
                 echo -e "${DIM}Tasks are queued and distributed across your GPU pool.${RESET}"
-                echo -e "${DIM}Enter 0 to go back to execution mode.${RESET}"
                 echo ""
-                read -rp "How many research tasks per cycle? (1-500, 0=back) [100] " BATCH_COUNT
-                BATCH_COUNT="${BATCH_COUNT:-100}"
-                if [[ "$BATCH_COUNT" == "0" ]]; then _EXEC_PICK_FB=1; continue; fi
-                # Validate
-                if ! [[ "$BATCH_COUNT" =~ ^[0-9]+$ ]] || [[ "$BATCH_COUNT" -lt 1 ]]; then
-                    BATCH_COUNT=100
-                elif [[ "$BATCH_COUNT" -gt 500 ]]; then
-                    BATCH_COUNT=500
-                    echo -e "${RED}  ⚠️  Capped to 500 tasks (budget protection)${RESET}"
+                echo -e "${BOLD}How many research tasks per cycle?${RESET}"
+                TASK_OPTS=("← Back" "25 tasks" "50 tasks" "100 tasks" "250 tasks" "500 tasks" "Custom")
+                select _tp in "${TASK_OPTS[@]}"; do
+                    case "$REPLY" in
+                        1) break ;; 2) BATCH_COUNT=25; break ;; 3) BATCH_COUNT=50; break ;;
+                        4) BATCH_COUNT=100; break ;; 5) BATCH_COUNT=250; break ;;
+                        6) BATCH_COUNT=500; break ;; 7) BATCH_COUNT=custom; break ;;
+                        *) echo "Invalid choice." ;;
+                    esac
+                done
+                if [[ "$_tp" == *"Back"* ]]; then _EXEC_PICK_FB=1; continue; fi
+                if [[ "$BATCH_COUNT" == "custom" ]]; then
+                    read -rp "Enter task count (1-500) [100]: " BATCH_COUNT
+                    BATCH_COUNT="${BATCH_COUNT:-100}"
+                    if ! [[ "$BATCH_COUNT" =~ ^[0-9]+$ ]] || [[ "$BATCH_COUNT" -lt 1 ]]; then
+                        BATCH_COUNT=100
+                    elif [[ "$BATCH_COUNT" -gt 500 ]]; then
+                        BATCH_COUNT=500
+                        echo -e "${RED}  ⚠️  Capped to 500 tasks (budget protection)${RESET}"
+                    fi
                 fi
                 REC_POOL=$((BATCH_COUNT / 10))
                 [[ $REC_POOL -lt 1 ]] && REC_POOL=1
                 [[ $REC_POOL -gt 20 ]] && REC_POOL=20
                 echo ""
                 echo -e "${DIM}GPU instances run tasks in parallel — more = faster but each costs ~\$0.50/hr.${RESET}"
-                echo -e "${DIM}Aim for ~10 tasks per instance. Recommended: $REC_POOL for $BATCH_COUNT tasks.${RESET}"
+                echo -e "${DIM}Aim for ~10 tasks per instance.${RESET}"
                 echo ""
-                read -rp "How many Vast.ai GPU instances? (1-20, 0=back) [$REC_POOL] " POOL_SIZE
-                POOL_SIZE="${POOL_SIZE:-$REC_POOL}"
-                if [[ "$POOL_SIZE" == "0" ]]; then _EXEC_PICK_FB=1; continue; fi
-                if ! [[ "$POOL_SIZE" =~ ^[0-9]+$ ]] || [[ "$POOL_SIZE" -lt 1 ]]; then
-                    POOL_SIZE=$REC_POOL
-                elif [[ "$POOL_SIZE" -gt 20 ]]; then
-                    POOL_SIZE=20
-                    echo -e "${RED}  ⚠️  Capped to 20 instances (budget protection)${RESET}"
+                echo -e "${BOLD}How many Vast.ai GPU instances?${RESET}"
+                POOL_OPTS=("← Back" "Recommended: $REC_POOL (for $BATCH_COUNT tasks)" "1 instance" "2 instances" "5 instances" "10 instances" "20 instances" "Custom")
+                select _pp in "${POOL_OPTS[@]}"; do
+                    case "$REPLY" in
+                        1) break ;; 2) POOL_SIZE=$REC_POOL; break ;;
+                        3) POOL_SIZE=1; break ;; 4) POOL_SIZE=2; break ;;
+                        5) POOL_SIZE=5; break ;; 6) POOL_SIZE=10; break ;;
+                        7) POOL_SIZE=20; break ;; 8) POOL_SIZE=custom; break ;;
+                        *) echo "Invalid choice." ;;
+                    esac
+                done
+                if [[ "$_pp" == *"Back"* ]]; then _EXEC_PICK_FB=1; continue; fi
+                if [[ "$POOL_SIZE" == "custom" ]]; then
+                    read -rp "Enter instance count (1-20) [$REC_POOL]: " POOL_SIZE
+                    POOL_SIZE="${POOL_SIZE:-$REC_POOL}"
+                    if ! [[ "$POOL_SIZE" =~ ^[0-9]+$ ]] || [[ "$POOL_SIZE" -lt 1 ]]; then
+                        POOL_SIZE=$REC_POOL
+                    elif [[ "$POOL_SIZE" -gt 20 ]]; then
+                        POOL_SIZE=20
+                        echo -e "${RED}  ⚠️  Capped to 20 instances (budget protection)${RESET}"
+                    fi
                 fi
                 TOTAL="$BATCH_COUNT"
                 MODE_LABEL="continuous batch ($POOL_SIZE instances, loops until budget)"
