@@ -606,7 +606,6 @@ if $HAS_GUM; then
                 "3 — Fast parallel" \
                 "6 — Max throughput" \
                 "12 — All at once" \
-                "100 — Batch mode (Vast.ai pool)" \
                 "999 — Continuous batch (Vast.ai pool, loops until budget exhausted)" \
             ) || { echo "Cancelled."; read -r; exit 0; }
             if [[ "$VAST_INSTANCES" == *"Back"* ]]; then
@@ -615,8 +614,7 @@ if $HAS_GUM; then
             PARALLEL="${VAST_INSTANCES%%[[:space:]]*}"
             if [[ $PARALLEL -ge 100 ]]; then
                 BATCH_MODE=1
-                CONTINUOUS_BATCH=0
-                [[ $PARALLEL -eq 999 ]] && CONTINUOUS_BATCH=1
+                CONTINUOUS_BATCH=1
                 # Prompt for batch parameters before confirmation
                 BATCH_COUNT=$(gum input \
                     --header "How many tasks? (max 500)" \
@@ -731,18 +729,14 @@ if $HAS_GUM; then
             GENESIS_START=$(date +%s)
             ROUND=0
 
-            export LABCLAW_COMPUTE=vast_ai
+            export LABCLAW_COMPUTE=local
 
             # ── BATCH MODE: dispatch to Vast.ai instance pool ─────────────
             if [[ "${BATCH_MODE:-0}" -eq 1 ]]; then
+                export LABCLAW_COMPUTE=vast_ai
                 echo ""
-                if [[ "${CONTINUOUS_BATCH:-0}" -eq 1 ]]; then
-                    gum style --foreground 214 --bold \
-                        "  🔄 Continuous batch: $BATCH_COUNT tasks/cycle → $POOL_SIZE instances (until budget exhausted)"
-                else
-                    gum style --foreground 214 --bold \
-                        "  📦 Batch dispatch: $BATCH_COUNT tasks → $POOL_SIZE Vast.ai instances"
-                fi
+                gum style --foreground 214 --bold \
+                    "  🔄 Continuous batch: $BATCH_COUNT tasks/cycle → $POOL_SIZE instances (until budget exhausted)"
                 echo ""
 
                 BATCH_LOG="$PROJECT_DIR/logs/batch-$(date +%Y%m%d-%H%M%S).log"
@@ -753,12 +747,10 @@ if $HAS_GUM; then
                     --max-cost 0.50
                     --config "$PROJECT_DIR/config/research_tasks.yaml"
                 )
-                if [[ "${CONTINUOUS_BATCH:-0}" -eq 1 ]]; then
-                    BATCH_CMD+=(--continuous)
-                    # Pass budget if set
-                    if [[ -n "${VAST_AI_BUDGET:-}" ]] && [[ "$VAST_AI_BUDGET" != "0" ]]; then
-                        BATCH_CMD+=(--budget "$VAST_AI_BUDGET")
-                    fi
+                BATCH_CMD+=(--continuous)
+                # Pass budget if set
+                if [[ -n "${VAST_AI_BUDGET:-}" ]] && [[ "$VAST_AI_BUDGET" != "0" ]]; then
+                    BATCH_CMD+=(--budget "$VAST_AI_BUDGET")
                 fi
 
                 "${BATCH_CMD[@]}" 2>&1 | tee "$BATCH_LOG"
@@ -1446,19 +1438,18 @@ select domain in "${DOMAINS[@]}"; do
             echo ""
 
             echo -e "${BOLD}Execution mode:${RESET}"
-            PARALLEL_OPTS=("1 — Sequential" "3 — Fast parallel" "6 — Max throughput" "12 — All at once" "100 — Batch mode (Vast.ai pool)" "999 — Continuous batch (Vast.ai pool, loops until budget)")
+            PARALLEL_OPTS=("1 — Sequential" "3 — Fast parallel" "6 — Max throughput" "12 — All at once" "999 — Continuous batch (Vast.ai pool, loops until budget)")
             select po in "${PARALLEL_OPTS[@]}"; do
                 case "$REPLY" in
                     1) PARALLEL=1; break ;; 2) PARALLEL=3; break ;;
                     3) PARALLEL=6; break ;; 4) PARALLEL=12; break ;;
-                    5) PARALLEL=100; break ;; 6) PARALLEL=999; break ;;
+                    5) PARALLEL=999; break ;;
                     *) echo "Invalid choice." ;;
                 esac
             done
             if [[ $PARALLEL -ge 100 ]]; then
                 BATCH_MODE=1
-                CONTINUOUS_BATCH=0
-                [[ $PARALLEL -eq 999 ]] && CONTINUOUS_BATCH=1
+                CONTINUOUS_BATCH=1
                 echo ""
                 read -rp "How many tasks? (1-500) [100] " BATCH_COUNT
                 BATCH_COUNT="${BATCH_COUNT:-100}"
@@ -1478,18 +1469,10 @@ select domain in "${DOMAINS[@]}"; do
                     echo -e "${RED}  ⚠️  Capped to 20 instances (budget protection)${RESET}"
                 fi
                 TOTAL="$BATCH_COUNT"
-                if [[ "${CONTINUOUS_BATCH:-0}" -eq 1 ]]; then
-                    MODE_LABEL="continuous batch ($POOL_SIZE instances, loops until budget)"
-                else
-                    MODE_LABEL="batch ($POOL_SIZE instances)"
-                fi
+                MODE_LABEL="continuous batch ($POOL_SIZE instances, loops until budget)"
                 EST_COST=$(python3 -c "print(f'\${(int(\"$POOL_SIZE\") * 0.50 * 0.5):.2f}')" 2>/dev/null || echo "?")
                 echo ""
-                if [[ "${CONTINUOUS_BATCH:-0}" -eq 1 ]]; then
-                    echo -e "${YELLOW}  🔄 Continuous: $BATCH_COUNT tasks/cycle → $POOL_SIZE instances (est. ~\$$EST_COST/cycle)${RESET}"
-                else
-                    echo -e "${YELLOW}  📦 $BATCH_COUNT tasks → $POOL_SIZE instances (est. ~\$$EST_COST)${RESET}"
-                fi
+                echo -e "${YELLOW}  🔄 Continuous: $BATCH_COUNT tasks/cycle → $POOL_SIZE instances (est. ~\$$EST_COST/cycle)${RESET}"
             else
                 BATCH_MODE=0
                 [[ $PARALLEL -eq 1 ]] && MODE_LABEL="sequential" || MODE_LABEL="$PARALLEL parallel"
@@ -1520,15 +1503,12 @@ select domain in "${DOMAINS[@]}"; do
                     GENESIS_START=$(date +%s)
                     ROUND=0
 
-                    export LABCLAW_COMPUTE=vast_ai
+                    export LABCLAW_COMPUTE=local
 
                     if [[ "${BATCH_MODE:-0}" -eq 1 ]]; then
+                        export LABCLAW_COMPUTE=vast_ai
                         echo ""
-                        if [[ "${CONTINUOUS_BATCH:-0}" -eq 1 ]]; then
-                            echo -e "${YELLOW}  🔄 Continuous batch: $BATCH_COUNT tasks/cycle → $POOL_SIZE instances${RESET}"
-                        else
-                            echo -e "${YELLOW}  📦 Batch dispatch: $BATCH_COUNT tasks → $POOL_SIZE Vast.ai instances${RESET}"
-                        fi
+                        echo -e "${YELLOW}  🔄 Continuous batch: $BATCH_COUNT tasks/cycle → $POOL_SIZE instances${RESET}"
                         echo ""
 
                         BATCH_LOG="$PROJECT_DIR/logs/batch-$(date +%Y%m%d-%H%M%S).log"
