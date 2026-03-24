@@ -558,13 +558,52 @@ if $HAS_GUM; then
 
             TOTAL=${#ALL_TASKS[@]}
 
+            # ── Data source picker ────────────────────────────────
+            DATA_FILES=$(detect_data_files)
+            FILE_COUNT=0
+            [[ -n "$DATA_FILES" ]] && FILE_COUNT=$(echo "$DATA_FILES" | wc -l)
+
+            echo ""
+            if [[ "$FILE_COUNT" -gt 0 ]]; then
+                gum style --foreground 242 --italic \
+                    "📂 Found $FILE_COUNT data file(s) in data/" 2>/dev/null \
+                    || echo -e "${DIM}📂 Found $FILE_COUNT data file(s) in data/${RESET}"
+            fi
+            echo ""
+
+            DATA_MODE_CHOICE=$(gum choose \
+                --header "Where should the data come from?" \
+                --header.foreground 39 \
+                --cursor.foreground 46 \
+                --item.foreground 255 \
+                --selected.foreground 46 \
+                --selected.bold \
+                "⬅ Back" \
+                "🌐 Public databases — Search TCGA, ClinVar, ChEMBL automatically" \
+                "📁 My data — Use files I've uploaded to data/" \
+            ) || { echo "Cancelled."; read -r; exit 0; }
+
+            case "$DATA_MODE_CHOICE" in
+                *"Back"*) _STEP=1; continue ;;
+                *"Public"*)  DATA_MODE="public" ;;
+                *"My data"*) DATA_MODE="mydata" ;;
+            esac
+
+            if [[ "$DATA_MODE" == "mydata" ]]; then
+                GENESIS_DATA_SUFFIX="Use uploaded files in data/ for analysis. Focus on the patient's own data."
+                DATA_SOURCE_LABEL="📁 My data — files in data/"
+            else
+                GENESIS_DATA_SUFFIX="Use public databases (TCGA/ClinVar/ChEMBL) for data sourcing."
+                DATA_SOURCE_LABEL="🌐 Public databases — TCGA, ClinVar, ChEMBL"
+            fi
+
             echo ""
             printf '%s\n' \
                 "" \
                 "  🚀  G E N E S I S   M O D E" \
                 "" \
                 "  $TOTAL tasks across 5 domains" \
-                "  Public databases — TCGA, ClinVar, ChEMBL" \
+                "  $DATA_SOURCE_LABEL" \
                 "" \
                 "  ┌─ Cancer (5 tasks) ──────────────────────┐" \
                 "  │  Tumor Mutations · Neoantigens · Immune  │" \
@@ -729,6 +768,7 @@ if $HAS_GUM; then
             ROUND=0
 
             export LABCLAW_COMPUTE=local
+            [[ "$DATA_MODE" == "mydata" ]] && export OPENCURELABS_MODE=solo || export OPENCURELABS_MODE=contribute
 
             # ── BATCH MODE: dispatch to Vast.ai instance pool ─────────────
             if [[ "${BATCH_MODE:-0}" -eq 1 ]]; then
@@ -802,7 +842,7 @@ if $HAS_GUM; then
                         RAW_LABEL="${ALL_LABELS[$i]}"
                         LABEL="${RAW_LABEL%% ~*}"
                         DOMAIN_NAME="${ALL_DOMAINS[$i]}"
-                        GENESIS_TASK="${ALL_TASKS[$i]} Use public databases (TCGA/ClinVar/ChEMBL) for data sourcing. Deploy 3 parallel agents. Use Vast.ai cloud GPU for compute."
+                        GENESIS_TASK="${ALL_TASKS[$i]} $GENESIS_DATA_SUFFIX Deploy 3 parallel agents. Use Vast.ai cloud GPU for compute."
                         GENESIS_TASK=$(parameterize_task "$GENESIS_TASK")
                         TASK_LOG="$GENESIS_LOG_DIR/task-${TASK_NUM}-$(echo "$LABEL" | tr ' ' '_').log"
 
@@ -834,7 +874,7 @@ if $HAS_GUM; then
                             RAW_LABEL="${ALL_LABELS[$i]}"
                             LABEL="${RAW_LABEL%% ~*}"
                             DOMAIN_NAME="${ALL_DOMAINS[$i]}"
-                            GENESIS_TASK="${ALL_TASKS[$i]} Use public databases (TCGA/ClinVar/ChEMBL) for data sourcing. Deploy 3 parallel agents. Use Vast.ai cloud GPU for compute."
+                            GENESIS_TASK="${ALL_TASKS[$i]} $GENESIS_DATA_SUFFIX Deploy 3 parallel agents. Use Vast.ai cloud GPU for compute."
                             GENESIS_TASK=$(parameterize_task "$GENESIS_TASK")
                             TASK_LOG="$GENESIS_LOG_DIR/task-${TASK_NUM}-$(echo "$LABEL" | tr ' ' '_').log"
 
@@ -1429,11 +1469,41 @@ select domain in "${DOMAINS[@]}"; do
             done
             TOTAL=${#ALL_TASKS[@]}
 
+            # ── Data source picker (fallback) ─────────────────────
+            DATA_FILES=$(detect_data_files)
+            FILE_COUNT=0
+            [[ -n "$DATA_FILES" ]] && FILE_COUNT=$(echo "$DATA_FILES" | wc -l)
+
+            echo ""
+            if [[ "$FILE_COUNT" -gt 0 ]]; then
+                echo -e "${DIM}📂 Found $FILE_COUNT data file(s) in data/${RESET}"
+            fi
+            echo ""
+
+            echo -e "${BOLD}Where should the data come from?${RESET}"
+            PS3="Choice: "
+            DATA_SOURCE_OPTS=("Public databases — TCGA, ClinVar, ChEMBL" "My data — files in data/")
+            select ds in "${DATA_SOURCE_OPTS[@]}"; do
+                case "$REPLY" in
+                    1) DATA_MODE="public"; break ;;
+                    2) DATA_MODE="mydata"; break ;;
+                    *) echo "Invalid choice." ;;
+                esac
+            done
+
+            if [[ "$DATA_MODE" == "mydata" ]]; then
+                GENESIS_DATA_SUFFIX="Use uploaded files in data/ for analysis. Focus on the patient's own data."
+                DATA_SOURCE_LABEL="📁 My data — files in data/"
+            else
+                GENESIS_DATA_SUFFIX="Use public databases (TCGA/ClinVar/ChEMBL) for data sourcing."
+                DATA_SOURCE_LABEL="🌐 Public databases — TCGA, ClinVar, ChEMBL"
+            fi
+
             echo ""
             echo -e "${YELLOW}══════════════════════════════════════════════════${RESET}"
             echo -e "${YELLOW}  🚀 G E N E S I S   M O D E${RESET}"
             echo -e "${YELLOW}══════════════════════════════════════════════════${RESET}"
-            echo -e "  $TOTAL tasks · 5 domains · Vast.ai burst"
+            echo -e "  $TOTAL tasks · 5 domains · $DATA_SOURCE_LABEL"
             echo ""
 
             echo -e "${BOLD}Execution mode:${RESET}"
@@ -1503,6 +1573,7 @@ select domain in "${DOMAINS[@]}"; do
                     ROUND=0
 
                     export LABCLAW_COMPUTE=local
+                    [[ "$DATA_MODE" == "mydata" ]] && export OPENCURELABS_MODE=solo || export OPENCURELABS_MODE=contribute
 
                     if [[ "${BATCH_MODE:-0}" -eq 1 ]]; then
                         export LABCLAW_COMPUTE=vast_ai
@@ -1567,7 +1638,7 @@ select domain in "${DOMAINS[@]}"; do
                                 TASK_NUM=$((i + 1))
                                 LABEL="${ALL_LABELS[$i]}"
                                 DOMAIN_NAME="${ALL_DOMAINS[$i]}"
-                                GENESIS_TASK="${ALL_TASKS[$i]} Use public databases (TCGA/ClinVar/ChEMBL) for data sourcing. Deploy 3 parallel agents. Use Vast.ai cloud GPU for compute."
+                                GENESIS_TASK="${ALL_TASKS[$i]} $GENESIS_DATA_SUFFIX Deploy 3 parallel agents. Use Vast.ai cloud GPU for compute."
                                 GENESIS_TASK=$(parameterize_task "$GENESIS_TASK")
                                 TASK_LOG="$GENESIS_LOG_DIR/task-${TASK_NUM}-$(echo "$LABEL" | tr ' ' '_').log"
 
@@ -1596,7 +1667,7 @@ select domain in "${DOMAINS[@]}"; do
                                     TASK_NUM=$((i + 1))
                                     LABEL="${ALL_LABELS[$i]}"
                                     DOMAIN_NAME="${ALL_DOMAINS[$i]}"
-                                    GENESIS_TASK="${ALL_TASKS[$i]} Use public databases (TCGA/ClinVar/ChEMBL) for data sourcing. Deploy 3 parallel agents. Use Vast.ai cloud GPU for compute."
+                                    GENESIS_TASK="${ALL_TASKS[$i]} $GENESIS_DATA_SUFFIX Deploy 3 parallel agents. Use Vast.ai cloud GPU for compute."
                                     GENESIS_TASK=$(parameterize_task "$GENESIS_TASK")
                                     TASK_LOG="$GENESIS_LOG_DIR/task-${TASK_NUM}-$(echo "$LABEL" | tr ' ' '_').log"
 
