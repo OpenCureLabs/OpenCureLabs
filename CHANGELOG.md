@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - CI pipeline with tests, ruff, and bandit
 - Commitizen conventional commits enforcement
 
+## v0.45.0 (2026-03-24)
+
+### Feat
+
+- **genesis**: add My Data support — run all tasks against uploaded files
+
 ## v0.44.5 (2026-03-24)
 
 ### Fix
