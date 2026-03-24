@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - CI pipeline with tests, ruff, and bandit
 - Commitizen conventional commits enforcement
 
+## v0.49.0 (2026-03-24)
+
+### Feat
+
+- **genesis**: arrow-key menus for task count and pool size
+
 ## v0.48.0 (2026-03-24)
 
 ### Feat
