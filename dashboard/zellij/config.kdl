@@ -81,7 +81,7 @@ keybinds {
         // Note: Alt+r is intercepted by terminal emulator, so we use Alt+s
         // Wrapper script kills existing run_research panes then exec's into a new one
         bind "Alt s" {
-            Run "bash" "$PROJECT_DIR/dashboard/start_research.sh" {
+            Run "bash" "-c" "bash $PROJECT_DIR/dashboard/start_research.sh" {
                 floating true
                 close_on_exit true
             }
