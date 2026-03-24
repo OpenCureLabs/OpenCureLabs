@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - CI pipeline with tests, ruff, and bandit
 - Commitizen conventional commits enforcement
 
+## v0.51.2 (2026-03-24)
+
+### Fix
+
+- batch monitor stall escalation, orphan recovery, and hard timeout
+
 ## v0.51.1 (2026-03-24)
 
 ### Fix
