@@ -6,6 +6,6 @@ scientific skills, guardrails, and connectors for computational biology workflow
 """
 from agentiq_labclaw.base import LabClawSkill, labclaw_skill
 
-__version__ = "0.43.1"
+__version__ = "0.43.2"
 
 __all__ = ["LabClawSkill", "labclaw_skill"]
