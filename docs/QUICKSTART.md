@@ -187,7 +187,6 @@ nano .env
 
 | Key | Where to get it | Used by |
 |---|---|---|
-| `ANTHROPIC_API_KEY` | [console.anthropic.com](https://console.anthropic.com) | Archived Claude Opus reviewer (not active) |
 | `NVIDIA_API_KEY` | [build.nvidia.com](https://build.nvidia.com) | NIM endpoints (optional) |
 | `VAST_AI_KEY` | [vast.ai](https://vast.ai) | Burst GPU compute |
 
@@ -458,8 +457,8 @@ name:
 GITHUB_REPOSITORY=YourOrg/YourFork
 ```
 
-For **private forks**, also set `GITHUB_TOKEN` in `.env` so the Vast.ai instance
-can download the wheel via the GitHub API.
+For **private forks**, also set `GITHUB_TOKEN` as an environment variable so the
+Vast.ai instance can download the wheel via the GitHub API.
 
 ### 6. Test It
 
@@ -540,8 +539,7 @@ Every experiment result is reviewed by Grok in a two-tier process:
   blocked; 5.0–7.0 are deferred for manual review.
 
 > **Note:** A Claude Opus module exists (`reviewer/claude_reviewer.py`) but is
-> not active in the current pipeline. It can be re-enabled locally if you have
-> an `ANTHROPIC_API_KEY`.
+> not active in the current pipeline. Grok is the sole reviewer.
 
 ### Automatic (via Zellij)
 
