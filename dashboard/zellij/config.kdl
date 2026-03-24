@@ -79,9 +79,9 @@ keybinds {
         }
         // Alt+s — start research task (interactive menu in floating pane)
         // Note: Alt+r is intercepted by terminal emulator, so we use Alt+s
-        // Kills any existing run_research.sh pane first to avoid duplicates
+        // Wrapper script kills existing run_research panes then exec's into a new one
         bind "Alt s" {
-            Run "bash" "-c" "pkill -f 'bash.*run_research.sh' 2>/dev/null; sleep 0.3; exec bash $PROJECT_DIR/dashboard/run_research.sh" {
+            Run "bash" "$PROJECT_DIR/dashboard/start_research.sh" {
                 floating true
                 close_on_exit true
             }
