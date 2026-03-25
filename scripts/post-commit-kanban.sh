@@ -141,7 +141,8 @@ done
 echo -e "${CYAN}📋 Kanban update complete.${NC}"
 
 # ── Phase 2: Wiki sync ───────────────────────────────────────────────────────
-WIKI_SYNC="$(dirname "$0")/sync-wiki.sh"
-if [[ -x "$WIKI_SYNC" ]]; then
+REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+WIKI_SYNC="${REPO_ROOT}/scripts/sync-wiki.sh"
+if [[ -n "$REPO_ROOT" && -x "$WIKI_SYNC" ]]; then
     "$WIKI_SYNC" || true  # Don't fail the hook if wiki sync fails
 fi

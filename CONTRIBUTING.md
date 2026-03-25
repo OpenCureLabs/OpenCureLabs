@@ -316,6 +316,82 @@ OpenCure Labs produces results that could inform real research decisions. We tak
 
 ---
 
+## Commit Workflow
+
+Every code push goes through a multi-stage quality gate. A push is only
+considered **successful** when all stages pass — there are no shortcuts.
+
+### The pipeline
+
+```
+Stage           Trigger        What it does                          Blocks?
+─────────────── ────────────── ───────────────────────────────────── ───────
+1. Docs gate    pre-commit     Code changed → docs must be updated  YES
+2. Test gate    pre-commit     pytest -x (unit, no GPU)             YES
+3. Security     pre-commit     Secrets + CVE scan (grade D/F)       YES
+4. Commit msg   commit-msg     Conventional Commits format          YES
+5. Kanban sync  post-commit    Issue refs → move on project board   no
+6. Wiki sync    post-commit    docs/ → GitHub Wiki                  no
+7. CI           push (GitHub)  Full test matrix (3.11 + 3.12)       YES*
+```
+
+*Branch protection on `main` requires CI to pass before merge. Direct
+pushes to `main` also run CI but are not gated — the pre-commit hooks
+serve as the local gate.
+
+### Stage details
+
+**1. Documentation gate** (`scripts/pre-commit-docs-check.sh`): If you stage
+code files (`.py`, `.yaml`) without updating any docs, the commit is blocked
+for `feat:` commits. Exempt prefixes (`fix:`, `chore:`, `test:`, `refactor:`,
+`ci:`, `style:`, `wip:`, `docs:`) skip this check. Specific rules:
+- `skills/` or `pipelines/` changed → `docs/SKILLS.md` required
+- `.env.example` changed → `docs/QUICKSTART.md` required
+- `db/schema.sql` or `db/migrations/` changed → `docs/DATABASE.md` required
+
+**2. Test gate**: `pytest -x -q -m "not integration and not gpu"` — fast
+unit tests with fail-fast. Broken code never enters the repo.
+
+**3. Security scan** (`security/security_scan.py`): Runs secret detection on
+staged files + dependency CVE audit. Grade D or F blocks the commit. See
+`security/reports/` for details on any findings.
+
+**4. Commit message**: Validated by `scripts/commit-msg-hook.sh` — must
+follow [Conventional Commits](https://www.conventionalcommits.org/).
+
+**5. Kanban sync** (`scripts/post-commit-kanban.sh`): Parses commit messages
+for issue references and auto-updates the GitHub project board:
+- `closes #N` / `fixes #N` / `resolves #N` → moves issue to **Done**
+- `refs #N` / `wip #N` / bare `#N` → moves issue to **In Progress**
+
+**6. Wiki sync** (`scripts/sync-wiki.sh`): Copies `docs/` files to the
+GitHub Wiki with sanitization. Runs automatically after every commit that
+touches docs or markdown files.
+
+**7. CI** (`.github/workflows/ci.yml`): Full test suite on Python 3.11 and
+3.12, plus lint checks. Required for merging to `main` via branch protection.
+
+### Push wrapper
+
+Use `git ship` instead of `git push` to get post-push verification:
+
+```bash
+git ship              # pushes current branch, then syncs kanban + wiki
+git ship origin main  # passes args through to git push
+```
+
+This alias runs `scripts/git-push.sh`, which pushes your code and then
+triggers kanban board updates and wiki sync — ensuring everything is
+consistent after the push lands.
+
+### Never bypass hooks
+
+**Do not use `git commit --no-verify`**. The pre-commit hooks exist to prevent
+secrets, broken tests, and undocumented features from entering the repo. If a
+hook blocks your commit, fix the underlying issue — don't skip the check.
+
+---
+
 ## Commit and PR Guidelines
 
 ### Branch naming
@@ -342,8 +418,6 @@ ci: add coverage threshold to CI
 ```
 
 Allowed types: `feat`, `fix`, `docs`, `test`, `chore`, `refactor`, `ci`, `style`, `perf`, `build`, `revert`.
-
-To bypass in an emergency: `git commit --no-verify` (use sparingly).
 
 ### Branch naming
 

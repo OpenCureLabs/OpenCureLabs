@@ -370,6 +370,16 @@ if [[ -d "$PROJECT_DIR/.git/hooks" ]]; then
     else
         warn "Commit-msg hook not found at $COMMIT_MSG_SRC — skipping"
     fi
+
+    POST_COMMIT_SRC="$PROJECT_DIR/scripts/post-commit-kanban.sh"
+    POST_COMMIT_DST="$PROJECT_DIR/.git/hooks/post-commit"
+    if [[ -f "$POST_COMMIT_SRC" ]]; then
+        cp "$POST_COMMIT_SRC" "$POST_COMMIT_DST"
+        chmod +x "$POST_COMMIT_DST"
+        ok "Post-commit hook installed (kanban + wiki sync)"
+    else
+        warn "Post-commit hook not found at $POST_COMMIT_SRC — skipping"
+    fi
 else
     warn "Not a git repository — skipping hook install"
 fi

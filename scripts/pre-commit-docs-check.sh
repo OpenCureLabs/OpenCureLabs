@@ -101,19 +101,18 @@ fi
 # ── Output ───────────────────────────────────────────────────────────────────
 if [[ ${#WARNINGS[@]} -gt 0 ]]; then
     echo ""
-    echo -e "${YELLOW}📝 Documentation Review${NC}"
-    echo -e "${YELLOW}───────────────────────${NC}"
+    echo -e "${RED}📝 Documentation Gate — Commit Blocked${NC}"
+    echo -e "${RED}──────────────────────────────────────${NC}"
     for w in "${WARNINGS[@]}"; do
-        echo -e "  ${YELLOW}⚠️  $w${NC}"
+        echo -e "  ${RED}❌  $w${NC}"
     done
     echo ""
-    echo -e "  ${YELLOW}Consider updating relevant docs before committing.${NC}"
-    echo -e "  ${YELLOW}Use a commit prefix (docs:, fix:, chore:, test:, refactor:)${NC}"
-    echo -e "  ${YELLOW}to skip this check for non-feature commits.${NC}"
+    echo -e "  ${YELLOW}Update the relevant docs, or use an exempt commit prefix${NC}"
+    echo -e "  ${YELLOW}(fix:, chore:, test:, refactor:, ci:, style:, wip:, docs:)${NC}"
+    echo -e "  ${YELLOW}if this is not a feature commit.${NC}"
     echo ""
-    # Warning only — don't block the commit
-    # Change 'exit 0' to 'exit 1' to enforce strictly
-    exit 0
+    # Block the commit — docs must be updated for feature commits
+    exit 1
 else
     echo -e "${GREEN}📝 Documentation check passed.${NC}"
     exit 0
