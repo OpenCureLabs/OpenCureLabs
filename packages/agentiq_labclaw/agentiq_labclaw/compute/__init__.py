@@ -22,24 +22,14 @@ def resolve_wheel_url() -> str | None:
     for the first .whl asset.  Returns None if no wheel is found.
 
     Respects GITHUB_REPOSITORY env var so forks resolve their own releases.
-    Uses GITHUB_TOKEN for private repos — returns the API asset URL (which
-    requires Accept: application/octet-stream + auth to download).
     """
     repo = os.environ.get("GITHUB_REPOSITORY", DEFAULT_REPO)
     url = f"{GITHUB_API}/repos/{repo}/releases/latest"
-    token = os.environ.get("GITHUB_TOKEN", "")
-    headers = {}
-    if token:
-        headers["Authorization"] = f"token {token}"
     try:
-        resp = requests.get(url, headers=headers, timeout=10)
+        resp = requests.get(url, timeout=10)
         resp.raise_for_status()
         for asset in resp.json().get("assets", []):
             if asset["name"].endswith(".whl"):
-                if token:
-                    # Private repo: use API URL (requires auth + Accept header)
-                    return asset["url"]
-                # Public repo: browser URL works directly
                 return asset["browser_download_url"]
     except Exception as exc:
         logger.warning("Failed to resolve wheel URL from %s: %s", url, exc)
@@ -52,35 +42,16 @@ def build_onstart_script(wheel_url: str | None = None) -> str:
     If a wheel_url is provided, installs from the pre-built wheel (~seconds).
     Otherwise falls back to cloning the full repo via git+https (~minutes).
 
-    For private repos, injects a GITHUB_TOKEN header so the instance can
-    download the release asset.
-
     Also injects the orchestrator SSH public key directly into authorized_keys
     so SSH access is guaranteed regardless of whether the Vast.ai API key
     attachment endpoint succeeds.
     """
-    gh_token = os.environ.get("GITHUB_TOKEN", "")
-
     if wheel_url:
-        if gh_token and "api.github.com" in wheel_url:
-            # Private repo: download via GitHub API with auth + octet-stream
-            # Use proper wheel filename so pip accepts it
-            install_cmd = (
-                f"curl -sL -H 'Authorization: token {gh_token}' "
-                f"-H 'Accept: application/octet-stream' "
-                f"'{wheel_url}' -o /tmp/agentiq_labclaw-latest-py3-none-any.whl && "
-                "pip install --no-deps /tmp/agentiq_labclaw-latest-py3-none-any.whl"
-            )
-        else:
-            # Public repo: direct URL works
-            install_cmd = f"pip install --no-deps '{wheel_url}'"
+        install_cmd = f"pip install --no-deps '{wheel_url}'"
     else:
         # Fallback: full repo clone (slow but always works)
         repo = os.environ.get("GITHUB_REPOSITORY", DEFAULT_REPO)
-        if gh_token:
-            pip_url = f"git+https://{gh_token}@github.com/{repo}.git#subdirectory=packages/agentiq_labclaw"
-        else:
-            pip_url = f"git+https://github.com/{repo}.git#subdirectory=packages/agentiq_labclaw"
+        pip_url = f"git+https://github.com/{repo}.git#subdirectory=packages/agentiq_labclaw"
         install_cmd = f"GIT_CLONE_PROTECTION_ACTIVE=false pip install --no-deps '{pip_url}'"
 
     # Core deps — only needed when running on base pytorch image (not labclaw-gpu)
