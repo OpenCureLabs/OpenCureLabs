@@ -5,6 +5,12 @@ All notable changes to OpenCure Labs will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## v0.53.1 (2026-03-25)
+
+### Fix
+
+- resolve ruff S310/B007/E501 and bandit B310 lint failures
+
 ## v0.53.0 (2026-03-25)
 
 ### Feat
