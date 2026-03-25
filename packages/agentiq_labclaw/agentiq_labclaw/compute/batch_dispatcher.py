@@ -751,10 +751,10 @@ def run_contribute(
             # Claim tasks from central queue
             claim_url = f"{api_url}/tasks/claim?count={count}&contributor_id={contributor_id}"
             try:
-                req = urllib.request.Request(claim_url, method="GET")
+                req = urllib.request.Request(claim_url, method="GET")  # noqa: S310
                 req.add_header("Accept", "application/json")
                 req.add_header("User-Agent", "opencure-contribute/1.0")
-                with urllib.request.urlopen(req, timeout=30) as resp:
+                with urllib.request.urlopen(req, timeout=30) as resp:  # noqa: S310  # nosec B310
                     claim_data = json.loads(resp.read().decode())
             except Exception as e:
                 _log("Failed to claim tasks: %s — retrying in %ds", e, cooldown)
@@ -805,15 +805,18 @@ def run_contribute(
 
             # Report completions back to central queue
             reported = 0
-            for central_label, central_id in central_id_map.items():
+            for _central_label, central_id in central_id_map.items():
                 try:
                     complete_url = f"{api_url}/tasks/{central_id}/complete"
                     body = json.dumps({"result_id": batch_id}).encode()
-                    req = urllib.request.Request(
+                    req = urllib.request.Request(  # noqa: S310
                         complete_url, data=body, method="POST",
-                        headers={"Content-Type": "application/json", "User-Agent": "opencure-contribute/1.0"},
+                        headers={
+                            "Content-Type": "application/json",
+                            "User-Agent": "opencure-contribute/1.0",
+                        },
                     )
-                    urllib.request.urlopen(req, timeout=15)
+                    urllib.request.urlopen(req, timeout=15)  # noqa: S310  # nosec B310
                     reported += 1
                 except Exception as e:
                     _log("Failed to report task %s completion: %s", central_id, e)
@@ -866,8 +869,11 @@ def main():
     parser.add_argument("--cycles", type=int, help="Max number of cycles (default: unlimited)")
     parser.add_argument("--cooldown", type=int, default=5, help="Seconds between cycles (default: 5)")
     # Contribute mode — pull tasks from central queue instead of local generation
-    parser.add_argument("--mode", choices=["local", "contribute"], default="local",
-                        help="Task source: 'local' generates tasks locally, 'contribute' pulls from central queue (default: local)")
+    parser.add_argument(
+        "--mode", choices=["local", "contribute"], default="local",
+        help="Task source: local generates tasks locally, "
+        "contribute pulls from central queue (default: local)",
+    )
     parser.add_argument("--api-url", default="https://ingest.opencurelabs.ai",
                         help="Central queue API URL for contribute mode")
     args = parser.parse_args()

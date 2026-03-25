@@ -147,7 +147,9 @@ def _db_record_instance_spend(instance_id: int, genesis_run_id: str | None = Non
         cur = conn.cursor()
         cur.execute(
             """
-            INSERT INTO vast_spend (instance_id, skill_name, gpu_name, cost_per_hour, started_at, ended_at, total_cost, genesis_run_id)
+            INSERT INTO vast_spend
+                (instance_id, skill_name, gpu_name, cost_per_hour,
+                 started_at, ended_at, total_cost, genesis_run_id)
             SELECT instance_id, 'batch_pool', gpu_name, cost_per_hr,
                    created_at, NOW(),
                    ROUND((EXTRACT(EPOCH FROM (NOW() - created_at)) / 3600.0 * cost_per_hr)::numeric, 4),
