@@ -28,8 +28,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && rm -rf /var/lib/apt/lists/*
 
 # ── Conda packages (heavy C++ tools) ────────────────────────────────────────
-# rdkit for cheminformatics (SMILES parsing, molecular descriptors)
-RUN conda install -y -c conda-forge \
+# Update conda first — pytorch/pytorch:latest ships an old conda that
+# conda-forge's current repodata no longer carries (ResolvePackageNotFound).
+RUN conda update -y -n base conda \
+    && conda install -y -c conda-forge \
     rdkit \
     && conda clean -afy
 
