@@ -5,6 +5,12 @@ All notable changes to OpenCure Labs will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## v0.54.0 (2026-03-25)
+
+### Feat
+
+- D1 task queue integration for continuous single-topic mode
+
 ## v0.53.1 (2026-03-25)
 
 ### Fix
