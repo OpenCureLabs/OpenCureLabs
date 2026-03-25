@@ -173,7 +173,7 @@ else
 fi
 
 # ── Python version check ────────────────────────────────────────────────────
-PY_VERSION=$($PYTHON --version 2>&1 | sed -n 's/.*\([0-9]\+\.[0-9]\+\).*/\1/p')
+PY_VERSION=$($PYTHON --version 2>&1 | sed -n 's/^Python \([0-9]\+\.[0-9]\+\).*/\1/p')
 if [[ "$(echo -e "$PY_VERSION\n$MIN_PYTHON" | sort -V | head -1)" != "$MIN_PYTHON" ]]; then
     fail "Python $MIN_PYTHON+ required, found $PY_VERSION"
     info "Install Python 3.11+: sudo apt install python3.11 python3.11-venv"
@@ -203,20 +203,23 @@ ok "Activated venv: $(which python3)"
 # ══════════════════════════════════════════════════════════════════════════════
 step "Installing Python dependencies"
 
-info "Upgrading pip"
-pip install --upgrade pip --quiet
+info "Upgrading pip and installing uv (fast resolver)"
+pip install --upgrade pip uv --quiet
 
 info "Installing nvidia-nat first (complex dependency tree)"
 pip install 'nvidia-nat>=1.5.0' --quiet 2>&1 | tail -3
 
 info "Installing remaining requirements"
-pip install -r "$PROJECT_DIR/requirements.txt" --quiet 2>&1 | tail -3
+# Use uv with --override to resolve conflicting transitive pins:
+#   gtfparse pins pyarrow<14.1 (works fine with 23.x)
+#   vastai pins python-dateutil==2.6.1 (works fine with >=2.8)
+uv pip install --override "$PROJECT_DIR/constraints.txt" -r "$PROJECT_DIR/requirements.txt" --quiet 2>&1 | tail -3
 
 info "Verifying numpy version"
 python3 -c "import numpy; print('  numpy', numpy.__version__)"
 
 info "Installing agentiq_labclaw package (editable)"
-pip install -e "$PROJECT_DIR/packages/agentiq_labclaw" --quiet
+uv pip install --override "$PROJECT_DIR/constraints.txt" -e "$PROJECT_DIR/packages/agentiq_labclaw" --quiet
 
 ok "Python dependencies installed"
 
@@ -261,12 +264,21 @@ fi  # end SKIP_MODELS guard for Step 4
 # ══════════════════════════════════════════════════════════════════════════════
 #  Step 5: PostgreSQL Setup
 # ══════════════════════════════════════════════════════════════════════════════
-step "Setting up PostgreSQL (port \$PG_PORT)"
+step "Setting up PostgreSQL (port $PG_PORT)"
 
 # Start PostgreSQL if not running
 if ! pg_isready -p "$PG_PORT" -q 2>/dev/null; then
+    # Auto-configure port if default install uses 5432
+    PG_CONF=$(find /etc/postgresql -name postgresql.conf 2>/dev/null | head -1)
+    if [[ -n "$PG_CONF" ]] && grep -q "^port = 5432" "$PG_CONF" 2>/dev/null; then
+        info "Configuring PostgreSQL to use port $PG_PORT"
+        sed -i "s/^port = 5432/port = $PG_PORT/" "$PG_CONF"
+    elif [[ -n "$PG_CONF" ]] && grep -q "^#port = 5432" "$PG_CONF" 2>/dev/null; then
+        info "Configuring PostgreSQL to use port $PG_PORT"
+        sed -i "s/^#port = 5432/port = $PG_PORT/" "$PG_CONF"
+    fi
     info "Starting PostgreSQL service"
-    service postgresql start 2>/dev/null || true
+    service postgresql restart 2>/dev/null || service postgresql start 2>/dev/null || true
     # Wait for PostgreSQL with retry loop
     pg_ready=false
     for i in $(seq 1 15); do
@@ -280,34 +292,35 @@ fi
 
 if pg_isready -p "$PG_PORT" -q 2>/dev/null || [[ "${pg_ready:-false}" == "true" ]]; then
     ok "PostgreSQL is running on port $PG_PORT"
+
+    # Create database if it doesn't exist
+    if sudo -u postgres psql -p "$PG_PORT" -lqt 2>/dev/null | cut -d \| -f 1 | grep -qw "$PG_DB"; then
+        ok "Database '$PG_DB' already exists"
+    else
+        info "Creating database '$PG_DB'"
+        sudo -u postgres psql -p "$PG_PORT" -c "CREATE DATABASE $PG_DB;" 2>/dev/null
+        ok "Database created"
+    fi
+
+    # Apply schema
+    info "Applying schema from db/schema.sql"
+    if sudo -u postgres psql -p "$PG_PORT" -d "$PG_DB" -c "SELECT 1 FROM agent_runs LIMIT 1" &>/dev/null; then
+        ok "Schema already applied"
+    else
+        # schema.sql contains CREATE DATABASE which would fail; run table creates only
+        if sudo -u postgres psql -p "$PG_PORT" -d "$PG_DB" -f "$PROJECT_DIR/db/schema.sql" 2>&1 | tail -5; then
+            ok "Schema applied"
+        else
+            warn "Schema application had errors — review output above"
+            info "You can re-apply manually: sudo -u postgres psql -p $PG_PORT -d $PG_DB -f db/schema.sql"
+        fi
+    fi
 else
     warn "PostgreSQL not responding on port $PG_PORT"
     info "You may need to configure PostgreSQL to use port $PG_PORT"
     info "Edit /etc/postgresql/*/main/postgresql.conf and set: port = $PG_PORT"
     info "Then: sudo service postgresql restart"
-fi
-
-# Create database if it doesn't exist
-if sudo -u postgres psql -p "$PG_PORT" -lqt 2>/dev/null | cut -d \| -f 1 | grep -qw "$PG_DB"; then
-    ok "Database '$PG_DB' already exists"
-else
-    info "Creating database '$PG_DB'"
-    sudo -u postgres psql -p "$PG_PORT" -c "CREATE DATABASE $PG_DB;" 2>/dev/null
-    ok "Database created"
-fi
-
-# Apply schema
-info "Applying schema from db/schema.sql"
-if sudo -u postgres psql -p "$PG_PORT" -d "$PG_DB" -c "SELECT 1 FROM agent_runs LIMIT 1" &>/dev/null; then
-    ok "Schema already applied"
-else
-    # schema.sql contains CREATE DATABASE which would fail; run table creates only
-    if sudo -u postgres psql -p "$PG_PORT" -d "$PG_DB" -f "$PROJECT_DIR/db/schema.sql" 2>&1 | tail -5; then
-        ok "Schema applied"
-    else
-        warn "Schema application had errors — review output above"
-        info "You can re-apply manually: sudo -u postgres psql -p $PG_PORT -d $PG_DB -f db/schema.sql"
-    fi
+    info "After PostgreSQL is running, apply the schema: sudo -u postgres psql -p $PG_PORT -d $PG_DB -f db/schema.sql"
 fi
 
 # ══════════════════════════════════════════════════════════════════════════════
