@@ -22,6 +22,18 @@ REPORTS_DIR = _project_root() / "reports" / "structures"
 ESMFOLD_API = "https://api.esmatlas.com/foldSequence/v1/pdb/"
 ALPHAFOLD_API = "https://alphafold.ebi.ac.uk/api"
 UNIPROT_API = "https://rest.uniprot.org/uniprotkb/search"
+ESMFOLD_MAX_SEQ_LEN = 2500
+
+# Common protein name → HGNC gene symbol aliases for UniProt lookup
+PROTEIN_ALIASES: dict[str, str] = {
+    "PI3Kα": "PIK3CA",
+    "PI3Ka": "PIK3CA",
+    "PD-L1": "CD274",
+    "PDL1": "CD274",
+    "PD-1": "PDCD1",
+    "HER2": "ERBB2",
+    "p53": "TP53",
+}
 
 
 class StructureInput(BaseModel):
@@ -73,6 +85,14 @@ class StructurePredictionSkill(LabClawSkill):
             if not seq:
                 raise ValueError(f"Could not resolve sequence for {input_data.protein_id}")
 
+        # Fail fast for sequences too large for remote ESMFold API
+        if len(seq) > ESMFOLD_MAX_SEQ_LEN:
+            raise ValueError(
+                f"{input_data.protein_id} ({len(seq)} aa) exceeds remote ESMFold "
+                f"limit ({ESMFOLD_MAX_SEQ_LEN} aa). Requires local compute with "
+                f"ESMFold/ColabFold or domain-based folding."
+            )
+
         # Replace sequence with resolved one
         resolved = input_data.model_copy(update={"sequence": seq})
 
@@ -85,6 +105,7 @@ class StructurePredictionSkill(LabClawSkill):
         protein_id: str, organism_id: int = 9606
     ) -> tuple[str | None, str | None]:
         """Look up protein sequence and accession from UniProt by gene name and organism."""
+        protein_id = PROTEIN_ALIASES.get(protein_id, protein_id)
         try:
             resp = requests.get(
                 UNIPROT_API,
