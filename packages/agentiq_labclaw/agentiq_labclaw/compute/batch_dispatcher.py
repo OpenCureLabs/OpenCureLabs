@@ -663,6 +663,180 @@ def run_continuous(
     return summaries
 
 
+# ── Contribute Mode ──────────────────────────────────────────────────────────
+
+def run_contribute(
+    pool_size: int = 3,
+    max_cost_hr: float = 0.50,
+    image: str | None = None,
+    budget: float | None = None,
+    cooldown: int = 5,
+    api_url: str = "https://ingest.opencurelabs.ai",
+    count: int = 20,
+) -> None:
+    """Contribute mode — pull tasks from the central queue and run them.
+
+    Instead of generating tasks locally, claims tasks from the OpenCure Labs
+    central task queue (D1-backed API), runs them on Vast.ai instances, and
+    reports results back. This enables distributed computing across contributors.
+
+    Args:
+        pool_size:    Number of Vast.ai instances.
+        max_cost_hr:  Maximum cost per hour per instance.
+        image:        Docker image override.
+        budget:       Total $ budget.
+        cooldown:     Seconds between claim cycles.
+        api_url:      Central task queue API URL.
+        count:        Number of tasks to claim per cycle.
+    """
+    import urllib.request
+
+    from agentiq_labclaw.compute.batch_queue import BatchQueue
+    from agentiq_labclaw.compute.pool_manager import PoolManager
+    from agentiq_labclaw.compute.vast_dispatcher import check_budget
+    from agentiq_labclaw.task_generator import BatchTask
+
+    _install_signal_handlers()
+    _shutdown.clear()
+
+    if budget is not None:
+        os.environ["VAST_AI_BUDGET"] = str(budget)
+
+    contributor_id = os.environ.get("OPENCURE_CONTRIBUTOR_ID", "anonymous")
+    genesis_run_id = _get_genesis_run_id()
+
+    _log("=== CONTRIBUTE MODE ===")
+    _log("Central queue: %s", api_url)
+    _log("Contributor: %s", contributor_id)
+
+    # Provision pool
+    _log("Provisioning %d instances (max $%.2f/hr each)...", pool_size, max_cost_hr)
+    pool = PoolManager(
+        target_size=pool_size,
+        gpu_required=True,
+        max_cost_hr=max_cost_hr,
+        image=image,
+    )
+
+    try:
+        pool.scale_up()
+    except RuntimeError as e:
+        _log("Pool provisioning failed: %s", e)
+        return
+
+    _log("Waiting for instances to be ready...")
+    try:
+        pool.wait_for_ready(min_ready=1, timeout=1800, progress_fn=_log)
+    except TimeoutError as e:
+        _log("No instances became ready: %s", e)
+        pool.teardown()
+        return
+
+    queue = BatchQueue()
+    workers, threads = _launch_workers(pool, queue, batch_id=None, idle_timeout=120)
+    cycle = 0
+
+    try:
+        while not _shutdown.is_set():
+            cycle += 1
+
+            # Budget check
+            ok, remaining, total_budget = check_budget()
+            if not ok:
+                _log("Budget exhausted ($%.2f remaining) — stopping", remaining)
+                break
+
+            _log("── Contribute cycle %d (budget: $%.2f remaining) ──", cycle, remaining)
+
+            # Claim tasks from central queue
+            claim_url = f"{api_url}/tasks/claim?count={count}&contributor_id={contributor_id}"
+            try:
+                req = urllib.request.Request(claim_url, method="GET")
+                req.add_header("Accept", "application/json")
+                req.add_header("User-Agent", "opencure-contribute/1.0")
+                with urllib.request.urlopen(req, timeout=30) as resp:
+                    claim_data = json.loads(resp.read().decode())
+            except Exception as e:
+                _log("Failed to claim tasks: %s — retrying in %ds", e, cooldown)
+                _shutdown.wait(cooldown)
+                continue
+
+            claimed_tasks = claim_data.get("tasks", [])
+            if not claimed_tasks:
+                _log("No tasks available — waiting %ds before retry", cooldown * 6)
+                _shutdown.wait(cooldown * 6)
+                continue
+
+            _log("Claimed %d tasks from central queue", len(claimed_tasks))
+
+            # Convert claimed tasks to BatchTask objects for the local queue
+            # Track central_task_id mapping since it's not persisted to PostgreSQL
+            batch_tasks = []
+            central_id_map: dict[str, str] = {}  # label → central_task_id
+            for t in claimed_tasks:
+                task = BatchTask(
+                    skill_name=t["skill"],
+                    input_data=t["input_data"],
+                    label=t.get("label", ""),
+                    priority=0,
+                    central_task_id=t["id"],
+                )
+                batch_tasks.append(task)
+                central_id_map[t.get("label", "")] = t["id"]
+
+            batch_id = queue.submit_batch(batch_tasks, genesis_run_id=genesis_run_id)
+            _log("Submitted batch %s with %d jobs to local queue", batch_id, len(batch_tasks))
+
+            for w in workers:
+                w.batch_id = batch_id
+
+            # Relaunch dead worker threads
+            dead = [t for t in threads if not t.is_alive()]
+            if dead:
+                _log("Relaunching %d/%d workers", len(dead), len(threads))
+                for w in workers:
+                    w.stop()
+                for t in threads:
+                    t.join(timeout=10)
+                workers, threads = _launch_workers(pool, queue, batch_id=batch_id, idle_timeout=120)
+
+            # Monitor until batch complete
+            _monitor_loop(batch_id, queue, pool, workers, threads, idle_timeout=120)
+
+            # Report completions back to central queue
+            reported = 0
+            for central_label, central_id in central_id_map.items():
+                try:
+                    complete_url = f"{api_url}/tasks/{central_id}/complete"
+                    body = json.dumps({"result_id": batch_id}).encode()
+                    req = urllib.request.Request(
+                        complete_url, data=body, method="POST",
+                        headers={"Content-Type": "application/json", "User-Agent": "opencure-contribute/1.0"},
+                    )
+                    urllib.request.urlopen(req, timeout=15)
+                    reported += 1
+                except Exception as e:
+                    _log("Failed to report task %s completion: %s", central_id, e)
+
+            _log("Cycle %d complete — reported %d/%d completions", cycle, reported, len(central_id_map))
+
+            if not _shutdown.is_set():
+                _shutdown.wait(cooldown)
+
+    finally:
+        signal.signal(signal.SIGINT, signal.SIG_IGN)
+        signal.signal(signal.SIGTERM, signal.SIG_IGN)
+        _log("Tearing down pool...")
+        for w in workers:
+            w.stop()
+        for t in threads:
+            t.join(timeout=10)
+        pool.teardown()
+        signal.signal(signal.SIGINT, signal.SIG_DFL)
+        signal.signal(signal.SIGTERM, signal.SIG_DFL)
+        _log("=== CONTRIBUTE MODE COMPLETE: %d cycles ===", cycle)
+
+
 def _log(msg, *args):
     """Log to both logger and stdout for terminal visibility."""
     formatted = msg % args if args else msg
@@ -691,6 +865,11 @@ def main():
     parser.add_argument("--budget", type=float, help="Total $ budget for continuous mode")
     parser.add_argument("--cycles", type=int, help="Max number of cycles (default: unlimited)")
     parser.add_argument("--cooldown", type=int, default=5, help="Seconds between cycles (default: 5)")
+    # Contribute mode — pull tasks from central queue instead of local generation
+    parser.add_argument("--mode", choices=["local", "contribute"], default="local",
+                        help="Task source: 'local' generates tasks locally, 'contribute' pulls from central queue (default: local)")
+    parser.add_argument("--api-url", default="https://ingest.opencurelabs.ai",
+                        help="Central queue API URL for contribute mode")
     args = parser.parse_args()
 
     # Set up logging
@@ -724,7 +903,17 @@ def main():
                     key, _, val = line.partition("=")
                     os.environ.setdefault(key.strip(), val.strip().strip('"').strip("'"))
 
-    if args.continuous:
+    if args.mode == "contribute":
+        run_contribute(
+            pool_size=args.pool_size,
+            max_cost_hr=args.max_cost,
+            image=args.image,
+            budget=args.budget,
+            cooldown=args.cooldown,
+            api_url=args.api_url,
+            count=args.count,
+        )
+    elif args.continuous:
         summaries = run_continuous(
             count=args.count,
             pool_size=args.pool_size,

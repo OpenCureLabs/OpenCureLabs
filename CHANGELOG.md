@@ -5,6 +5,24 @@ All notable changes to OpenCure Labs will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/),
 and this project adheres to [Semantic Versioning](https://semver.org/).
 
+## v0.52.0 (2026-03-25)
+
+### Feat
+
+- **distributed**: Central task queue on Cloudflare D1 — BOINC-style work distribution
+- **distributed**: `--mode contribute` for batch dispatcher — claim tasks from central queue, execute on Vast.ai GPU, report completions
+- **worker**: Task queue endpoints — `GET /tasks/claim`, `POST /tasks/:id/complete`, `GET /tasks/stats`, `POST /tasks/generate`
+- **worker**: Weekly cron trigger (`0 0 * * SUN`) — repopulates task queue + reclaims expired claims
+- **worker**: Dedup at ingest — `input_hash` prevents duplicate work, 409 on duplicate submission
+- **worker**: Parameter banks in TypeScript — 1,330 deterministic research tasks across 5 skills (neoantigen, structure, QSAR, docking, variant)
+
+### Docs
+
+- New: `docs/DISTRIBUTED-COMPUTING.md` — full protocol guide for central task queue
+- Updated: `docs/API-REFERENCE.md` — task queue endpoint documentation
+- Updated: `docs/ARCHITECTURE.md` — central task queue layer diagram
+- Updated: `CONTRIBUTING.md` — "Donate GPU Compute" contribution path
+
 ## 0.1.0 (2026-03-20)
 
 ### Feat

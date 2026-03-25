@@ -302,6 +302,108 @@ Returns: `{ "contributor_id": "<uuid>" }`
 
 Look up a contributor's public key by UUID (used for signature verification).
 
+#### `GET /results/count`
+
+Returns total result count in D1.
+
+Returns: `{ "count": 42 }`
+
+---
+
+### Central Task Queue (Distributed Computing)
+
+See [DISTRIBUTED-COMPUTING.md](DISTRIBUTED-COMPUTING.md) for full protocol
+details. The task queue turns OpenCure Labs into a BOINC-style distributed
+computing platform — contributors claim research tasks, execute them on their
+own GPU, and report results back.
+
+**D1 Schema:** `workers/ingest/tasks-schema.sql`  
+**Task generation:** `workers/ingest/tasks.ts`
+
+#### `GET /tasks/claim`
+
+Atomically claim available research tasks from the queue.
+
+| Parameter | Type | Default | Description |
+|---|---|---|---|
+| `count` | integer | 1 | Number of tasks to claim (max 50) |
+| `skill` | string | — | Filter by skill name (e.g., `neoantigen_prediction`) |
+| `contributor_id` | string | — | Identifier for the claiming contributor |
+
+Returns:
+
+```json
+{
+  "claimed": 3,
+  "tasks": [
+    {
+      "id": "uuid",
+      "skill": "neoantigen_prediction",
+      "input_data": { "gene": "TP53", "tumor_type": "breast", ... },
+      "domain": "cancer",
+      "species": "human",
+      "label": "Neoantigen [human]: TP53 (breast, HLA-A*02:01)",
+      "priority": 10
+    }
+  ]
+}
+```
+
+Claim semantics:
+- Uses `UPDATE ... WHERE status = 'available' LIMIT N` for atomic claiming
+- Claims expire after 24 hours (reclaimed by weekly cron)
+- Empty result (`claimed: 0`) means no matching tasks available
+
+#### `POST /tasks/:id/complete`
+
+Mark a claimed task as completed.
+
+Body:
+
+```json
+{
+  "result_id": "<uuid of the submitted result>"
+}
+```
+
+Returns `200 { "ok": true }` on success, `404` if the task is not in `claimed`
+status (already completed or expired).
+
+#### `GET /tasks/stats`
+
+Returns task queue statistics grouped by status and skill.
+
+```json
+{
+  "totals": [
+    { "status": "available", "count": 1319 },
+    { "status": "claimed", "count": 6 },
+    { "status": "completed", "count": 5 }
+  ],
+  "by_skill": [
+    { "skill": "neoantigen_prediction", "status": "available", "count": 1234 }
+  ]
+}
+```
+
+#### `POST /tasks/generate`
+
+Admin-only. Populates the task queue from hardcoded parameter banks. Idempotent
+— uses `INSERT OR IGNORE` with `input_hash` deduplication, so re-running inserts
+zero rows if the queue is already populated.
+
+| Header | Required | Description |
+|---|---|---|
+| `X-Admin-Key` | Yes | Must match the `ADMIN_KEY` Cloudflare secret |
+
+Returns: `{ "ok": true, "inserted": 1330 }`
+
+#### Cron: `0 0 * * SUN`
+
+Weekly scheduled trigger that:
+1. Reclaims tasks stuck in `claimed` status for >24 hours (resets to `available`)
+2. Calls `populateTaskQueue()` to insert any new tasks from parameter banks
+
 ---
 
 ## Database Layer

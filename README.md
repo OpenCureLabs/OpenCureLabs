@@ -22,6 +22,7 @@
 - [Reviewer Agents](#reviewer-agents)
 - [Outputs & Publishing](#outputs--publishing)
 - [Global Dataset](#global-dataset)
+- [Distributed Computing](#distributed-computing)
 - [My Data / Solo Mode](#my-data--solo-mode)
 - [Dashboard & Monitoring](#dashboard--monitoring)
 - [Scientific Capabilities](#scientific-capabilities)
@@ -300,6 +301,32 @@ Every result submitted to the global dataset is signed with an Ed25519 keypair t
 
 ---
 
+## Distributed Computing
+
+OpenCure Labs includes a BOINC-style central task queue — like Folding@home, but
+for cancer genomics. A Cloudflare D1 database holds 1,330+ pre-generated research
+tasks (neoantigen predictions, molecular docking, QSAR modeling, etc.), and any
+contributor can claim tasks, run them on GPU, and report results back.
+
+```bash
+# Donate GPU time — claim 10 tasks, spend at most $1.00
+python -m agentiq_labclaw.compute.batch_dispatcher \
+    --mode contribute --count 10 --max-cost 1.00
+```
+
+This eliminates duplicate work across the network and ensures every GPU cycle
+goes toward unclaimed research. See
+[docs/DISTRIBUTED-COMPUTING.md](docs/DISTRIBUTED-COMPUTING.md) for the full
+protocol, and [CONTRIBUTING.md](CONTRIBUTING.md) for getting started.
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /tasks/stats` | Queue status — available, claimed, completed counts |
+| `GET /tasks/claim` | Atomically claim tasks for execution |
+| `POST /tasks/:id/complete` | Report task completion |
+
+---
+
 ## My Data / Solo Mode
 
 Run private analysis on your own files (tumor VCF, FASTQ, FASTA, SDF, PDB) with no external calls.
@@ -382,6 +409,7 @@ OpenCure Labs is currently capable of or actively building toward:
 - [x] QSAR model training and evaluation
 - [x] Automated scientific report generation
 - [x] Autonomous critique and iterative refinement
+- [x] Central task queue for distributed GPU contributions (BOINC-style)
 - [ ] Full end-to-end neoantigen → vaccine candidate workflow
 - [ ] Multi-omics integration (transcriptomics + proteomics)
 - [ ] Active learning loops for compound optimization
@@ -403,6 +431,12 @@ OpenCure Labs is currently capable of or actively building toward:
 - Ed25519 result signing and contributor registration
 - Automated PDF report generation
 - GitHub Actions–based pipeline CI/CD
+
+**Phase 2.5 — Distributed Computing** ✓
+- Central task queue on Cloudflare D1 (1,330 research tasks)
+- `--mode contribute` for batch dispatcher (claim → execute → report)
+- Deduplication at task generation and result submission
+- Weekly cron for queue maintenance and expired claim recovery
 
 **Phase 3 — Autonomy**
 - Closed-loop experiment design and iteration

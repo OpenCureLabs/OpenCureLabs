@@ -505,6 +505,71 @@ review, publication, and public availability.
 
 ---
 
+## Central Task Queue (Distributed Computing)
+
+OpenCure Labs includes a BOINC-style central task queue that enables distributed
+GPU contributions. External contributors (or your own machines in
+`--mode contribute`) claim research tasks from the queue, run them locally, and
+report results back — eliminating duplicate work across the network.
+
+See [DISTRIBUTED-COMPUTING.md](DISTRIBUTED-COMPUTING.md) for the full protocol
+and contributor guide.
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                    CLOUDFLARE D1 — Task Queue                        │
+│                                                                      │
+│  tasks table:                                                        │
+│  ┌────────────────────────────────────────────────────────────────┐  │
+│  │ id │ skill │ input_hash │ input_data │ status │ claimed_by │...│  │
+│  │────│───────│────────────│────────────│────────│────────────│   │  │
+│  │ a1 │ neo   │ sha256...  │ {gene,..}  │ avail  │ NULL       │   │  │
+│  │ b2 │ qsar  │ sha256...  │ {smiles..} │claimed │ contrib-1  │   │  │
+│  │ c3 │ neo   │ sha256...  │ {gene,..}  │ done   │ contrib-2  │   │  │
+│  └────────────────────────────────────────────────────────────────┘  │
+│                                                                      │
+│  Populated by: POST /tasks/generate (admin, idempotent)              │
+│  Replenished by: weekly cron (0 0 * * SUN)                           │
+│  Expired claims reclaimed: >24h → reset to available                 │
+└──────────────────────────────────────────────────┬──────────────────┘
+                                                   │
+          ┌────────────────────────────────────────┤
+          │                                        │
+          ▼                                        ▼
+┌──────────────────────┐             ┌──────────────────────┐
+│  Contributor A       │             │  Contributor B       │
+│  (--mode contribute) │             │  (--mode contribute) │
+│                      │             │                      │
+│  1. GET /tasks/claim │             │  1. GET /tasks/claim │
+│     (count=5)        │             │     (count=10)       │
+│  2. Provision GPU    │             │  2. Provision GPU    │
+│     on Vast.ai       │             │     on Vast.ai       │
+│  3. Execute skills   │             │  3. Execute skills   │
+│  4. POST /tasks/:id  │             │  4. POST /tasks/:id  │
+│     /complete        │             │     /complete        │
+└──────────────────────┘             └──────────────────────┘
+```
+
+### Task Queue Status Lifecycle
+
+| Status | Meaning | Transitions to |
+|---|---|---|
+| `available` | Ready to be claimed | `claimed` (via GET /tasks/claim) |
+| `claimed` | Assigned to a contributor | `completed` or `available` (expired after 24h) |
+| `completed` | Result submitted | Terminal state |
+
+### Deduplication
+
+Two layers prevent duplicate work:
+
+1. **Task-level** — `input_hash` (SHA-256 of canonical input JSON) is UNIQUE in
+   D1. Re-generating the queue inserts zero rows for existing inputs.
+2. **Result-level** — When a result is POSTed to `/results`, the ingest worker
+   computes the same `input_hash` and checks for a matching task. If found and
+   completed, it returns `409 Conflict`.
+
+---
+
 ## Synthetic Data Isolation
 
 When running in batch/genesis mode without real experimental input files (VCF,

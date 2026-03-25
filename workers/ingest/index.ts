@@ -16,12 +16,20 @@
  * POST /critiques     — attach a critique to a result.
  * GET  /critiques     — query critiques.
  *
+ * GET  /tasks/claim   — claim available research tasks from central queue.
+ * POST /tasks/:id/complete — mark a claimed task as completed.
+ * GET  /tasks/stats   — task queue statistics.
+ * POST /tasks/generate — admin-only: populate task queue from parameter banks.
+ *
  * Storage:
  *   R2  → results/{skill}/{YYYY-MM-DD}/{uuid}.json   (immutable blobs)
  *   R2  → latest.json                                (rolling feed, 100 published entries)
  *   D1  → results table                              (queryable index)
  *   D1  → contributors table                         (public key registry)
+ *   D1  → tasks table                                (central research task queue)
  */
+
+import { generateAllTasks, inputHash, type TaskInput } from "./tasks";
 
 const KNOWN_SKILLS = [
     "neoantigen_prediction",
@@ -115,7 +123,30 @@ export default {
             return handleGetCritiques(request, env);
         }
 
+        // ── Task Queue Routes ───────────────────────────────────────────
+        if (request.method === "GET" && url.pathname === "/tasks/claim") {
+            return handleTaskClaim(request, env);
+        }
+
+        if (request.method === "POST" && url.pathname.match(/^\/tasks\/[^/]+\/complete$/)) {
+            return handleTaskComplete(request, env);
+        }
+
+        if (request.method === "GET" && url.pathname === "/tasks/stats") {
+            return handleTaskStats(env);
+        }
+
+        if (request.method === "POST" && url.pathname === "/tasks/generate") {
+            return handleTaskGenerate(request, env);
+        }
+
         return json({ error: "Not found" }, 404);
+    },
+
+    async scheduled(_event: ScheduledEvent, env: Env, _ctx: ExecutionContext): Promise<void> {
+        // Weekly cron: populate task queue + reclaim expired tasks
+        await populateTaskQueue(env);
+        await reclaimExpiredTasks(env);
     },
 };
 
@@ -215,6 +246,26 @@ async function handlePost(request: Request, env: Env): Promise<Response> {
         return json({ error: `Unknown skill '${payload.skill}'. Valid skills: ${KNOWN_SKILLS.join(", ")}` }, 400);
     }
 
+    // ── Dedup: check if a matching task was already completed ────────────
+    const resultData0 = payload.result_data as Record<string, unknown>;
+    const dedupInput: Record<string, unknown> = {};
+    // Build a canonical input from the result data for dedup matching
+    for (const k of ["sample_id", "vcf_path", "hla_alleles", "tumor_type", "species",
+        "protein_id", "sequence", "method", "variant_id", "gene", "hgvs",
+        "dataset_path", "target_column", "model_type", "mode",
+        "ligand_smiles", "receptor_pdb"]) {
+        if (resultData0[k] !== undefined) dedupInput[k] = resultData0[k];
+    }
+    if (Object.keys(dedupInput).length > 0) {
+        const hash = await inputHash(dedupInput);
+        const existing = await env.RESULTS_DB.prepare(
+            `SELECT id FROM tasks WHERE input_hash = ? AND status = 'completed'`
+        ).bind(hash).first();
+        if (existing) {
+            return json({ error: "Duplicate result — task already completed", task_id: existing.id }, 409);
+        }
+    }
+
     // local_critique is optional — results without it go to pending for sweep review
 
     const id = crypto.randomUUID();
@@ -277,6 +328,15 @@ async function handlePost(request: Request, env: Env): Promise<Response> {
             createdAt
         )
         .run();
+
+    // Auto-complete matching task if one exists
+    if (Object.keys(dedupInput).length > 0) {
+        const hash = await inputHash(dedupInput);
+        await env.RESULTS_DB.prepare(
+            `UPDATE tasks SET status = 'completed', completed_at = ?, result_id = ?
+             WHERE input_hash = ? AND status IN ('available', 'claimed')`
+        ).bind(createdAt, id, hash).run();
+    }
 
     return json({ id, url: r2Url, status: "pending" }, 201);
 }
@@ -698,6 +758,163 @@ async function updateLatest(env: Env, entry: LatestEntry): Promise<void> {
     await env.RESULTS_BUCKET.put("latest.json", JSON.stringify(entries, null, 2), {
         httpMetadata: { contentType: "application/json" },
     });
+}
+
+// ── Task Queue Handlers ─────────────────────────────────────────────────
+
+/**
+ * GET /tasks/claim?skill=neoantigen_prediction&count=5&contributor_id=abc
+ * Atomically claim available tasks. Returns claimed tasks with input_data.
+ */
+async function handleTaskClaim(request: Request, env: Env): Promise<Response> {
+    const url = new URL(request.url);
+    const skill = url.searchParams.get("skill");
+    const count = Math.min(parseInt(url.searchParams.get("count") ?? "5", 10), 50);
+    const contributorId = url.searchParams.get("contributor_id") ?? "anonymous";
+
+    if (count < 1) return json({ error: "count must be >= 1" }, 400);
+
+    const now = new Date().toISOString();
+
+    let query = `SELECT id, skill, input_data, domain, species, label, priority
+                 FROM tasks WHERE status = 'available'`;
+    const params: unknown[] = [];
+
+    if (skill) {
+        query += ` AND skill = ?`;
+        params.push(skill);
+    }
+    query += ` ORDER BY priority ASC, created_at ASC LIMIT ?`;
+    params.push(count);
+
+    const available = await env.RESULTS_DB.prepare(query).bind(...params).all();
+
+    if (!available.results?.length) {
+        return json({ tasks: [], claimed: 0 });
+    }
+
+    // Atomically claim each task
+    const claimed = [];
+    for (const task of available.results) {
+        const update = await env.RESULTS_DB.prepare(
+            `UPDATE tasks SET status = 'claimed', claimed_by = ?, claimed_at = ?
+             WHERE id = ? AND status = 'available'`
+        ).bind(contributorId, now, task.id).run();
+
+        if (update.meta.changes > 0) {
+            claimed.push({
+                id: task.id,
+                skill: task.skill,
+                input_data: typeof task.input_data === "string" ? JSON.parse(task.input_data as string) : task.input_data,
+                domain: task.domain,
+                species: task.species,
+                label: task.label,
+            });
+        }
+    }
+
+    return json({ tasks: claimed, claimed: claimed.length });
+}
+
+/**
+ * POST /tasks/:id/complete  { result_id: "..." }
+ * Mark a claimed task as completed and link to the result.
+ */
+async function handleTaskComplete(request: Request, env: Env): Promise<Response> {
+    const url = new URL(request.url);
+    const match = url.pathname.match(/^\/tasks\/([^/]+)\/complete$/);
+    if (!match) return json({ error: "Invalid path" }, 400);
+
+    const taskId = match[1];
+    const body = await request.json<{ result_id?: string }>();
+
+    const now = new Date().toISOString();
+
+    const result = await env.RESULTS_DB.prepare(
+        `UPDATE tasks SET status = 'completed', completed_at = ?, result_id = ?
+         WHERE id = ? AND status = 'claimed'`
+    ).bind(now, body.result_id ?? null, taskId).run();
+
+    if (result.meta.changes === 0) {
+        return json({ error: "Task not found or not in claimed state" }, 404);
+    }
+
+    return json({ ok: true, task_id: taskId });
+}
+
+/**
+ * GET /tasks/stats
+ * Return aggregate counts by status, optionally filtered by skill or domain.
+ */
+async function handleTaskStats(env: Env): Promise<Response> {
+    const stats = await env.RESULTS_DB.prepare(
+        `SELECT status, skill, COUNT(*) as count FROM tasks GROUP BY status, skill ORDER BY status, skill`
+    ).all();
+
+    const totals = await env.RESULTS_DB.prepare(
+        `SELECT status, COUNT(*) as count FROM tasks GROUP BY status`
+    ).all();
+
+    return json({ by_skill: stats.results, totals: totals.results });
+}
+
+/**
+ * POST /tasks/generate  (admin-only)
+ * Populate the task queue from parameter banks. Idempotent via input_hash UNIQUE.
+ */
+async function handleTaskGenerate(request: Request, env: Env): Promise<Response> {
+    const adminKey = request.headers.get("X-Admin-Key");
+    if (env.ADMIN_KEY && adminKey !== env.ADMIN_KEY) {
+        return json({ error: "Unauthorized" }, 401);
+    }
+
+    const inserted = await populateTaskQueue(env);
+    return json({ ok: true, inserted, message: `Generated ${inserted} new tasks` });
+}
+
+/**
+ * Generate tasks and INSERT OR IGNORE into D1. Returns count of newly inserted tasks.
+ */
+async function populateTaskQueue(env: Env): Promise<number> {
+    const allTasks = generateAllTasks();
+    let inserted = 0;
+
+    // Process in batches of 50 to avoid D1 limits
+    const batchSize = 50;
+    for (let i = 0; i < allTasks.length; i += batchSize) {
+        const batch = allTasks.slice(i, i + batchSize);
+        const stmts = [];
+
+        for (const task of batch) {
+            const hash = await inputHash(task.input_data);
+            const id = crypto.randomUUID();
+            stmts.push(
+                env.RESULTS_DB.prepare(
+                    `INSERT OR IGNORE INTO tasks (id, skill, input_hash, input_data, domain, species, label, priority)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+                ).bind(id, task.skill, hash, JSON.stringify(task.input_data), task.domain, task.species, task.label, task.priority)
+            );
+        }
+
+        const results = await env.RESULTS_DB.batch(stmts);
+        for (const r of results) {
+            if (r.meta.changes > 0) inserted++;
+        }
+    }
+
+    return inserted;
+}
+
+/**
+ * Reclaim tasks that have been claimed for > 24 hours without completion.
+ */
+async function reclaimExpiredTasks(env: Env): Promise<number> {
+    const cutoff = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const result = await env.RESULTS_DB.prepare(
+        `UPDATE tasks SET status = 'available', claimed_by = NULL, claimed_at = NULL
+         WHERE status = 'claimed' AND claimed_at < ?`
+    ).bind(cutoff).run();
+    return result.meta.changes;
 }
 
 function json(data: unknown, status = 200): Response {

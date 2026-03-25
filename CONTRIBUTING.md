@@ -17,6 +17,7 @@ There are many entry points, whether you're a biologist, engineer, or someone wh
 | Contribution Type | Who It's For | Effort |
 |---|---|---|
 | **Run a pipeline** | Anyone | Low — clone, run, report |
+| **Donate GPU compute** | Anyone with a Vast.ai account | Low — one command |
 | **Implement a skill** | Python developers | Medium — build a scientific pipeline module |
 | **Add a data connector** | Backend engineers | Medium — integrate a scientific database |
 | **Improve scientific accuracy** | Domain experts | Variable — review logic, open issues |
@@ -37,6 +38,35 @@ python tests/test_neoantigen.py
 ```
 
 Open an issue with your output, environment details, and any errors.
+
+### Donate GPU compute
+
+The fastest way to contribute scientific results is to donate GPU time. OpenCure
+Labs uses a central task queue (like BOINC or Folding@home) — you claim research
+tasks, your machine runs them on Vast.ai GPUs, and results flow back to the
+global dataset automatically.
+
+```bash
+git clone https://github.com/OpenCureLabs/OpenCureLabs.git
+cd OpenCureLabs
+python3 -m venv .venv && source .venv/bin/activate
+pip install -e packages/agentiq_labclaw
+
+# Set your Vast.ai key and a contributor ID
+export VAST_AI_KEY="your-vast-ai-key"
+export OPENCURE_CONTRIBUTOR_ID="your-name-or-handle"
+
+# Claim 10 tasks, spend at most $1.00, then stop
+python -m agentiq_labclaw.compute.batch_dispatcher \
+    --mode contribute --count 10 --max-cost 1.00
+```
+
+This provisions a GPU instance, claims tasks from the central queue, executes
+them, reports results, and tears down the instance when done. No local GPU
+required — all compute runs on Vast.ai.
+
+See [docs/DISTRIBUTED-COMPUTING.md](docs/DISTRIBUTED-COMPUTING.md) for the
+full protocol, available task types, and how deduplication works.
 
 ### Implement a skill
 

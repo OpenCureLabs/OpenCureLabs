@@ -33,10 +33,11 @@ class BatchTask:
     """A single unit of work to dispatch to the Vast.ai pool."""
     skill_name: str            # maps to _SKILL_MODULES key in skills/__init__.py
     input_data: dict[str, Any]
-    domain: str                # "cancer" | "drug_discovery" | "rare_disease"
+    domain: str = ""           # "cancer" | "drug_discovery" | "rare_disease"
     label: str = ""            # human-readable description
     priority: int = 5          # 1 (highest) – 10 (lowest)
     estimated_gpu_min: int = 5 # rough GPU time estimate
+    central_task_id: str | None = None  # ID from central queue (contribute mode)
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -85,9 +86,9 @@ DRUG_TARGETS = [
     {"protein_id": "ALK",     "pdb": "2XP2", "seq_len": 1620, "ligand": "crizotinib", "smiles": "CC(Oc1cc(-c2cnn(C3CCNCC3)c2)cnc1N)c1c(Cl)ccc(F)c1Cl"},
     {"protein_id": "JAK2",    "pdb": "3FUP", "seq_len": 1132, "ligand": "ruxolitinib","smiles": "N#Cc1cc(-c2ccnc3[nH]ccc23)cn1CC1CCC1"},
     {"protein_id": "BTK",     "pdb": "3GEN", "seq_len": 659,  "ligand": "ibrutinib",  "smiles": "C=CC(=O)Nc1cccc(-n2c(=O)c3[nH]c4ccccc4c3c3cc(N4CCOCC4)ccc32)c1"},
-    {"protein_id": "PI3Kα",   "pdb": "4JPS", "seq_len": 1068, "ligand": "alpelisib",  "smiles": "CC1(C)Cc2cnc(Nc3cc(F)c(S(=O)(=O)C4CC4)c(F)c3)nc2CO1"},
+    {"protein_id": "PIK3CA",  "pdb": "4JPS", "seq_len": 1068, "ligand": "alpelisib",  "smiles": "CC1(C)Cc2cnc(Nc3cc(F)c(S(=O)(=O)C4CC4)c(F)c3)nc2CO1", "name": "PI3Kα"},
     {"protein_id": "PARP1",   "pdb": "5DS3", "seq_len": 1014, "ligand": "olaparib",   "smiles": "O=C(c1cc2ccccc2c(=O)[nH]1)N1CCN(C(=O)c2cc3ccccc3[nH]c2=O)CC1"},
-    {"protein_id": "PD-L1",   "pdb": "5J89", "seq_len": 290,  "ligand": "BMS-202",    "smiles": "CCOc1cc(OC)cc(/C=C/c2cc[nH+]c(NC3CCCCC3)c2)c1"},
+    {"protein_id": "CD274",   "pdb": "5J89", "seq_len": 290,  "ligand": "BMS-202",    "smiles": "CCOc1cc(OC)cc(/C=C/c2cc[nH+]c(NC3CCCCC3)c2)c1", "name": "PD-L1"},
 ]
 
 CHEMBL_DATASETS = [
@@ -262,7 +263,8 @@ def _structure_tasks(count: int, domain: str = "cancer") -> list[BatchTask]:
             label = f"Structure: {pid} (cancer)"
         else:
             pid = src["protein_id"]
-            label = f"Structure: {pid} (drug target)"
+            name = src.get("name", pid)
+            label = f"Structure: {name} (drug target)"
         tasks.append(BatchTask(
             skill_name="structure_prediction",
             input_data={
@@ -322,7 +324,7 @@ def _docking_tasks(count: int) -> list[BatchTask]:
                 "method": method,
             },
             domain="drug_discovery",
-            label=f"Docking: {target['ligand']} → {target['protein_id']} ({method})",
+            label=f"Docking: {target['ligand']} → {target.get('name', target['protein_id'])} ({method})",
             priority=4,
             estimated_gpu_min=15,
         ))

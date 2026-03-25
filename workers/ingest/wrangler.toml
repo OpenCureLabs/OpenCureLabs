@@ -14,3 +14,7 @@ database_id   = "2eb3a609-db64-4366-94ca-596002a8cbef"
 [[routes]]
 pattern   = "ingest.opencurelabs.ai/*"
 zone_name = "opencurelabs.ai"
+
+# Weekly cron: repopulate task queue + reclaim expired claims (every Sunday midnight UTC)
+[triggers]
+crons = ["0 0 * * SUN"]
