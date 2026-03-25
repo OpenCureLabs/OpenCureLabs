@@ -88,6 +88,19 @@
 
         .stat {
             text-align: center;
+            cursor: pointer;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            transition: background 0.15s;
+        }
+
+        .stat:hover {
+            background: rgba(0, 191, 255, 0.08);
+        }
+
+        .stat.active {
+            background: rgba(0, 191, 255, 0.12);
+            outline: 1px solid var(--accent);
         }
 
         .stat .value {
@@ -380,11 +393,11 @@
     </div>
 
     <div class="stats-bar">
-        <div class="stat">
+        <div class="stat" onclick="setStatFilter('all')" title="Show all results">
             <div class="value" id="stat-total">—</div>
             <div class="label">Total Results</div>
         </div>
-        <div class="stat">
+        <div class="stat" onclick="setStatFilter('novel')" title="Show novel findings only">
             <div class="value" id="stat-novel">—</div>
             <div class="label">Novel Findings</div>
         </div>
@@ -392,7 +405,7 @@
             <div class="value" id="stat-skills">—</div>
             <div class="label">Skill Types</div>
         </div>
-        <div class="stat">
+        <div class="stat" onclick="setStatFilter('today')" title="Show today's results only">
             <div class="value" id="stat-today">—</div>
             <div class="label">Today</div>
         </div>
@@ -482,9 +495,26 @@
         let allCritiques = {};  // keyed by result_id
         let activeSkill = 'all';
         let activeSpecies = 'all';
+        let activeStatFilter = 'all';  // 'all' | 'novel' | 'today'
         let nextCursor = null;
         let hasMore = false;
         let isLoadingMore = false;
+
+        function setStatFilter(filter) {
+            // Toggle off if clicking the same filter
+            if (activeStatFilter === filter && filter !== 'all') {
+                activeStatFilter = 'all';
+            } else {
+                activeStatFilter = filter;
+            }
+            document.querySelectorAll('.stats-bar .stat').forEach(s => s.classList.remove('active'));
+            if (activeStatFilter !== 'all') {
+                const idx = activeStatFilter === 'novel' ? 1 : 3;
+                document.querySelectorAll('.stats-bar .stat')[idx].classList.add('active');
+            }
+            renderFeed(allResults);
+            document.getElementById('feed').scrollIntoView({ behavior: 'smooth' });
+        }
 
         function setSkillFilter(btn, skill) {
             document.querySelectorAll('[data-skill]').forEach(b => b.classList.remove('active'));
@@ -539,6 +569,11 @@
         function renderFeed(results) {
             const feed = document.getElementById('feed');
             let filtered = results;
+            if (activeStatFilter === 'novel') filtered = filtered.filter(r => r.novel);
+            if (activeStatFilter === 'today') {
+                const today = new Date().toISOString().slice(0, 10);
+                filtered = filtered.filter(r => r.date === today);
+            }
             if (activeSkill !== 'all') filtered = filtered.filter(r => r.skill === activeSkill);
             if (activeSpecies !== 'all') filtered = filtered.filter(r => (r.species || 'human') === activeSpecies);
 
