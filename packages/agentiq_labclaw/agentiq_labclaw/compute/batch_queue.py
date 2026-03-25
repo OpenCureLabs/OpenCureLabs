@@ -91,7 +91,7 @@ class BatchQueue:
 
     # ── Submit ────────────────────────────────────────────────────────────
 
-    def submit_batch(self, tasks: list) -> str:
+    def submit_batch(self, tasks: list, genesis_run_id: str | None = None) -> str:
         """Insert a batch of tasks as pending jobs. Returns batch_id."""
         batch_id = uuid.uuid4().hex[:12]
         conn = _get_conn()
@@ -101,8 +101,8 @@ class BatchQueue:
                 cur.execute(
                     """
                     INSERT INTO batch_jobs
-                        (batch_id, skill_name, input_data, domain, label, priority)
-                    VALUES (%s, %s, %s, %s, %s, %s)
+                        (batch_id, skill_name, input_data, domain, label, priority, genesis_run_id)
+                    VALUES (%s, %s, %s, %s, %s, %s, %s)
                     """,
                     (
                         batch_id,
@@ -111,11 +111,12 @@ class BatchQueue:
                         task.domain,
                         task.label,
                         task.priority,
+                        genesis_run_id,
                     ),
                 )
             conn.commit()
             cur.close()
-            logger.info("Submitted batch %s with %d jobs", batch_id, len(tasks))
+            logger.info("Submitted batch %s with %d jobs (run=%s)", batch_id, len(tasks), genesis_run_id)
         finally:
             conn.close()
         return batch_id

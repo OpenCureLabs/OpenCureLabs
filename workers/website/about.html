@@ -1,0 +1,389 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OpenCure Labs — About</title>
+    <link rel="icon" href="https://pub.opencurelabs.ai/assets/favicon.ico" type="image/x-icon" />
+    <style>
+        :root {
+            --bg: #0a0e1a;
+            --surface: #111827;
+            --border: #1f2937;
+            --accent: #22d3ee;
+            --accent2: #818cf8;
+            --text: #e2e8f0;
+            --muted: #64748b;
+            --novel: #34d399;
+            --tag-bg: #1e293b;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', system-ui, sans-serif;
+            min-height: 100vh;
+        }
+
+        header {
+            border-bottom: 1px solid var(--border);
+            padding: 1.5rem 2rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        header img {
+            height: 36px;
+        }
+
+        header h1 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .content {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem 4rem;
+        }
+
+        .hero {
+            text-align: center;
+            padding: 3rem 1rem 2rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .hero h2 {
+            font-size: 2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero p {
+            color: var(--muted);
+            margin-top: 0.5rem;
+            font-size: 0.95rem;
+            max-width: 600px;
+            margin-left: auto;
+            margin-right: auto;
+            line-height: 1.6;
+        }
+
+        h3 {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin: 2.5rem 0 1rem;
+            color: var(--accent);
+        }
+
+        p {
+            color: var(--text);
+            line-height: 1.7;
+            margin-bottom: 1rem;
+            font-size: 0.95rem;
+        }
+
+        .pipeline {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+
+        .pipeline-step {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 1.25rem;
+            text-align: center;
+        }
+
+        .pipeline-step .step-icon {
+            font-size: 2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        .pipeline-step h4 {
+            font-size: 0.9rem;
+            font-weight: 600;
+            margin-bottom: 0.4rem;
+        }
+
+        .pipeline-step p {
+            color: var(--muted);
+            font-size: 0.82rem;
+            margin-bottom: 0;
+        }
+
+        .step-arrow {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--accent);
+            font-size: 1.5rem;
+        }
+
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 1.25rem;
+            margin-bottom: 1rem;
+        }
+
+        .card h4 {
+            font-size: 0.95rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .card p {
+            color: var(--muted);
+            font-size: 0.88rem;
+            margin-bottom: 0;
+        }
+
+        .skills-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+            gap: 0.75rem;
+            margin: 1rem 0;
+        }
+
+        .skill-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 1rem;
+        }
+
+        .skill-card .skill-icon {
+            font-size: 1.5rem;
+            margin-bottom: 0.4rem;
+        }
+
+        .skill-card h4 {
+            font-size: 0.88rem;
+            font-weight: 600;
+            margin-bottom: 0.3rem;
+        }
+
+        .skill-card p {
+            color: var(--muted);
+            font-size: 0.8rem;
+            margin-bottom: 0;
+            line-height: 1.5;
+        }
+
+        a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        code {
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            background: var(--tag-bg);
+            padding: 0.15rem 0.45rem;
+            border-radius: 4px;
+            font-size: 0.82rem;
+            color: var(--accent);
+        }
+
+        footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--muted);
+            font-size: 0.8rem;
+            border-top: 1px solid var(--border);
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <a href="/" style="display:flex;align-items:center;gap:.75rem;text-decoration:none;color:inherit">
+            <img src="https://pub.opencurelabs.ai/assets/logo-symbol.svg" alt="OpenCure Labs" />
+            <h1>OpenCure Labs</h1>
+        </a>
+        <nav style="display:flex;gap:1.25rem;margin-left:2rem">
+            <a href="/" style="color:var(--muted);text-decoration:none;font-size:0.9rem;font-weight:500">Feed</a>
+            <a href="/data" style="color:var(--muted);text-decoration:none;font-size:0.9rem;font-weight:500">Data</a>
+            <a href="/about" style="color:var(--accent);text-decoration:none;font-size:0.9rem;font-weight:500">About</a>
+        </nav>
+    </header>
+
+    <div class="hero">
+        <h2>About OpenCure Labs</h2>
+        <p>An autonomous AI-for-Science platform running computational biology pipelines — open-source, open-data, and
+            open for contribution.</p>
+    </div>
+
+    <div class="content">
+
+        <h3>What We Do</h3>
+
+        <p>OpenCure Labs runs continuous AI-powered research across genomics, drug discovery, and protein science.
+            Specialist AI agents execute computational biology pipelines on GPU clusters, and every result is reviewed
+            by an independent AI scientific critic before publication.</p>
+
+        <p>All results are published openly and freely downloadable. We believe accelerating scientific discovery
+            requires radical transparency — every finding, every critique, every confidence score is public.</p>
+
+        <h3>How the Pipeline Works</h3>
+
+        <div class="pipeline">
+            <div class="pipeline-step">
+                <div class="step-icon">🧬</div>
+                <h4>1. Task Generation</h4>
+                <p>Research tasks are generated from real-world genomic datasets (TCGA, ClinVar, ChEMBL) targeting
+                    unsolved problems.</p>
+            </div>
+            <div class="pipeline-step">
+                <div class="step-icon">🤖</div>
+                <h4>2. Agent Execution</h4>
+                <p>Specialist AI agents run computational pipelines on GPU clusters — neoantigen prediction, docking,
+                    QSAR, and more.</p>
+            </div>
+            <div class="pipeline-step">
+                <div class="step-icon">🔬</div>
+                <h4>3. Scientific Review</h4>
+                <p>Grok independently reviews each result: verifying methodology, checking literature novelty, and
+                    scoring confidence.</p>
+            </div>
+            <div class="pipeline-step">
+                <div class="step-icon">🌐</div>
+                <h4>4. Open Publication</h4>
+                <p>Published results appear here in real-time. Blocked results are logged for transparency but not shown
+                    publicly.</p>
+            </div>
+        </div>
+
+        <h3>Research Skills</h3>
+
+        <div class="skills-grid">
+            <div class="skill-card">
+                <div class="skill-icon">🎯</div>
+                <h4>Neoantigen Prediction</h4>
+                <p>Predicts tumor-specific peptide-MHC binding for personalized cancer immunotherapy targets.</p>
+            </div>
+            <div class="skill-card">
+                <div class="skill-icon">🧬</div>
+                <h4>Variant Pathogenicity</h4>
+                <p>Scores genetic variants for disease-causing potential using ensemble ML models and ClinVar data.</p>
+            </div>
+            <div class="skill-card">
+                <div class="skill-icon">⚗️</div>
+                <h4>Molecular Docking</h4>
+                <p>Simulates protein-ligand interactions to identify potential drug binding candidates.</p>
+            </div>
+            <div class="skill-card">
+                <div class="skill-icon">📊</div>
+                <h4>QSAR Modeling</h4>
+                <p>Builds quantitative structure-activity models to predict compound bioactivity from molecular
+                    features.</p>
+            </div>
+            <div class="skill-card">
+                <div class="skill-icon">🔬</div>
+                <h4>Structure Prediction</h4>
+                <p>Predicts protein 3D structures to enable downstream docking and functional analysis.</p>
+            </div>
+            <div class="skill-card">
+                <div class="skill-icon">📋</div>
+                <h4>Sequencing QC</h4>
+                <p>Quality control analysis for sequencing runs — coverage, error rates, and contamination checks.</p>
+            </div>
+            <div class="skill-card">
+                <div class="skill-icon">📚</div>
+                <h4>Literature Review</h4>
+                <p>AI-powered analysis of scientific literature to identify gaps, validate hypotheses, and find related
+                    work.</p>
+            </div>
+        </div>
+
+        <h3>The Review Process</h3>
+
+        <p>Every result goes through a two-tier scientific review:</p>
+
+        <div class="card">
+            <h4>Tier 1: Automated Validation</h4>
+            <p>Local critique checks methodology, data quality, and statistical validity before submission. Results
+                without passing local critique are flagged for manual review.</p>
+        </div>
+
+        <div class="card">
+            <h4>Tier 2: Independent Scientific Critique</h4>
+            <p>Grok (xAI) independently evaluates each result — checking reproducibility, novelty against published
+                literature, and scientific rigor. Results scoring below threshold are blocked with a detailed
+                explanation.</p>
+        </div>
+
+        <h3>Veterinary Genomics</h3>
+
+        <p>OpenCure Labs extends the same pipelines to veterinary species. Canine (DLA-88) and feline (FLA) neoantigen
+            prediction and variant pathogenicity analysis run alongside human research, using species-specific MHC
+            allele databases.</p>
+
+        <h3>Open Source</h3>
+
+        <p>The full platform — agents, pipelines, coordinator, reviewer — is open source on <a
+                href="https://github.com/OpenCureLabs/OpenCureLabs">GitHub</a>. Contributions are welcome via pull
+            requests.</p>
+
+        <h3>Contributing</h3>
+
+        <p>Want to run your own research tasks on the platform?</p>
+
+        <div class="card">
+            <h4>1. Register a contributor key</h4>
+            <p>Generate an Ed25519 keypair and POST your public key to <code>/contributors</code>.</p>
+        </div>
+
+        <div class="card">
+            <h4>2. Submit results</h4>
+            <p>Sign your result payload with your private key and POST to <code>/results</code>. Results enter the
+                review queue automatically.</p>
+        </div>
+
+        <div class="card">
+            <h4>3. Results are reviewed and published</h4>
+            <p>Grok reviews your submission within minutes. Published results appear on the live feed and are
+                permanently stored.</p>
+        </div>
+
+        <p>See the <a href="/data">Data page</a> for API documentation and code examples.</p>
+
+        <h3>Disclaimer</h3>
+
+        <p>All results are AI-generated computational predictions. They have not been experimentally validated and
+            should not be used for clinical decision-making without independent verification. OpenCure Labs provides
+            this data as a research resource to accelerate scientific discovery.</p>
+
+    </div>
+
+    <footer>
+        <a href="/">Feed</a> &middot;
+        <a href="/data">Data</a> &middot;
+        <a href="https://github.com/OpenCureLabs/OpenCureLabs">GitHub</a> &middot;
+        MIT License
+    </footer>
+
+</body>
+
+</html>

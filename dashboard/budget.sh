@@ -57,12 +57,20 @@ while true; do
         # Account balance from API
         API_BALANCE=$(curl -sf -H "Authorization: Bearer $VAST_KEY" \
             "https://console.vast.ai/api/v0/users/current/" 2>/dev/null \
-            | python3 -c "import json,sys; print(json.loads(sys.stdin.read()).get('credit',0))" 2>/dev/null \
+            | python3 -c "import json,sys; print(f'{json.loads(sys.stdin.read()).get(\"credit\",0):.2f}')" 2>/dev/null \
             || echo "0")
 
-        # Session spend from DB
+        # Session spend from DB (all-time)
         VAST_SPENT=$(psql -p 5433 -d opencurelabs -t -A -c \
             "SELECT COALESCE(SUM(total_cost), 0) FROM vast_spend" 2>/dev/null || echo "0")
+
+        # Per-run spend (filtered by GENESIS_START if set)
+        VAST_RUN_SPENT="0"
+        if [[ -n "${GENESIS_START:-}" ]]; then
+            VAST_RUN_SPENT=$(psql -p 5433 -d opencurelabs -t -A -c \
+                "SELECT COALESCE(SUM(total_cost), 0) FROM vast_spend WHERE started_at >= to_timestamp($GENESIS_START)" \
+                2>/dev/null || echo "0")
+        fi
 
         # Active instances
         INSTANCE_INFO=$(curl -sf -H "Authorization: Bearer $VAST_KEY" \
@@ -89,7 +97,10 @@ for i in active:
         INST_COST_HR=$(echo "$INSTANCE_INFO" | head -1 | cut -d'|' -f2)
 
         echo -e "  ${WHITE}Account balance:${RESET}  $(format_cost "$API_BALANCE")"
-        echo -e "  ${WHITE}Session spend:${RESET}    $(format_cost "$VAST_SPENT")"
+        if [[ -n "${GENESIS_START:-}" ]]; then
+            echo -e "  ${WHITE}This run:${RESET}         $(format_cost "$VAST_RUN_SPENT")"
+        fi
+        echo -e "  ${WHITE}All-time spend:${RESET}   $(format_cost "$VAST_SPENT")"
         echo -e "  ${WHITE}Active instances:${RESET}  ${INST_COUNT}"
 
         # Show instance details if any
@@ -101,6 +112,10 @@ for i in active:
         fi
 
         GRAND_TOTAL=$(python3 -c "print(float('$GRAND_TOTAL') + float('$VAST_SPENT'))" 2>/dev/null || echo "$GRAND_TOTAL")
+        GRAND_RUN_TOTAL=0
+        if [[ -n "${GENESIS_START:-}" ]]; then
+            GRAND_RUN_TOTAL=$(python3 -c "print(float('$GRAND_RUN_TOTAL') + float('$VAST_RUN_SPENT'))" 2>/dev/null || echo "0")
+        fi
     else
         echo -e "  ${DIM}No API key set (VAST_AI_KEY)${RESET}"
     fi
@@ -111,7 +126,7 @@ for i in active:
     echo -e "${MAGENTA}${BOLD}  🧠 LLM Providers${RESET}"
     echo ""
 
-    # Query llm_spend table
+    # Query llm_spend table (all-time)
     LLM_DATA=$(psql -p 5433 -d opencurelabs -t -A -c "
         SELECT provider,
                SUM(input_tokens) as in_tok,
@@ -142,14 +157,102 @@ for i in active:
         echo -e "  ${DIM}Costs will appear here once agent tasks run.${RESET}"
     fi
 
+    # Per-run LLM spend
+    LLM_RUN_TOTAL=0
+    if [[ -n "${GENESIS_START:-}" ]]; then
+        LLM_RUN_TOTAL=$(psql -p 5433 -d opencurelabs -t -A -c \
+            "SELECT COALESCE(SUM(estimated_cost), 0) FROM llm_spend WHERE created_at >= to_timestamp($GENESIS_START)" \
+            2>/dev/null || echo "0")
+    fi
+
     GRAND_TOTAL=$(python3 -c "print(float('$GRAND_TOTAL') + float('$LLM_TOTAL'))" 2>/dev/null || echo "$GRAND_TOTAL")
+    if [[ -n "${GENESIS_START:-}" ]]; then
+        GRAND_RUN_TOTAL=$(python3 -c "print(float('${GRAND_RUN_TOTAL:-0}') + float('$LLM_RUN_TOTAL'))" 2>/dev/null || echo "${GRAND_RUN_TOTAL:-0}")
+    fi
 
     # ── 3. Summary ──────────────────────────────────────────────────────
     echo ""
     divider
-    echo -e "${GREEN}${BOLD}  📊 Session Total${RESET}"
+    echo -e "${GREEN}${BOLD}  📊 Totals${RESET}"
     echo ""
-    echo -e "  ${WHITE}${BOLD}$(format_cost "$GRAND_TOTAL")${RESET}"
+    if [[ -n "${GENESIS_START:-}" ]]; then
+        RUN_ELAPSED=$(( $(date +%s) - GENESIS_START ))
+        RUN_MIN=$(( RUN_ELAPSED / 60 ))
+        RUN_SEC=$(( RUN_ELAPSED % 60 ))
+        echo -e "  ${WHITE}This run:${RESET}   ${BOLD}$(format_cost "${GRAND_RUN_TOTAL:-0}")${RESET}  ${DIM}(${RUN_MIN}m ${RUN_SEC}s elapsed)${RESET}"
+    fi
+    echo -e "  ${WHITE}All-time:${RESET}   ${BOLD}$(format_cost "$GRAND_TOTAL")${RESET}"
+    echo ""
+
+    # ── 4. Per-Skill Cost Breakdown ─────────────────────────────────────
+    SKILL_FILTER=""
+    if [[ -n "${GENESIS_START:-}" ]]; then
+        SKILL_FILTER="WHERE bj.created_at >= to_timestamp($GENESIS_START)"
+        SKILL_LABEL="This Run"
+    else
+        SKILL_LABEL="All-Time"
+    fi
+
+    SKILL_DATA=$(psql -p 5433 -d opencurelabs -t -A -c "
+        SELECT bj.skill_name,
+               COUNT(*) as jobs,
+               SUM(CASE WHEN bj.status = 'done' THEN 1 ELSE 0 END) as done,
+               SUM(CASE WHEN bj.status = 'failed' THEN 1 ELSE 0 END) as failed,
+               COALESCE(SUM(
+                   EXTRACT(EPOCH FROM (COALESCE(bj.completed_at, NOW()) - bj.started_at)) / 3600.0
+                   * vp.cost_per_hr
+               ), 0) as est_cost
+        FROM batch_jobs bj
+        LEFT JOIN vast_pool vp ON bj.instance_id = vp.instance_id
+        $SKILL_FILTER
+        GROUP BY bj.skill_name
+        ORDER BY est_cost DESC
+    " 2>/dev/null || echo "")
+
+    if [[ -n "$SKILL_DATA" ]]; then
+        echo ""
+        divider
+        echo -e "${YELLOW}${BOLD}  🔬 Per-Skill Costs ($SKILL_LABEL)${RESET}"
+        echo ""
+        printf "  ${WHITE}%-22s %6s %6s %6s %10s${RESET}\n" "Skill" "Jobs" "Done" "Fail" "Est. Cost"
+        echo -e "  ${DIM}──────────────────────────────────────────────────────${RESET}"
+        while IFS='|' read -r skill jobs done failed est_cost; do
+            [[ -z "$skill" ]] && continue
+            COST_FMT=$(format_cost "$est_cost")
+            printf "  %-22s %6s %6s %6s %10s\n" "$skill" "$jobs" "$done" "$failed" "$COST_FMT"
+        done <<< "$SKILL_DATA"
+    fi
+
+    # ── 5. Run History ──────────────────────────────────────────────────
+    RUN_HISTORY=$(psql -p 5433 -d opencurelabs -t -A -c "
+        SELECT genesis_run_id,
+               COUNT(*) as jobs,
+               SUM(CASE WHEN status = 'done' THEN 1 ELSE 0 END) as done,
+               SUM(CASE WHEN status = 'failed' THEN 1 ELSE 0 END) as failed,
+               MIN(created_at)::text as started,
+               COALESCE(SUM(
+                   EXTRACT(EPOCH FROM (COALESCE(completed_at, NOW()) - started_at)) / 3600.0
+               ), 0) as gpu_hours
+        FROM batch_jobs
+        WHERE genesis_run_id IS NOT NULL
+        GROUP BY genesis_run_id
+        ORDER BY MIN(created_at) DESC
+        LIMIT 10
+    " 2>/dev/null || echo "")
+
+    if [[ -n "$RUN_HISTORY" ]]; then
+        echo ""
+        divider
+        echo -e "${CYAN}${BOLD}  📜 Run History (last 10)${RESET}"
+        echo ""
+        printf "  ${WHITE}%-26s %6s %6s %6s %10s${RESET}\n" "Run ID" "Jobs" "Done" "Fail" "GPU-hrs"
+        echo -e "  ${DIM}──────────────────────────────────────────────────────────${RESET}"
+        while IFS='|' read -r run_id jobs done failed started gpu_hours; do
+            [[ -z "$run_id" ]] && continue
+            GPU_FMT=$(python3 -c "print(f'{float(\"$gpu_hours\"):.2f}')" 2>/dev/null || echo "$gpu_hours")
+            printf "  %-26s %6s %6s %6s %10s\n" "$run_id" "$jobs" "$done" "$failed" "$GPU_FMT"
+        done <<< "$RUN_HISTORY"
+    fi
     echo ""
 
     # ── Rate cards reference ────────────────────────────────────────────

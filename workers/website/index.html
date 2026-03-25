@@ -365,6 +365,11 @@
             <img src="https://pub.opencurelabs.ai/assets/logo-symbol.svg" alt="OpenCure Labs" />
             <h1>OpenCure Labs</h1>
         </a>
+        <nav style="display:flex;gap:1.25rem;margin-left:2rem">
+            <a href="/" style="color:var(--accent);text-decoration:none;font-size:0.9rem;font-weight:500">Feed</a>
+            <a href="/data" style="color:var(--muted);text-decoration:none;font-size:0.9rem;font-weight:500">Data</a>
+            <a href="/about" style="color:var(--muted);text-decoration:none;font-size:0.9rem;font-weight:500">About</a>
+        </nav>
         <span id="last-updated">Fetching latest discoveries…</span>
     </header>
 
@@ -422,6 +427,14 @@
         <div class="loading pulse">Loading discoveries…</div>
     </div>
 
+    <div style="text-align:center;padding:0 1.5rem 2rem">
+        <button id="load-more" onclick="loadMore()"
+            style="display:none;padding:0.6rem 2rem;border-radius:9999px;border:1px solid var(--border);background:var(--surface);color:var(--accent);font-size:0.9rem;cursor:pointer;transition:all 0.15s"
+            onmouseover="this.style.borderColor='var(--accent)'"
+            onmouseout="this.style.borderColor='var(--border)'">Load More</button>
+        <div id="load-more-spinner" class="loading pulse" style="display:none">Loading more results…</div>
+    </div>
+
     <footer>
         Data is open and freely downloadable from <a
             href="https://pub.opencurelabs.ai/latest.json">pub.opencurelabs.ai</a> &middot;
@@ -469,6 +482,9 @@
         let allCritiques = {};  // keyed by result_id
         let activeSkill = 'all';
         let activeSpecies = 'all';
+        let nextCursor = null;
+        let hasMore = false;
+        let isLoadingMore = false;
 
         function setSkillFilter(btn, skill) {
             document.querySelectorAll('[data-skill]').forEach(b => b.classList.remove('active'));
@@ -562,22 +578,63 @@
   `).join('');
         }
 
-        function updateStats(results) {
-            const today = new Date().toISOString().split('T')[0];
-            document.getElementById('stat-total').textContent = results.length;
-            document.getElementById('stat-novel').textContent = results.filter(r => r.novel).length;
-            document.getElementById('stat-skills').textContent = new Set(results.map(r => r.skill)).size;
-            document.getElementById('stat-today').textContent = results.filter(r => r.date === today).length;
+        function updateStats(counts) {
+            document.getElementById('stat-total').textContent = counts.total.toLocaleString();
+            document.getElementById('stat-novel').textContent = counts.novel.toLocaleString();
+            document.getElementById('stat-skills').textContent = counts.skills;
+            document.getElementById('stat-today').textContent = counts.today.toLocaleString();
+        }
+
+        function updateLoadMoreButton() {
+            const btn = document.getElementById('load-more');
+            btn.style.display = hasMore ? 'inline-block' : 'none';
+        }
+
+        async function loadMore() {
+            if (isLoadingMore || !hasMore || !nextCursor) return;
+            isLoadingMore = true;
+            const btn = document.getElementById('load-more');
+            const spinner = document.getElementById('load-more-spinner');
+            btn.style.display = 'none';
+            spinner.style.display = 'block';
+
+            try {
+                const resp = await fetch(`${INGEST_URL}/results?limit=100&after=${encodeURIComponent(nextCursor)}`);
+                const data = await resp.json();
+                const newResults = data.results || [];
+                allResults = allResults.concat(newResults);
+                hasMore = data.has_more || false;
+                nextCursor = data.next_cursor || null;
+                renderFeed(allResults);
+                updateLoadMoreButton();
+            } catch (e) {
+                console.error('Failed to load more results', e);
+            } finally {
+                isLoadingMore = false;
+                spinner.style.display = 'none';
+            }
         }
 
         async function loadResults() {
             try {
-                const [resultsResp, critiquesResp] = await Promise.all([
+                const [resultsResp, countResp, critiquesResp] = await Promise.all([
                     fetch(`${INGEST_URL}/results?limit=100`),
+                    fetch(`${INGEST_URL}/results/count`),
                     fetch(`${INGEST_URL}/critiques?limit=200`),
                 ]);
                 const resultsData = await resultsResp.json();
                 allResults = resultsData.results || [];
+                hasMore = resultsData.has_more || false;
+                nextCursor = resultsData.next_cursor || null;
+
+                // Use real counts from count endpoint
+                try {
+                    const countData = await countResp.json();
+                    updateStats(countData);
+                } catch {
+                    // Fallback to local count
+                    updateStats({ total: allResults.length, novel: allResults.filter(r => r.novel).length, skills: new Set(allResults.map(r => r.skill)).size, today: 0 });
+                }
 
                 // Index critiques by result_id
                 allCritiques = {};
@@ -589,10 +646,10 @@
                     }
                 } catch { /* critiques are optional */ }
 
-                updateStats(allResults);
                 renderFeed(allResults);
+                updateLoadMoreButton();
                 document.getElementById('last-updated').textContent =
-                    `Updated ${new Date().toLocaleTimeString()} · ${allResults.length} results`;
+                    `Updated ${new Date().toLocaleTimeString()}`;
             } catch (e) {
                 document.getElementById('feed').innerHTML =
                     '<div class="loading">Could not load results — please try again shortly.</div>';

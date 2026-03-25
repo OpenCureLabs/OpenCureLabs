@@ -27,6 +27,23 @@ import time
 
 logger = logging.getLogger("labclaw.compute.batch_dispatcher")
 
+
+def _get_genesis_run_id() -> str:
+    """Return a genesis_run_id for the current session.
+
+    Uses GENESIS_START env var (Unix timestamp) to build an ID matching the
+    log directory naming convention: ``genesis-YYYYMMDD-HHMMSS``.
+    Falls back to the current time if GENESIS_START is not set.
+    """
+    import datetime as _dt
+
+    ts = os.environ.get("GENESIS_START")
+    if ts:
+        dt = _dt.datetime.fromtimestamp(float(ts))
+    else:
+        dt = _dt.datetime.now()
+    return dt.strftime("genesis-%Y%m%d-%H%M%S")
+
 # Module-level shutdown event — set by SIGINT/SIGTERM handler
 _shutdown = threading.Event()
 
@@ -145,6 +162,8 @@ def run_batch(
 
     start_time = time.monotonic()
     run_id = _record_agent_run("batch_dispatch", "running")
+    genesis_run_id = _get_genesis_run_id()
+    _log("Genesis run ID: %s", genesis_run_id)
 
     # ── 1. Generate tasks ────────────────────────────────────────────────
     _log("Generating %d tasks (domain=%s)...", count, domain or "all")
@@ -158,7 +177,7 @@ def run_batch(
 
     # ── 2. Submit to queue ───────────────────────────────────────────────
     queue = BatchQueue()
-    batch_id = queue.submit_batch(tasks)
+    batch_id = queue.submit_batch(tasks, genesis_run_id=genesis_run_id)
     _log("Submitted batch %s with %d jobs", batch_id, len(tasks))
 
     # ── 3. Provision instance pool ───────────────────────────────────────
@@ -280,14 +299,17 @@ def _monitor_loop(batch_id, queue, pool, workers, threads, callback=None, idle_t
         # Check if all workers died but jobs remain
         if not alive and (pending > 0 or running > 0):
             _log("All workers stopped but %d jobs remain — attempting recovery", pending + running)
-            # Try to spin up new instances for remaining work
             queue.reclaim_stale_jobs(stale_minutes=1)
-            break
+            # Relaunch workers on still-ready instances instead of giving up
+            workers, threads = _launch_workers(pool, queue, batch_id, idle_timeout=idle_timeout)
+            if not threads:
+                _log("No ready instances — cannot recover")
+                break
+            _log("Relaunched %d workers — continuing", len(threads))
 
         # Auto-scale pool based on queue depth + budget floor guard
-        from agentiq_labclaw.compute.vast_dispatcher import get_account_balance, get_total_spend
+        from agentiq_labclaw.compute.vast_dispatcher import get_account_balance
         balance = get_account_balance()
-        spent = get_total_spend()
         budget_floor = float(os.environ.get("LABCLAW_BUDGET_FLOOR", "5.0"))
         if balance > 0 and balance < budget_floor:
             _log(
@@ -296,7 +318,7 @@ def _monitor_loop(batch_id, queue, pool, workers, threads, callback=None, idle_t
             )
             _shutdown.set()
             break
-        pool.auto_scale(pending, balance - spent)
+        pool.auto_scale(pending, balance)
 
         # Poll provisioning/setup instances for readiness transitions
         pool.poll_readiness()
@@ -312,9 +334,11 @@ def _monitor_loop(batch_id, queue, pool, workers, threads, callback=None, idle_t
                 w.stop()
 
         # Check for newly ready instances and start workers for them
+        # Only exclude instances that have a live (non-stopped) worker
+        active_instance_ids = {w.instance_id for w in workers if not w._stop.is_set()}
         new_ready = [
             i for i in pool.get_ready_instances()
-            if i.instance_id not in {w.instance_id for w in workers}
+            if i.instance_id not in active_instance_ids
         ]
         for inst in new_ready:
             from agentiq_labclaw.compute.worker import Worker
@@ -459,6 +483,8 @@ def run_continuous(
     summaries: list[dict] = []
     cycle = 0
     run_id = _record_agent_run("continuous_batch", "running")
+    genesis_run_id = _get_genesis_run_id()
+    _log("Genesis run ID: %s", genesis_run_id)
 
     # ── Provision pool once ──────────────────────────────────────────────
     _log("=== CONTINUOUS MODE ===")
@@ -521,6 +547,18 @@ def run_continuous(
                     t.join(timeout=10)
                 workers, threads = _launch_workers(pool, queue, batch_id=None, idle_timeout=120)
 
+            # ── Relaunch dead worker threads ─────────────────────
+            # Workers exit after idle_timeout expires between cycles.
+            # Instances are still running — only the threads are dead.
+            dead = [t for t in threads if not t.is_alive()]
+            if dead and not replaced:  # skip if health_check already relaunched
+                _log("Relaunching %d/%d workers (idle timeout expired)", len(dead), len(threads))
+                for w in workers:
+                    w.stop()
+                for t in threads:
+                    t.join(timeout=10)
+                workers, threads = _launch_workers(pool, queue, batch_id=None, idle_timeout=120)
+
             cycle_run_id = _record_agent_run(f"batch_cycle_{cycle}", "running")
 
             # ── Generate + submit ────────────────────────────────────
@@ -533,7 +571,7 @@ def run_continuous(
                 config_path=config_path,
                 seed=cycle_seed,
             )
-            batch_id = queue.submit_batch(tasks)
+            batch_id = queue.submit_batch(tasks, genesis_run_id=genesis_run_id)
             _log("Submitted batch %s with %d jobs", batch_id, len(tasks))
 
             # Update workers to pick up new batch_id

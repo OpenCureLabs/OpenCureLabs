@@ -508,4 +508,10 @@ Please open an issue before starting significant work so we can coordinate.
 
 ---
 
+## Support the Project
+
+OpenCure Labs runs on donated GPU compute. If you're signing up for Vast.ai, using our [referral link](https://cloud.vast.ai/?ref_id=440482) helps offset the cost of running research pipelines — at no extra cost to you.
+
+---
+
 *OpenCure Labs — built in public, run by agents, reviewed by science.*

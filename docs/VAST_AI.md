@@ -6,11 +6,13 @@
 
 ## Overview
 
-The compute layer rents spot-market GPU instances from [Vast.ai](https://vast.ai),
+The compute layer rents spot-market GPU instances from [Vast.ai](https://cloud.vast.ai/?ref_id=440482),
 deploys the `agentiq_labclaw` package via Docker + pip, and executes research
 skills (neoantigen prediction, molecular docking, QSAR modelling, etc.) in
 parallel across the fleet. A PostgreSQL-backed job queue coordinates work, and a
 pool manager handles instance lifecycle, health checks, and self-healing.
+
+> **Note:** The Vast.ai link above is a referral link — credits help fund GPU compute for this open-science project.
 
 Two execution modes are available:
 

@@ -6,7 +6,7 @@ OpenCure Labs is an autonomous AI-for-Science platform that runs computational b
 
 Contributions here have scientific impact. Every pipeline improvement, every new data connector, every bug fix makes personalized medicine tools more accessible to researchers who need them.
 
-This project was inspired by Paul Conyngham's work building a personalized cancer vaccine for his dog Rosie — a remarkable story of one engineer using AI and open data to do something oncology labs hadn't done for his case. OpenCure Labs is building the open, repeatable, automated version of that pipeline so **any researcher, anywhere** can run it. See [README.md](README.md) for the full project context.
+This project was inspired by [the story of a man who designed an mRNA vaccine to treat his dog's cancer](https://reason.com/2026/03/19/man-successfully-designs-mrna-vaccine-to-treat-his-dogs-cancer/) — proving one person with the right pipeline can do what takes an institution months. OpenCure Labs is building the open, repeatable, automated version of that pipeline so **any researcher, anywhere** can run it. See [README.md](README.md) for the full project context.
 
 ---
 

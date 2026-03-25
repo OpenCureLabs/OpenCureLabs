@@ -38,7 +38,8 @@ def _ensure_spend_table(conn):
                 cost_per_hour REAL,
                 started_at TIMESTAMP DEFAULT NOW(),
                 ended_at TIMESTAMP,
-                total_cost REAL DEFAULT 0
+                total_cost REAL DEFAULT 0,
+                genesis_run_id TEXT
             )
         """)
         conn.commit()
@@ -54,11 +55,16 @@ def _record_spend_start(skill_name, instance_id, gpu_name, cost_per_hour):
         return None
     try:
         _ensure_spend_table(conn)
+        # Derive genesis_run_id from GENESIS_START env var
+        import datetime as _dt
+        ts = os.environ.get("GENESIS_START")
+        gri = _dt.datetime.fromtimestamp(float(ts)).strftime("genesis-%Y%m%d-%H%M%S") if ts else None
+
         cur = conn.cursor()
         cur.execute(
-            "INSERT INTO vast_spend (instance_id, skill_name, gpu_name, cost_per_hour) "
-            "VALUES (%s, %s, %s, %s) RETURNING id",
-            (instance_id, skill_name, gpu_name, cost_per_hour),
+            "INSERT INTO vast_spend (instance_id, skill_name, gpu_name, cost_per_hour, genesis_run_id) "
+            "VALUES (%s, %s, %s, %s, %s) RETURNING id",
+            (instance_id, skill_name, gpu_name, cost_per_hour, gri),
         )
         spend_id = cur.fetchone()[0]
         conn.commit()
@@ -142,25 +148,30 @@ def get_account_balance():
 
 
 def check_budget(estimated_cost_hr=1.0):
-    """Check if we're within budget. Returns (ok, remaining, budget)."""
+    """Check if we're within budget. Returns (ok, remaining, budget).
+
+    The Vast.ai API ``credit`` field already reflects all charges, so we
+    use it directly as the remaining balance.  ``VAST_AI_BUDGET`` acts as
+    an optional spending cap — if set and lower than the API balance, it
+    limits how much the system will spend.
+    """
     env_budget = float(os.environ.get("VAST_AI_BUDGET", "0"))
 
-    # Use API balance as default; VAST_AI_BUDGET acts as optional cap
+    # API balance already reflects charges — use it as remaining
     api_balance = get_account_balance()
-    if env_budget > 0 and api_balance > 0:
-        budget = min(env_budget, api_balance)
-    elif env_budget > 0:
-        budget = env_budget
+    if api_balance > 0 and env_budget > 0:
+        remaining = min(env_budget, api_balance)
     elif api_balance > 0:
-        budget = api_balance
+        remaining = api_balance
+    elif env_budget > 0:
+        remaining = env_budget
     else:
         logger.warning("No Vast.ai budget or account balance available!")
         return True, float("inf"), 0
 
-    spent = get_total_spend()
-    remaining = budget - spent
+    budget = remaining  # for display purposes
     if remaining <= 0:
-        logger.error("Vast.ai budget exhausted! Spent: $%.2f / $%.2f", spent, budget)
+        logger.error("Vast.ai budget exhausted! Balance: $%.2f", api_balance)
         return False, 0, budget
     if remaining < estimated_cost_hr:
         logger.warning(

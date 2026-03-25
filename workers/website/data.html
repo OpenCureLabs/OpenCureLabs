@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OpenCure Labs — Download Research Data</title>
+    <link rel="icon" href="https://pub.opencurelabs.ai/assets/favicon.ico" type="image/x-icon" />
+    <style>
+        :root {
+            --bg: #0a0e1a;
+            --surface: #111827;
+            --border: #1f2937;
+            --accent: #22d3ee;
+            --accent2: #818cf8;
+            --text: #e2e8f0;
+            --muted: #64748b;
+            --novel: #34d399;
+            --tag-bg: #1e293b;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', system-ui, sans-serif;
+            min-height: 100vh;
+        }
+
+        header {
+            border-bottom: 1px solid var(--border);
+            padding: 1.5rem 2rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        header img {
+            height: 36px;
+        }
+
+        header h1 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        .content {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 2rem 1.5rem 4rem;
+        }
+
+        .hero {
+            text-align: center;
+            padding: 3rem 1rem 2rem;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .hero h2 {
+            font-size: 2rem;
+            font-weight: 700;
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero p {
+            color: var(--muted);
+            margin-top: 0.5rem;
+            font-size: 0.95rem;
+        }
+
+        h3 {
+            font-size: 1.2rem;
+            font-weight: 600;
+            margin: 2.5rem 0 1rem;
+            color: var(--accent);
+        }
+
+        p {
+            color: var(--text);
+            line-height: 1.7;
+            margin-bottom: 1rem;
+            font-size: 0.95rem;
+        }
+
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 1.25rem;
+            margin-bottom: 1rem;
+        }
+
+        .card h4 {
+            font-size: 0.95rem;
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+        }
+
+        .card p {
+            color: var(--muted);
+            font-size: 0.88rem;
+            margin-bottom: 0.75rem;
+        }
+
+        pre {
+            background: var(--tag-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem;
+            overflow-x: auto;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            font-size: 0.82rem;
+            line-height: 1.6;
+            color: var(--accent);
+            margin-bottom: 1rem;
+        }
+
+        code {
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            font-size: 0.85rem;
+        }
+
+        .inline-code {
+            background: var(--tag-bg);
+            padding: 0.15rem 0.45rem;
+            border-radius: 4px;
+            font-size: 0.82rem;
+            color: var(--accent);
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 1rem;
+            font-size: 0.88rem;
+        }
+
+        th,
+        td {
+            padding: 0.6rem 0.8rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+        }
+
+        th {
+            color: var(--muted);
+            font-weight: 600;
+            font-size: 0.78rem;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+        }
+
+        td code {
+            color: var(--accent2);
+        }
+
+        a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+
+        a:hover {
+            text-decoration: underline;
+        }
+
+        footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--muted);
+            font-size: 0.8rem;
+            border-top: 1px solid var(--border);
+        }
+    </style>
+</head>
+
+<body>
+
+    <header>
+        <a href="/" style="display:flex;align-items:center;gap:.75rem;text-decoration:none;color:inherit">
+            <img src="https://pub.opencurelabs.ai/assets/logo-symbol.svg" alt="OpenCure Labs" />
+            <h1>OpenCure Labs</h1>
+        </a>
+        <nav style="display:flex;gap:1.25rem;margin-left:2rem">
+            <a href="/" style="color:var(--muted);text-decoration:none;font-size:0.9rem;font-weight:500">Feed</a>
+            <a href="/data" style="color:var(--accent);text-decoration:none;font-size:0.9rem;font-weight:500">Data</a>
+            <a href="/about" style="color:var(--muted);text-decoration:none;font-size:0.9rem;font-weight:500">About</a>
+        </nav>
+    </header>
+
+    <div class="hero">
+        <h2>Download Research Data</h2>
+        <p>All results are open-access. Query the API or download feeds directly — no authentication required.</p>
+    </div>
+
+    <div class="content">
+
+        <h3>Quick Links</h3>
+
+        <div class="card">
+            <h4>📋 Latest 100 Results (JSON)</h4>
+            <p>A rolling cache of the most recent published results — ideal for quick integration.</p>
+            <pre>curl https://pub.opencurelabs.ai/latest.json | python -m json.tool</pre>
+        </div>
+
+        <div class="card">
+            <h4>📊 Live Statistics</h4>
+            <p>Real-time counts of total results, novel findings, and active skill types.</p>
+            <pre>curl https://ingest.opencurelabs.ai/results/count</pre>
+        </div>
+
+        <h3>REST API</h3>
+
+        <p>The ingest API at <span class="inline-code">ingest.opencurelabs.ai</span> supports paginated queries with
+            filters. No API key required for read access.</p>
+
+        <div class="card">
+            <h4>GET /results</h4>
+            <p>Query published results with optional filters and cursor-based pagination.</p>
+            <table>
+                <tr>
+                    <th>Parameter</th>
+                    <th>Type</th>
+                    <th>Description</th>
+                </tr>
+                <tr>
+                    <td><code>limit</code></td>
+                    <td>int</td>
+                    <td>Results per page (default 50, max 200)</td>
+                </tr>
+                <tr>
+                    <td><code>skill</code></td>
+                    <td>string</td>
+                    <td>Filter by skill type</td>
+                </tr>
+                <tr>
+                    <td><code>species</code></td>
+                    <td>string</td>
+                    <td>Filter by species (<code>human</code>, <code>dog</code>, <code>cat</code>)</td>
+                </tr>
+                <tr>
+                    <td><code>novel</code></td>
+                    <td>bool</td>
+                    <td>Filter novel findings only (<code>true</code>/<code>false</code>)</td>
+                </tr>
+                <tr>
+                    <td><code>date</code></td>
+                    <td>string</td>
+                    <td>Filter by date (<code>YYYY-MM-DD</code>)</td>
+                </tr>
+                <tr>
+                    <td><code>after</code></td>
+                    <td>ISO timestamp</td>
+                    <td>Cursor for pagination — pass <code>next_cursor</code> from previous response</td>
+                </tr>
+            </table>
+            <pre># First page
+curl "https://ingest.opencurelabs.ai/results?limit=100"
+
+# Next page (use next_cursor from response)
+curl "https://ingest.opencurelabs.ai/results?limit=100&after=2026-03-24T12:00:00.000Z"
+
+# Novel neoantigen results only
+curl "https://ingest.opencurelabs.ai/results?skill=neoantigen_prediction&novel=true&limit=50"</pre>
+            <p>Response includes <span class="inline-code">has_more</span> (boolean) and <span
+                    class="inline-code">next_cursor</span> (ISO timestamp) for pagination.</p>
+        </div>
+
+        <div class="card">
+            <h4>GET /results/count</h4>
+            <p>Get aggregate statistics without fetching full results.</p>
+            <pre>curl "https://ingest.opencurelabs.ai/results/count"
+
+# Response:
+# { "total": 3300, "novel": 331, "today": 150, "skills": 7 }</pre>
+        </div>
+
+        <div class="card">
+            <h4>GET /critiques</h4>
+            <p>Query Grok's scientific reviews of results.</p>
+            <pre>curl "https://ingest.opencurelabs.ai/critiques?limit=50"
+
+# Filter by result
+curl "https://ingest.opencurelabs.ai/critiques?result_id=RESULT_UUID"</pre>
+        </div>
+
+        <h3>Available Skills</h3>
+
+        <table>
+            <tr>
+                <th>Skill</th>
+                <th>Description</th>
+            </tr>
+            <tr>
+                <td><code>neoantigen_prediction</code></td>
+                <td>Tumor neoantigen binding prediction (MHC I/II)</td>
+            </tr>
+            <tr>
+                <td><code>variant_pathogenicity</code></td>
+                <td>Genetic variant pathogenicity scoring</td>
+            </tr>
+            <tr>
+                <td><code>molecular_docking</code></td>
+                <td>Protein-ligand docking simulations</td>
+            </tr>
+            <tr>
+                <td><code>qsar</code></td>
+                <td>Quantitative structure-activity relationship models</td>
+            </tr>
+            <tr>
+                <td><code>structure_prediction</code></td>
+                <td>Protein 3D structure prediction</td>
+            </tr>
+            <tr>
+                <td><code>sequencing_qc</code></td>
+                <td>Sequencing data quality control</td>
+            </tr>
+            <tr>
+                <td><code>grok_research</code></td>
+                <td>AI literature review and hypothesis generation</td>
+            </tr>
+        </table>
+
+        <h3>Full Result Objects (R2)</h3>
+
+        <p>Each result's <span class="inline-code">r2_url</span> field points to the complete JSON object stored in
+            Cloudflare R2, including full <span class="inline-code">result_data</span> and <span
+                class="inline-code">batch_critique</span> from Grok's review.</p>
+
+        <pre># Get a result URL from the API, then fetch full data
+curl "https://pub.opencurelabs.ai/results/neoantigen_prediction/2026-03-24/UUID.json"</pre>
+
+        <h3>Python Example</h3>
+
+        <pre>import requests
+
+API = "https://ingest.opencurelabs.ai"
+
+# Paginate through all results
+all_results = []
+cursor = None
+while True:
+    params = {"limit": 200}
+    if cursor:
+        params["after"] = cursor
+    resp = requests.get(f"{API}/results", params=params).json()
+    all_results.extend(resp["results"])
+    if not resp["has_more"]:
+        break
+    cursor = resp["next_cursor"]
+
+print(f"Downloaded {len(all_results)} results")</pre>
+
+        <h3>License</h3>
+
+        <p>All research data is released under the <a
+                href="https://github.com/OpenCureLabs/OpenCureLabs/blob/main/LICENSE">MIT License</a>. Results are
+            AI-generated and should be independently validated before any clinical application.</p>
+
+    </div>
+
+    <footer>
+        <a href="/">Feed</a> &middot;
+        <a href="https://github.com/OpenCureLabs/OpenCureLabs">GitHub</a> &middot;
+        <a href="/about">About</a>
+    </footer>
+
+</body>
+
+</html>

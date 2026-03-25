@@ -87,6 +87,10 @@ export default {
             return handlePost(request, env);
         }
 
+        if (request.method === "GET" && url.pathname === "/results/count") {
+            return handleGetCount(request, env);
+        }
+
         if (request.method === "GET" && url.pathname === "/results") {
             return handleGet(request, env);
         }
@@ -277,6 +281,43 @@ async function handlePost(request: Request, env: Env): Promise<Response> {
     return json({ id, url: r2Url, status: "pending" }, 201);
 }
 
+// ── GET /results/count ────────────────────────────────────────────────────────
+
+async function handleGetCount(request: Request, env: Env): Promise<Response> {
+    const url = new URL(request.url);
+    const skill = url.searchParams.get("skill");
+    const novelParam = url.searchParams.get("novel");
+    const speciesParam = url.searchParams.get("species");
+
+    // Total published
+    const totalRow = await env.RESULTS_DB.prepare(
+        "SELECT COUNT(*) as cnt FROM results WHERE status = 'published'"
+    ).first<{ cnt: number }>();
+
+    // Novel published
+    const novelRow = await env.RESULTS_DB.prepare(
+        "SELECT COUNT(*) as cnt FROM results WHERE status = 'published' AND novel = 1"
+    ).first<{ cnt: number }>();
+
+    // Today
+    const today = new Date().toISOString().split("T")[0];
+    const todayRow = await env.RESULTS_DB.prepare(
+        "SELECT COUNT(*) as cnt FROM results WHERE status = 'published' AND date = ?"
+    ).bind(today).first<{ cnt: number }>();
+
+    // Distinct skills
+    const skillsRow = await env.RESULTS_DB.prepare(
+        "SELECT COUNT(DISTINCT skill) as cnt FROM results WHERE status = 'published'"
+    ).first<{ cnt: number }>();
+
+    return json({
+        total: totalRow?.cnt ?? 0,
+        novel: novelRow?.cnt ?? 0,
+        today: todayRow?.cnt ?? 0,
+        skills: skillsRow?.cnt ?? 0,
+    });
+}
+
 // ── GET /results ──────────────────────────────────────────────────────────────
 
 async function handleGet(request: Request, env: Env): Promise<Response> {
@@ -285,6 +326,7 @@ async function handleGet(request: Request, env: Env): Promise<Response> {
     const date = url.searchParams.get("date");
     const novelParam = url.searchParams.get("novel");
     const statusParam = url.searchParams.get("status");
+    const afterParam = url.searchParams.get("after");
     const limit = Math.min(parseInt(url.searchParams.get("limit") ?? "50", 10), 200);
 
     let query =
@@ -317,15 +359,32 @@ async function handleGet(request: Request, env: Env): Promise<Response> {
         query += " AND species = ?";
         bindings.push(speciesParam);
     }
+    if (afterParam) {
+        query += " AND created_at < ?";
+        bindings.push(afterParam);
+    }
 
+    // Fetch one extra to detect has_more
     query += " ORDER BY created_at DESC LIMIT ?";
-    bindings.push(limit);
+    bindings.push(limit + 1);
 
     const result = await env.RESULTS_DB.prepare(query)
         .bind(...bindings)
         .all();
 
-    return json({ results: result.results, count: result.results.length });
+    const rows = result.results;
+    const hasMore = rows.length > limit;
+    const page = hasMore ? rows.slice(0, limit) : rows;
+    const nextCursor = hasMore && page.length > 0
+        ? (page[page.length - 1] as Record<string, unknown>).created_at as string
+        : null;
+
+    return json({
+        results: page,
+        count: page.length,
+        has_more: hasMore,
+        next_cursor: nextCursor,
+    });
 }
 
 // ── PATCH /results/:id ────────────────────────────────────────────────────────

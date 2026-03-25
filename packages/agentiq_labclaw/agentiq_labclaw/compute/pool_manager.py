@@ -130,25 +130,33 @@ def _db_increment_jobs(instance_id: int):
         conn.close()
 
 
-def _db_record_instance_spend(instance_id: int):
+def _db_record_instance_spend(instance_id: int, genesis_run_id: str | None = None):
     """Record spend for a batch-mode instance into vast_spend.
 
     Calculates cost from vast_pool created_at → NOW() × cost_per_hr.
+    Auto-derives genesis_run_id from GENESIS_START env var if not passed.
     """
+    if genesis_run_id is None:
+        import datetime as _dt
+        ts = os.environ.get("GENESIS_START")
+        if ts:
+            genesis_run_id = _dt.datetime.fromtimestamp(float(ts)).strftime("genesis-%Y%m%d-%H%M%S")
+
     conn = _get_conn()
     try:
         cur = conn.cursor()
         cur.execute(
             """
-            INSERT INTO vast_spend (instance_id, skill_name, gpu_name, cost_per_hour, started_at, ended_at, total_cost)
+            INSERT INTO vast_spend (instance_id, skill_name, gpu_name, cost_per_hour, started_at, ended_at, total_cost, genesis_run_id)
             SELECT instance_id, 'batch_pool', gpu_name, cost_per_hr,
                    created_at, NOW(),
-                   ROUND((EXTRACT(EPOCH FROM (NOW() - created_at)) / 3600.0 * cost_per_hr)::numeric, 4)
+                   ROUND((EXTRACT(EPOCH FROM (NOW() - created_at)) / 3600.0 * cost_per_hr)::numeric, 4),
+                   %s
             FROM vast_pool
             WHERE instance_id = %s AND created_at IS NOT NULL
             ON CONFLICT DO NOTHING
             """,
-            (instance_id,),
+            (genesis_run_id, instance_id),
         )
         conn.commit()
         cur.close()

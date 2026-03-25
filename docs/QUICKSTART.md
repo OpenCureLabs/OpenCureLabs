@@ -10,9 +10,8 @@ platform** with all agents, pipelines, and the Zellij control panel.
 
 ## My Data — Personal / Private Analysis
 
-> **Inspired by Paul Conyngham**, who used open-source bioinformatics tools to
-> design a personalized cancer vaccine that saved his dog Rosie — proving one
-> person with the right pipeline can do what takes an institution months.
+> **Inspired by [the man who designed an mRNA vaccine to treat his dog's cancer](https://reason.com/2026/03/19/man-successfully-designs-mrna-vaccine-to-treat-his-dogs-cancer/)** —
+> proving one person with the right pipeline can do what takes an institution months.
 
 If you have your own data (biopsy VCF, sequencing FASTQ, protein FASTA, etc.)
 and want to run it privately, OpenCure Labs has a **solo mode** built for this.

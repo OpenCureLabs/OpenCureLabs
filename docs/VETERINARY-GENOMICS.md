@@ -8,9 +8,9 @@
 
 ## Background
 
-A developer named Paul Conyngham used open-source tools to design a personalized
-cancer vaccine that saved his dog Rosie. He proved one person with the right
-pipeline can do what takes an institution months.
+A developer [designed an mRNA vaccine to treat his dog's cancer](https://reason.com/2026/03/19/man-successfully-designs-mrna-vaccine-to-treat-his-dogs-cancer/)
+using open-source tools. He proved one person with the right pipeline can do
+what takes an institution months.
 
 OpenCure Labs is building the infrastructure so anyone, anywhere can run that
 same pipeline — and push it further. This document describes the plan to extend
