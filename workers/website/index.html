@@ -500,7 +500,7 @@
         let hasMore = false;
         let isLoadingMore = false;
 
-        function setStatFilter(filter) {
+        async function setStatFilter(filter) {
             // Toggle off if clicking the same filter
             if (activeStatFilter === filter && filter !== 'all') {
                 activeStatFilter = 'all';
@@ -512,7 +512,26 @@
                 const idx = activeStatFilter === 'novel' ? 1 : 3;
                 document.querySelectorAll('.stats-bar .stat')[idx].classList.add('active');
             }
-            renderFeed(allResults);
+
+            if (activeStatFilter === 'all') {
+                // Reset to normal unfiltered feed
+                renderFeed(allResults);
+            } else {
+                // Fetch filtered results from server (client array is only first 100)
+                const feed = document.getElementById('feed');
+                feed.innerHTML = '<div class="loading">Loading…</div>';
+                try {
+                    let url = `${INGEST_URL}/results?limit=200`;
+                    if (activeStatFilter === 'novel') url += '&novel=true';
+                    if (activeStatFilter === 'today') url += `&date=${new Date().toISOString().slice(0, 10)}`;
+                    const resp = await fetch(url);
+                    const data = await resp.json();
+                    renderFeed(data.results || []);
+                } catch (e) {
+                    console.error('Failed to load filtered results', e);
+                    feed.innerHTML = '<div class="loading">Failed to load results.</div>';
+                }
+            }
             document.getElementById('feed').scrollIntoView({ behavior: 'smooth' });
         }
 
@@ -569,11 +588,6 @@
         function renderFeed(results) {
             const feed = document.getElementById('feed');
             let filtered = results;
-            if (activeStatFilter === 'novel') filtered = filtered.filter(r => r.novel);
-            if (activeStatFilter === 'today') {
-                const today = new Date().toISOString().slice(0, 10);
-                filtered = filtered.filter(r => r.date === today);
-            }
             if (activeSkill !== 'all') filtered = filtered.filter(r => r.skill === activeSkill);
             if (activeSpecies !== 'all') filtered = filtered.filter(r => (r.species || 'human') === activeSpecies);
 
