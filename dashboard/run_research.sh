@@ -661,8 +661,8 @@ if $HAS_GUM; then
                     --item.foreground 255 \
                     --selected.foreground 46 \
                     --selected.bold \
-                    "🌐 Central queue (D1) — pull tasks from the shared cloud queue (coordinates with other contributors, avoids duplicate work)" \
-                    "📋 Local task list — choose from the built-in catalog of research tasks (independent of other labs)" \
+                    "🌐 Central queue (D1) — Use shared cloud queue (avoids duplicates)" \
+                    "📋 Local task list — Use built-in research catalog (independent)" \
                 ) || { echo "Cancelled."; read -r; exit 0; }
 
                 case "$TASK_SOURCE_CHOICE" in
@@ -1638,8 +1638,8 @@ teardown_all_instances()
                 --item.foreground 255 \
                 --selected.foreground 46 \
                 --selected.bold \
-                "🌐 Central queue (D1) — each loop claims a new task from the shared cloud queue (coordinates with other contributors, no duplicate work)" \
-                "🔁 Repeat selected task — run the same task you picked above on every loop (generates multiple independent results for the same analysis)" \
+                "🌐 Central queue (D1) — Use shared cloud queue (avoids duplicates)" \
+                "🔁 Repeat selected task — Run same task each loop (independent results)" \
             ) || { echo "Cancelled."; read -r; exit 0; }
             [[ "$_D1_CHOICE" == *"D1"* || "$_D1_CHOICE" == *"Central"* ]] && SINGLE_TASK_SOURCE="d1"
         fi
