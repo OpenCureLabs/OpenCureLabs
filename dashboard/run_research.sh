@@ -70,7 +70,7 @@ get_vast_balance() {
     [[ -z "$key" ]] && echo "0" && return
     curl -sf -H "Authorization: Bearer $key" \
         "https://console.vast.ai/api/v0/users/current/" 2>/dev/null \
-    | python3 -c "import json,sys; print(json.loads(sys.stdin.read()).get('credit',0))" 2>/dev/null \
+    | python3 -c "import json,sys; print(f'{json.loads(sys.stdin.read()).get(\"credit\",0):.2f}')" 2>/dev/null \
     || echo "0"
 }
 
@@ -644,6 +644,37 @@ if $HAS_GUM; then
                 DATA_SOURCE_LABEL="🌐 Public databases — TCGA, ClinVar, ChEMBL"
             fi
 
+            # ── Task source picker: local list vs D1 central queue ────
+            TASK_SOURCE="local"
+            D1_AVAILABLE=0
+            D1_STATS_JSON=$(python3 "$PROJECT_DIR/scripts/d1_tasks.py" stats 2>/dev/null || true)
+            if [[ -n "$D1_STATS_JSON" ]]; then
+                D1_AVAILABLE=$(echo "$D1_STATS_JSON" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('available',0))" 2>/dev/null || echo 0)
+            fi
+
+            if [[ "$D1_AVAILABLE" -gt 0 ]]; then
+                echo ""
+                TASK_SOURCE_CHOICE=$(gum choose \
+                    --header "Task source: ($D1_AVAILABLE tasks available in central queue)" \
+                    --header.foreground 39 \
+                    --cursor.foreground 46 \
+                    --item.foreground 255 \
+                    --selected.foreground 46 \
+                    --selected.bold \
+                    "🌐 Central queue (D1) — shared pool, no duplicate work" \
+                    "📋 Local task list — built-in research catalog" \
+                ) || { echo "Cancelled."; read -r; exit 0; }
+
+                case "$TASK_SOURCE_CHOICE" in
+                    *"Central"*|*"D1"*) TASK_SOURCE="d1" ;;
+                    *)                  TASK_SOURCE="local" ;;
+                esac
+            fi
+
+            if [[ "$TASK_SOURCE" == "d1" ]]; then
+                DATA_SOURCE_LABEL="$DATA_SOURCE_LABEL + 🌐 D1 central queue"
+            fi
+
             echo ""
             printf '%s\n' \
                 "" \
@@ -837,7 +868,8 @@ if $HAS_GUM; then
                 API_BALANCE=$(get_vast_balance)
                 VAST_SPENT=$(psql -p 5433 -d opencurelabs -t -A -c \
                     "SELECT COALESCE(SUM(total_cost), 0) FROM vast_spend" 2>/dev/null || echo "0")
-                AVAILABLE=$(python3 -c "print(f'{max(0, float(\"$API_BALANCE\") - float(\"$VAST_SPENT\")):.0f}')" 2>/dev/null || echo "$API_BALANCE")
+                VAST_SPENT=$(python3 -c "print(f'{float(\"$VAST_SPENT\"):.2f}')" 2>/dev/null || echo "$VAST_SPENT")
+                AVAILABLE="$API_BALANCE"
 
                 echo ""
                 if python3 -c "exit(0 if float('$AVAILABLE') > 0 else 1)" 2>/dev/null; then
@@ -889,7 +921,7 @@ if $HAS_GUM; then
                             ;;
                         *)
                             # Extract dollar amount from choice string
-                            VAST_BUDGET=$(echo "$BUDGET_CHOICE" | grep -oP '^\$\K[0-9]+')
+                            VAST_BUDGET=$(echo "$BUDGET_CHOICE" | grep -oP '^\$\K[0-9]+\.?[0-9]*')
                             ;;
                     esac
 
@@ -996,6 +1028,49 @@ if $HAS_GUM; then
 
                 if [[ $PARALLEL -le 1 ]]; then
                     # ── Sequential execution ─────────────────────────
+
+                    # ── D1 mode: claim tasks from central queue ──────
+                    if [[ "${TASK_SOURCE:-local}" == "d1" ]]; then
+                        D1_CLAIMED_JSON=$(python3 "$PROJECT_DIR/scripts/d1_tasks.py" claim --count "$TOTAL" 2>/dev/null || echo "[]")
+                        D1_COUNT=$(echo "$D1_CLAIMED_JSON" | python3 -c "import json,sys; print(len(json.load(sys.stdin)))" 2>/dev/null || echo 0)
+
+                        if [[ "$D1_COUNT" -gt 0 ]]; then
+                            gum style --foreground 46 "  🌐 Claimed $D1_COUNT tasks from D1 central queue"
+                            echo ""
+
+                            for di in $(seq 0 $((D1_COUNT - 1))); do
+                                TASK_NUM=$((di + 1))
+                                D1_TASK_ID=$(echo "$D1_CLAIMED_JSON" | python3 -c "import json,sys; t=json.load(sys.stdin)[$di]; print(t['id'])")
+                                D1_SKILL=$(echo "$D1_CLAIMED_JSON" | python3 -c "import json,sys; t=json.load(sys.stdin)[$di]; print(t['skill'])")
+                                D1_LABEL=$(echo "$D1_CLAIMED_JSON" | python3 -c "import json,sys; t=json.load(sys.stdin)[$di]; print(t.get('label',''))")
+                                D1_NAT_INPUT=$(echo "$D1_CLAIMED_JSON" | python3 -c "import json,sys; t=json.load(sys.stdin)[$di]; print(t['nat_input'])")
+                                GENESIS_TASK="$D1_NAT_INPUT $GENESIS_DATA_SUFFIX"
+                                TASK_LOG="$GENESIS_LOG_DIR/task-${TASK_NUM}-d1-$(echo "$D1_SKILL" | tr ' ' '_').log"
+
+                                gum style --foreground 214 --bold \
+                                    "  ▶ [R${ROUND} ${TASK_NUM}/$D1_COUNT] D1 → $D1_LABEL"
+
+                                if nat run --config_file "$CONFIG" --input "$GENESIS_TASK" \
+                                    >>"$TASK_LOG" 2>&1; then
+                                    ROUND_OK=$((ROUND_OK + 1))
+                                    # Report completion back to D1
+                                    python3 "$PROJECT_DIR/scripts/d1_tasks.py" complete "$D1_TASK_ID" \
+                                        --result-id "$genesis_run_id" 2>/dev/null || true
+                                    gum style --foreground 46 "  ✅ [R${ROUND} ${TASK_NUM}/$D1_COUNT] $D1_LABEL — complete (D1 updated)"
+                                else
+                                    ROUND_FAILED=$((ROUND_FAILED + 1))
+                                    gum style --foreground 196 "  ❌ [R${ROUND} ${TASK_NUM}/$D1_COUNT] $D1_LABEL — failed (see $TASK_LOG)"
+                                fi
+                                echo ""
+                            done
+                        else
+                            gum style --foreground 242 "  ℹ️  No D1 tasks available — falling back to local list"
+                            TASK_SOURCE="local"
+                        fi
+                    fi
+
+                    # ── Local mode: use hardcoded task list ──────────
+                    if [[ "${TASK_SOURCE:-local}" == "local" ]]; then
                     for i in $(seq 0 $((TOTAL - 1))); do
                         TASK_NUM=$((i + 1))
                         RAW_LABEL="${ALL_LABELS[$i]}"
@@ -1018,6 +1093,7 @@ if $HAS_GUM; then
                         fi
                         echo ""
                     done
+                    fi  # end TASK_SOURCE == local
                 else
                     # ── Parallel batch execution ─────────────────────
                     TASK_IDX=0
@@ -1542,12 +1618,60 @@ teardown_all_instances()
         exit 0
     fi
 
+    # ── D1 task source for continuous single-topic mode ─────────────────
+    SINGLE_TASK_SOURCE="local"
+    if $LOOP_MODE; then
+        _D1_STATS_JSON=$(python3 "$PROJECT_DIR/scripts/d1_tasks.py" stats 2>/dev/null || true)
+        _D1_AVAIL=0
+        if [[ -n "$_D1_STATS_JSON" ]]; then
+            _D1_AVAIL=$(echo "$_D1_STATS_JSON" | python3 -c \
+                "import json,sys; print(sum(t['count'] for t in json.load(sys.stdin).get('totals',[]) if t['status']=='available'))" \
+                2>/dev/null || echo 0)
+        fi
+
+        if [[ "$_D1_AVAIL" -gt 0 ]]; then
+            echo ""
+            _D1_CHOICE=$(gum choose \
+                --header "Continuous mode task source: ($_D1_AVAIL tasks in D1 central queue)" \
+                --header.foreground 39 \
+                --cursor.foreground 46 \
+                --item.foreground 255 \
+                --selected.foreground 46 \
+                --selected.bold \
+                "🌐 Central queue (D1) — claim a different task each iteration" \
+                "🔁 Repeat selected task — same task every loop" \
+            ) || { echo "Cancelled."; read -r; exit 0; }
+            [[ "$_D1_CHOICE" == *"D1"* || "$_D1_CHOICE" == *"Central"* ]] && SINGLE_TASK_SOURCE="d1"
+        fi
+    fi
+
     RUN_COUNT=0
+    _D1_TASK_ID=""
     while true; do
         RUN_COUNT=$((RUN_COUNT + 1))
+
+        # ── Claim from D1 if selected ────────────────────────────────
+        if [[ "$SINGLE_TASK_SOURCE" == "d1" ]]; then
+            _D1_CLAIMED=$(python3 "$PROJECT_DIR/scripts/d1_tasks.py" claim --count 1 2>/dev/null || echo "[]")
+            _D1_COUNT=$(echo "$_D1_CLAIMED" | python3 -c "import json,sys; print(len(json.load(sys.stdin)))" 2>/dev/null || echo 0)
+            if [[ "$_D1_COUNT" -gt 0 ]]; then
+                _D1_TASK_ID=$(echo "$_D1_CLAIMED" | python3 -c "import json,sys; print(json.load(sys.stdin)[0]['id'])")
+                _D1_LABEL=$(echo "$_D1_CLAIMED" | python3 -c "import json,sys; print(json.load(sys.stdin)[0].get('label',''))")
+                TASK=$(echo "$_D1_CLAIMED" | python3 -c "import json,sys; print(json.load(sys.stdin)[0]['nat_input'])")
+                [[ "$DATA_MODE" == "public" ]] && TASK="$TASK Use public databases (TCGA/ClinVar/ChEMBL) for data sourcing."
+            else
+                gum style --foreground 242 "  ℹ️  No D1 tasks available — using selected task this iteration"
+                _D1_TASK_ID=""
+            fi
+        fi
+
         echo ""
         if $LOOP_MODE; then
-            gum style --foreground 46 --bold "▶ Run #$RUN_COUNT — Launching research pipeline..."
+            if [[ "$SINGLE_TASK_SOURCE" == "d1" && -n "$_D1_TASK_ID" ]]; then
+                gum style --foreground 46 --bold "▶ Run #$RUN_COUNT (D1) — $_D1_LABEL"
+            else
+                gum style --foreground 46 --bold "▶ Run #$RUN_COUNT — Launching research pipeline..."
+            fi
         else
             gum style --foreground 46 --bold "▶ Launching research pipeline..."
         fi
@@ -1556,7 +1680,19 @@ teardown_all_instances()
         echo ""
 
         TASK=$(parameterize_task "$TASK")
-        nat run --config_file "$CONFIG" --input "$TASK" 2>&1 | tee -a "$LOG"
+        if nat run --config_file "$CONFIG" --input "$TASK" 2>&1 | tee -a "$LOG"; then
+            _NAT_OK=true
+        else
+            _NAT_OK=false
+        fi
+
+        # ── Report completion back to D1 ─────────────────────────────
+        if [[ "$SINGLE_TASK_SOURCE" == "d1" && -n "$_D1_TASK_ID" ]] && $_NAT_OK; then
+            python3 "$PROJECT_DIR/scripts/d1_tasks.py" complete "$_D1_TASK_ID" \
+                --result-id "run-${RUN_COUNT}-$(date +%s)" 2>/dev/null || true
+            gum style --foreground 242 --italic "  🌐 D1 task marked complete"
+        fi
+        _D1_TASK_ID=""
 
         echo ""
         gum style --foreground 46 "✅ Run #$RUN_COUNT complete."
@@ -1816,7 +1952,8 @@ select domain in "${DOMAINS[@]}"; do
                 API_BALANCE=$(get_vast_balance)
                 VAST_SPENT=$(psql -p 5433 -d opencurelabs -t -A -c \
                     "SELECT COALESCE(SUM(total_cost), 0) FROM vast_spend" 2>/dev/null || echo "0")
-                AVAILABLE=$(python3 -c "print(f'{max(0, float(\"$API_BALANCE\") - float(\"$VAST_SPENT\")):.0f}')" 2>/dev/null || echo "$API_BALANCE")
+                VAST_SPENT=$(python3 -c "print(f'{float(\"$VAST_SPENT\"):.2f}')" 2>/dev/null || echo "$VAST_SPENT")
+                AVAILABLE="$API_BALANCE"
 
                 echo ""
                 if python3 -c "exit(0 if float('$AVAILABLE') > 0 else 1)" 2>/dev/null; then
@@ -1855,7 +1992,7 @@ select domain in "${DOMAINS[@]}"; do
                             "")
                                 echo "Invalid choice." ;;
                             *)
-                                VAST_BUDGET=$(echo "$bc" | grep -oP '^\$\K[0-9]+')
+                                VAST_BUDGET=$(echo "$bc" | grep -oP '^\$\K[0-9]+\.?[0-9]*')
                                 break ;;
                         esac
                     done
