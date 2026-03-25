@@ -1462,26 +1462,31 @@ teardown_all_instances()
 
     # ── Run mode ─────────────────────────────────────────────────────
     if ! $LOOP_MODE; then
-        echo ""
-        RUN_MODE=$(gum choose \
-            --header "How should this run?" \
-            --header.foreground 39 \
-            --cursor.foreground 46 \
-            --item.foreground 252 \
-            --selected.foreground 46 \
-            --selected.bold \
-            "⬅ Back" \
-            "▶ Run once — Execute and stop" \
-            "🔁 Run continuously — Keep re-running until stopped" \
-        ) || { echo "Cancelled."; read -r; exit 0; }
+        if [[ "$DATA_MODE" == "public" ]]; then
+            # Public data always runs continuously (D1 queue feeds tasks)
+            LOOP_MODE=true
+        else
+            echo ""
+            RUN_MODE=$(gum choose \
+                --header "How should this run?" \
+                --header.foreground 39 \
+                --cursor.foreground 46 \
+                --item.foreground 252 \
+                --selected.foreground 46 \
+                --selected.bold \
+                "⬅ Back" \
+                "▶ Run once — Execute and stop" \
+                "🔁 Run continuously — Keep re-running until stopped" \
+            ) || { echo "Cancelled."; read -r; exit 0; }
 
-        if [[ "$RUN_MODE" == *"Back"* ]]; then
-            _STEP=5; continue
+            if [[ "$RUN_MODE" == *"Back"* ]]; then
+                _STEP=5; continue
+            fi
+
+            case "$RUN_MODE" in
+                *"continuously"*) LOOP_MODE=true ;;
+            esac
         fi
-
-        case "$RUN_MODE" in
-            *"continuously"*) LOOP_MODE=true ;;
-        esac
     fi
 
     # ── Final confirmation ───────────────────────────────────────────
@@ -2330,16 +2335,21 @@ echo -e "${DIM}🤖 Agents: ${AGENT_NUM:-1}${RESET}"
 echo ""
 # ── Run mode ─────────────────────────────────────────────────────────
 if ! $LOOP_MODE; then
-    echo ""
-    echo -e "${BOLD}How should this run?${RESET}"
-    RUN_OPTS=("Run once" "Run continuously (keep re-running)")
-    select rm in "${RUN_OPTS[@]}"; do
-        case "$REPLY" in
-            1) break ;;
-            2) LOOP_MODE=true; break ;;
-            *) echo "Invalid choice." ;;
-        esac
-    done
+    if [[ "$DATA_MODE" == "public" ]]; then
+        # Public data always runs continuously (D1 queue feeds tasks)
+        LOOP_MODE=true
+    else
+        echo ""
+        echo -e "${BOLD}How should this run?${RESET}"
+        RUN_OPTS=("Run once" "Run continuously (keep re-running)")
+        select rm in "${RUN_OPTS[@]}"; do
+            case "$REPLY" in
+                1) break ;;
+                2) LOOP_MODE=true; break ;;
+                *) echo "Invalid choice." ;;
+            esac
+        done
+    fi
 fi
 
 echo ""
