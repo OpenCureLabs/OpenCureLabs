@@ -644,35 +644,21 @@ if $HAS_GUM; then
                 DATA_SOURCE_LABEL="🌐 Public databases — TCGA, ClinVar, ChEMBL"
             fi
 
-            # ── Task source picker: local list vs D1 central queue ────
+            # ── Task source: D1 central queue for public data, local for own data ──
             TASK_SOURCE="local"
             D1_AVAILABLE=0
-            D1_STATS_JSON=$(python3 "$PROJECT_DIR/scripts/d1_tasks.py" stats 2>/dev/null || true)
-            if [[ -n "$D1_STATS_JSON" ]]; then
-                D1_AVAILABLE=$(echo "$D1_STATS_JSON" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('available',0))" 2>/dev/null || echo 0)
-            fi
-
-            if [[ "$D1_AVAILABLE" -gt 0 ]]; then
-                echo ""
-                TASK_SOURCE_CHOICE=$(gum choose \
-                    --header "Task source: ($D1_AVAILABLE tasks available in central queue)" \
-                    --header.foreground 39 \
-                    --cursor.foreground 46 \
-                    --item.foreground 255 \
-                    --selected.foreground 46 \
-                    --selected.bold \
-                    "🌐 Central queue (D1) — Use shared cloud queue (avoids duplicates)" \
-                    "📋 Local task list — Use built-in research catalog (independent)" \
-                ) || { echo "Cancelled."; read -r; exit 0; }
-
-                case "$TASK_SOURCE_CHOICE" in
-                    *"Central"*|*"D1"*) TASK_SOURCE="d1" ;;
-                    *)                  TASK_SOURCE="local" ;;
-                esac
-            fi
-
-            if [[ "$TASK_SOURCE" == "d1" ]]; then
-                DATA_SOURCE_LABEL="$DATA_SOURCE_LABEL + 🌐 D1 central queue"
+            if [[ "$DATA_MODE" == "public" ]]; then
+                D1_STATS_JSON=$(python3 "$PROJECT_DIR/scripts/d1_tasks.py" stats 2>/dev/null || true)
+                if [[ -n "$D1_STATS_JSON" ]]; then
+                    D1_AVAILABLE=$(echo "$D1_STATS_JSON" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('available',0))" 2>/dev/null || echo 0)
+                fi
+                if [[ "$D1_AVAILABLE" -gt 0 ]]; then
+                    TASK_SOURCE="d1"
+                    gum style --foreground 39 "  🌐 Using D1 central queue ($D1_AVAILABLE tasks available)" 2>/dev/null || true
+                    DATA_SOURCE_LABEL="$DATA_SOURCE_LABEL + 🌐 D1 central queue"
+                else
+                    gum style --foreground 214 "  ⚠️  D1 queue empty or unreachable — using local task list" 2>/dev/null || true
+                fi
             fi
 
             echo ""
@@ -1543,6 +1529,28 @@ teardown_all_instances()
         fi
         echo ""
 
+        # ── D1 batch claim for Run All (public data only) ──────────
+        _RA_D1_IDS=()
+        if [[ "$DATA_MODE" == "public" ]]; then
+            _RA_D1_JSON=$(python3 "$PROJECT_DIR/scripts/d1_tasks.py" claim --count "$TOTAL_ALL" 2>/dev/null || echo "[]")
+            _RA_D1_COUNT=$(echo "$_RA_D1_JSON" | python3 -c "import json,sys; print(len(json.load(sys.stdin)))" 2>/dev/null || echo 0)
+            if [[ "$_RA_D1_COUNT" -gt 0 ]]; then
+                gum style --foreground 39 "  🌐 Claimed $_RA_D1_COUNT tasks from D1 central queue" 2>/dev/null || true
+                # Replace local task arrays with D1 claimed tasks
+                RUN_ALL_TASKS=()
+                RUN_ALL_LABELS=()
+                _RA_D1_IDS=()
+                for _j in $(seq 0 $((_RA_D1_COUNT - 1))); do
+                    RUN_ALL_TASKS+=("$(echo "$_RA_D1_JSON" | python3 -c "import json,sys; print(json.load(sys.stdin)[$_j]['nat_input'])")")
+                    RUN_ALL_LABELS+=("$(echo "$_RA_D1_JSON" | python3 -c "import json,sys; print(json.load(sys.stdin)[$_j].get('label','task-$_j'))")")
+                    _RA_D1_IDS+=("$(echo "$_RA_D1_JSON" | python3 -c "import json,sys; print(json.load(sys.stdin)[$_j]['id'])")")
+                done
+                TOTAL_ALL=${#RUN_ALL_TASKS[@]}
+            else
+                gum style --foreground 214 "  ⚠️  D1 queue empty — using local task list" 2>/dev/null || true
+            fi
+        fi
+
         for i in $(seq 0 $((TOTAL_ALL - 1))); do
             TASK_NUM=$((i + 1))
             LABEL="${RUN_ALL_LABELS[$i]}"
@@ -1569,6 +1577,11 @@ teardown_all_instances()
                 2>&1 | tee -a "$TASK_LOG"; then
                 ALL_OK=$((ALL_OK + 1))
                 gum style --foreground 46 "  ✅ [R${ROUND} ${TASK_NUM}/$TOTAL_ALL] $LABEL — complete" 2>/dev/null || true
+                # Report D1 completion if this was a D1 task
+                if [[ -n "${_RA_D1_IDS[$i]:-}" ]]; then
+                    python3 "$PROJECT_DIR/scripts/d1_tasks.py" complete "${_RA_D1_IDS[$i]}" \
+                        --result-id "runall-R${ROUND}-${TASK_NUM}-$(date +%s)" 2>/dev/null || true
+                fi
             else
                 ALL_FAILED=$((ALL_FAILED + 1))
                 gum style --foreground 196 "  ❌ [R${ROUND} ${TASK_NUM}/$TOTAL_ALL] $LABEL — failed" 2>/dev/null || true
@@ -1618,9 +1631,9 @@ teardown_all_instances()
         exit 0
     fi
 
-    # ── D1 task source for continuous single-topic mode ─────────────────
+    # ── D1 task source: auto for public data, local for own data ──────────
     SINGLE_TASK_SOURCE="local"
-    if $LOOP_MODE; then
+    if [[ "$DATA_MODE" == "public" ]]; then
         _D1_STATS_JSON=$(python3 "$PROJECT_DIR/scripts/d1_tasks.py" stats 2>/dev/null || true)
         _D1_AVAIL=0
         if [[ -n "$_D1_STATS_JSON" ]]; then
@@ -1630,18 +1643,14 @@ teardown_all_instances()
         fi
 
         if [[ "$_D1_AVAIL" -gt 0 ]]; then
-            echo ""
-            _D1_CHOICE=$(gum choose \
-                --header "Continuous mode task source: ($_D1_AVAIL tasks in D1 central queue)" \
-                --header.foreground 39 \
-                --cursor.foreground 46 \
-                --item.foreground 255 \
-                --selected.foreground 46 \
-                --selected.bold \
-                "🌐 Central queue (D1) — Use shared cloud queue (avoids duplicates)" \
-                "🔁 Repeat selected task — Run same task each loop (independent results)" \
-            ) || { echo "Cancelled."; read -r; exit 0; }
-            [[ "$_D1_CHOICE" == *"D1"* || "$_D1_CHOICE" == *"Central"* ]] && SINGLE_TASK_SOURCE="d1"
+            SINGLE_TASK_SOURCE="d1"
+            if $LOOP_MODE; then
+                gum style --foreground 39 "  🌐 Using D1 central queue ($_D1_AVAIL tasks) — new task each loop" 2>/dev/null || true
+            else
+                gum style --foreground 39 "  🌐 Using D1 central queue ($_D1_AVAIL tasks)" 2>/dev/null || true
+            fi
+        else
+            gum style --foreground 214 "  ⚠️  D1 queue empty or unreachable — using selected task" 2>/dev/null || true
         fi
     fi
 
