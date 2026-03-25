@@ -28,6 +28,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - CI pipeline with tests, ruff, and bandit
 - Commitizen conventional commits enforcement
 
+## v0.52.0 (2026-03-25)
+
+### Feat
+
+- budget per-run tracking, website upgrade, docs cleanup
+
 ## v0.51.2 (2026-03-24)
 
 ### Fix
