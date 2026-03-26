@@ -1604,7 +1604,8 @@ teardown_all_instances()
             CURRENT_TASK="${RUN_ALL_TASKS[$i]}"
 
             # Skip tasks requiring local data in public-database mode
-            if _skip_local_task "$CURRENT_TASK"; then
+            # D1-claimed tasks include synthetic VCF paths — never skip them
+            if [[ -z "${_RA_D1_IDS[$i]:-}" ]] && _skip_local_task "$CURRENT_TASK"; then
                 gum style --foreground 242 "  ⏭ [R${ROUND} ${TASK_NUM}/$TOTAL_ALL] $LABEL — skipped (needs local data)" 2>/dev/null || true
                 continue
             fi
