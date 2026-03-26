@@ -212,7 +212,7 @@ def check_grok_api() -> dict:
 
         client = openai.OpenAI(api_key=api_key, base_url="https://api.x.ai/v1")
         response = client.chat.completions.create(
-            model="grok-3",
+            model="grok-4-1-fast-non-reasoning",
             messages=[{"role": "user", "content": "Reply with 'ok'"}],
             max_tokens=5,
         )

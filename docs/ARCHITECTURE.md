@@ -110,7 +110,7 @@ The system is composed of three nested layers:
 | **Rare Disease Agent** | Variant pathogenicity analysis | `specialist_agent` | RTX 5070 (local) | `labclaw_workflow.yaml` → `rare_disease_agent` |
 | **Drug Response Agent** | QSAR modeling + molecular docking | `specialist_agent` | RTX 5070 / Vast.ai | `labclaw_workflow.yaml` → `drug_response_agent` |
 | **Claude Opus 4.6** | Scientific critic (archived — not active in pipeline) | reviewer | Anthropic API | `reviewer/claude_opus_config.yaml` |
-| **Grok** | Scientific critic (two-tier review) + literature reviewer + dataset discovery | reviewer + skill | xAI API (Grok-3) | `reviewer/grok_config.yaml` |
+| **Grok** | Scientific critic (two-tier review) + literature reviewer + dataset discovery | reviewer + skill | xAI API (Grok-4) | `reviewer/grok_config.yaml` |
 
 ### Coordinator → Specialist → Skill Mapping
 
@@ -773,8 +773,8 @@ when Grok finds a new dataset, it calls this skill to write to
 | **Agent Framework** | NVIDIA NeMo Agent Toolkit (AgentIQ) | 1.5.0+ |
 | **Agent Orchestration** | LangGraph + LangChain | 1.0+ |
 | **Coordinator LLM** | Gemini 2.5 Flash Lite | Google AI API |
-| **Scientific Reviewer** | Grok-3 (two-tier) | xAI API |
-| **Literature Reviewer** | Grok-3 | xAI API |
+| **Scientific Reviewer** | Grok-4-1-fast (non-reasoning) | xAI API |
+| **Literature Reviewer** | Grok-4.20 (non-reasoning) | xAI API |
 | **Result Signing** | Ed25519 (PyNaCl) | Local |
 | **Database** | PostgreSQL | 16 |
 | **Web Dashboard** | FastAPI + uvicorn | 0.110+ |

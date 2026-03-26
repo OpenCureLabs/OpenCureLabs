@@ -9,7 +9,7 @@ researcher:
   provider: xai
   api_key_env: XAI_API_KEY
   base_url: https://api.x.ai/v1
-  model: grok-3
+  model: grok-4.20-non-reasoning
 
   workspace: workspace/  # relative to project root
 
@@ -36,7 +36,7 @@ reviewer:
   provider: xai
   api_key_env: XAI_API_KEY
   base_url: https://api.x.ai/v1
-  model: grok-3
+  model: grok-4-1-fast-non-reasoning
 
   triggers:
     - novel_result

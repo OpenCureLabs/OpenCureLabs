@@ -67,7 +67,7 @@ class GrokReviewer:
     def __init__(
         self,
         api_key: str | None = None,
-        model: str = "grok-3",
+        model: str = "grok-4-1-fast-non-reasoning",
         base_url: str = "https://api.x.ai/v1",
     ):
         self.api_key = api_key or os.environ.get("XAI_API_KEY", "")
@@ -212,7 +212,7 @@ class GrokResearcher:
     def __init__(
         self,
         api_key: str | None = None,
-        model: str = "grok-3",
+        model: str = "grok-4.20-non-reasoning",
         base_url: str = "https://api.x.ai/v1",
     ):
         self.api_key = api_key or os.environ.get("XAI_API_KEY", "")

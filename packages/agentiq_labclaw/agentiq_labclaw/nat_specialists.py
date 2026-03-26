@@ -35,7 +35,8 @@ LLM_RATE_CARDS = {
     "gemini-2.5-flash-lite-preview-06-17": {"provider": "gemini", "input": 0.075e-6, "output": 0.3e-6},
     "gemini-2.5-flash-lite": {"provider": "gemini", "input": 0.075e-6, "output": 0.3e-6},
     "claude-opus-4-0-20250514": {"provider": "claude", "input": 15e-6, "output": 75e-6},
-    "grok-3": {"provider": "grok", "input": 5e-6, "output": 15e-6},
+    "grok-4-1-fast-non-reasoning": {"provider": "grok", "input": 0.2e-6, "output": 0.5e-6},
+    "grok-4.20-non-reasoning": {"provider": "grok", "input": 2e-6, "output": 6e-6},
 }
 
 

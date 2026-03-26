@@ -171,14 +171,14 @@ class TestReviewersIntegration:
 
         with patch("reviewer.grok_reviewer.openai.OpenAI"):
             reviewer = GrokReviewer(api_key="test-key")
-            assert reviewer.model == "grok-3"
+            assert reviewer.model == "grok-4-1-fast-non-reasoning"
 
     def test_grok_researcher_init(self):
         from reviewer.grok_reviewer import GrokResearcher
 
         with patch("reviewer.grok_reviewer.openai.OpenAI"):
             researcher = GrokResearcher(api_key="test-key")
-            assert researcher.model == "grok-3"
+            assert researcher.model == "grok-4.20-non-reasoning"
 
 
 class TestDBInterfaces:

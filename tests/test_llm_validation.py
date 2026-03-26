@@ -503,7 +503,7 @@ class TestGeminiCoordinatorPrompts:
     def test_llm_rate_cards_include_required_models(self):
         from agentiq_labclaw.nat_specialists import LLM_RATE_CARDS
 
-        assert "grok-3" in LLM_RATE_CARDS
+        assert "grok-4-1-fast-non-reasoning" in LLM_RATE_CARDS
         # At least one gemini model
         gemini_models = [k for k in LLM_RATE_CARDS if "gemini" in k.lower()]
         assert len(gemini_models) >= 1
