@@ -1,0 +1,520 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>OpenCure Labs — Contribute</title>
+    <link rel="icon" href="https://pub.opencurelabs.ai/assets/favicon.ico" type="image/x-icon" />
+    <style>
+        :root {
+            --bg: #0a0e1a;
+            --surface: #111827;
+            --border: #1f2937;
+            --accent: #22d3ee;
+            --accent2: #818cf8;
+            --text: #e2e8f0;
+            --muted: #64748b;
+            --novel: #34d399;
+            --tag-bg: #1e293b;
+            --warn: #f59e0b;
+            --danger: #ef4444;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background: var(--bg);
+            color: var(--text);
+            font-family: 'Inter', system-ui, sans-serif;
+            min-height: 100vh;
+        }
+
+        header {
+            border-bottom: 1px solid var(--border);
+            padding: 1.5rem 2rem;
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        header img {
+            height: 36px;
+        }
+
+        header h1 {
+            font-size: 1.25rem;
+            font-weight: 600;
+            color: var(--text);
+        }
+
+        nav {
+            display: flex;
+            gap: 1.25rem;
+            margin-left: 2rem;
+        }
+
+        nav a {
+            color: var(--muted);
+            text-decoration: none;
+            font-size: 0.9rem;
+            font-weight: 500;
+        }
+
+        nav a.active {
+            color: var(--accent);
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 2rem;
+        }
+
+        h2 {
+            font-size: 1.75rem;
+            margin-bottom: 0.5rem;
+        }
+
+        h3 {
+            font-size: 1.15rem;
+            margin: 2rem 0 1rem;
+            color: var(--accent);
+        }
+
+        p.subtitle {
+            color: var(--muted);
+            margin-bottom: 2rem;
+            font-size: 0.95rem;
+        }
+
+        /* ── Stats Grid ─────────────────────────────────────────── */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
+
+        .stat-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.25rem;
+            text-align: center;
+        }
+
+        .stat-card .value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--accent);
+            line-height: 1.2;
+        }
+
+        .stat-card .value.warn {
+            color: var(--warn);
+        }
+
+        .stat-card .value.danger {
+            color: var(--danger);
+        }
+
+        .stat-card .value.success {
+            color: var(--novel);
+        }
+
+        .stat-card .label {
+            font-size: 0.8rem;
+            color: var(--muted);
+            margin-top: 0.25rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        /* ── Skill Breakdown ────────────────────────────────────── */
+        .skill-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .skill-table th,
+        .skill-table td {
+            padding: 0.75rem 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.9rem;
+        }
+
+        .skill-table th {
+            background: var(--tag-bg);
+            color: var(--muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            letter-spacing: 0.05em;
+        }
+
+        .skill-table td:not(:first-child) {
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .skill-table th:not(:first-child) {
+            text-align: right;
+        }
+
+        .skill-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .bar-cell {
+            position: relative;
+        }
+
+        .bar-bg {
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            background: rgba(34, 211, 238, 0.08);
+            border-radius: 4px;
+        }
+
+        /* ── Leaderboard ────────────────────────────────────────── */
+        .rank {
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        .rank-gold {
+            color: #fbbf24;
+        }
+
+        .rank-silver {
+            color: #94a3b8;
+        }
+
+        .rank-bronze {
+            color: #d97706;
+        }
+
+        /* ── Getting Started ────────────────────────────────────── */
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .card h4 {
+            color: var(--accent2);
+            margin-bottom: 0.5rem;
+        }
+
+        pre {
+            background: var(--tag-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem;
+            overflow-x: auto;
+            font-size: 0.85rem;
+            line-height: 1.6;
+            color: var(--text);
+        }
+
+        code {
+            color: var(--accent);
+        }
+
+        .loading {
+            color: var(--muted);
+            font-style: italic;
+        }
+
+        footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--muted);
+            font-size: 0.85rem;
+            border-top: 1px solid var(--border);
+            margin-top: 3rem;
+        }
+
+        footer a {
+            color: var(--accent);
+            text-decoration: none;
+        }
+    </style>
+</head>
+
+<body>
+    <header>
+        <a href="/" style="display:flex;align-items:center;gap:.75rem;text-decoration:none;color:inherit">
+            <img src="https://pub.opencurelabs.ai/assets/logo-symbol.svg" alt="OpenCure Labs" />
+            <h1>OpenCure Labs</h1>
+        </a>
+        <nav>
+            <a href="/">Feed</a>
+            <a href="/data">Data</a>
+            <a href="/contribute" class="active">Contribute</a>
+            <a href="/about">About</a>
+        </nav>
+    </header>
+
+    <div class="container">
+        <h2>Contribute GPU Time</h2>
+        <p class="subtitle">Donate spare GPU cycles to run computational biology research tasks.
+            Every completed task advances open cancer, rare disease, and drug discovery research.</p>
+
+        <!-- ── Live Task Queue Stats ──────────────────────────────── -->
+        <h3>Task Queue — Live Stats</h3>
+        <div class="stats-grid" id="stats-grid">
+            <div class="stat-card">
+                <div class="value loading" id="stat-available">—</div>
+                <div class="label">Available</div>
+            </div>
+            <div class="stat-card">
+                <div class="value warn loading" id="stat-claimed">—</div>
+                <div class="label">In Progress</div>
+            </div>
+            <div class="stat-card">
+                <div class="value success loading" id="stat-completed">—</div>
+                <div class="label">Completed</div>
+            </div>
+            <div class="stat-card">
+                <div class="value danger loading" id="stat-failed">—</div>
+                <div class="label">Failed</div>
+            </div>
+            <div class="stat-card">
+                <div class="value loading" id="stat-total">—</div>
+                <div class="label">Total Tasks</div>
+            </div>
+        </div>
+
+        <h3>Tasks by Skill</h3>
+        <table class="skill-table" id="skill-table">
+            <thead>
+                <tr>
+                    <th>Skill</th>
+                    <th>Available</th>
+                    <th>In Progress</th>
+                    <th>Completed</th>
+                    <th>Failed</th>
+                </tr>
+            </thead>
+            <tbody id="skill-tbody">
+                <tr>
+                    <td colspan="5" class="loading">Loading task breakdown…</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- ── Leaderboard ────────────────────────────────────────── -->
+        <h3>Contributor Leaderboard</h3>
+        <table class="skill-table" id="leaderboard-table">
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Contributor</th>
+                    <th>Results Published</th>
+                    <th>Tasks Completed</th>
+                    <th>Skills</th>
+                    <th>Latest</th>
+                </tr>
+            </thead>
+            <tbody id="leaderboard-tbody">
+                <tr>
+                    <td colspan="6" class="loading">Loading leaderboard…</td>
+                </tr>
+            </tbody>
+        </table>
+
+        <!-- ── Getting Started ────────────────────────────────────── -->
+        <h3>Getting Started</h3>
+
+        <div class="card">
+            <h4>1. Clone &amp; Install</h4>
+            <pre>git clone https://github.com/OpenCureLabs/OpenCureLabs.git
+cd OpenCureLabs
+bash scripts/setup.sh --skip-models
+source .venv/bin/activate
+pip install -e packages/agentiq_labclaw</pre>
+        </div>
+
+        <div class="card">
+            <h4>2. Set API Keys</h4>
+            <pre># Add to .env:
+VAST_AI_KEY=your-vast-ai-key       # For GPU burst compute
+XAI_API_KEY=your-xai-key           # Optional: enables local Grok review</pre>
+        </div>
+
+        <div class="card">
+            <h4>3. Run Contribute Mode</h4>
+            <pre># Claim tasks from central queue and execute on Vast.ai GPU
+python -m agentiq_labclaw.compute.batch_dispatcher \
+    --mode contribute --count 10 --max-cost 1.00
+
+# First run auto-generates your Ed25519 signing key
+# and registers you as a contributor.</pre>
+        </div>
+
+        <div class="card">
+            <h4>How It Works</h4>
+            <p style="color:var(--muted);line-height:1.7">
+                Your machine claims research tasks from the central queue, dispatches them to a Vast.ai GPU,
+                and reports results back — signed with your Ed25519 key. Results go through Grok's two-tier
+                scientific review before publication. You can contribute to any skill: neoantigen prediction,
+                protein structure, molecular docking, QSAR modeling, or variant analysis.
+            </p>
+        </div>
+    </div>
+
+    <footer>
+        <a href="/">Feed</a> &middot;
+        <a href="https://github.com/OpenCureLabs/OpenCureLabs">GitHub</a> &middot;
+        <a href="/about">About</a>
+    </footer>
+
+    <script>
+        const API = "https://ingest.opencurelabs.ai";
+
+        function formatNumber(n) {
+            if (n >= 1000000) return (n / 1000000).toFixed(1) + "M";
+            if (n >= 1000) return (n / 1000).toFixed(1) + "K";
+            return String(n);
+        }
+
+        function skillLabel(skill) {
+            return skill.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+        }
+
+        function rankClass(i) {
+            if (i === 0) return "rank rank-gold";
+            if (i === 1) return "rank rank-silver";
+            if (i === 2) return "rank rank-bronze";
+            return "rank";
+        }
+
+        function relativeTime(iso) {
+            if (!iso) return "—";
+            const diff = Date.now() - new Date(iso).getTime();
+            const mins = Math.floor(diff / 60000);
+            if (mins < 60) return `${mins}m ago`;
+            const hrs = Math.floor(mins / 60);
+            if (hrs < 24) return `${hrs}h ago`;
+            const days = Math.floor(hrs / 24);
+            return `${days}d ago`;
+        }
+
+        // ── Task Stats ──────────────────────────────────────────
+        async function loadTaskStats() {
+            try {
+                const resp = await fetch(`${API}/tasks/stats`);
+                const data = await resp.json();
+
+                // Totals
+                const totals = {};
+                for (const row of data.totals || []) {
+                    totals[row.status] = row.count;
+                }
+                document.getElementById("stat-available").textContent = formatNumber(totals.available || 0);
+                document.getElementById("stat-claimed").textContent = formatNumber(totals.claimed || 0);
+                document.getElementById("stat-completed").textContent = formatNumber(totals.completed || 0);
+                document.getElementById("stat-failed").textContent = formatNumber(totals.failed || 0);
+                const total = Object.values(totals).reduce((a, b) => a + b, 0);
+                document.getElementById("stat-total").textContent = formatNumber(total);
+
+                // Remove loading class
+                document.querySelectorAll(".stat-card .value").forEach(el => el.classList.remove("loading"));
+
+                // By skill
+                const skills = {};
+                for (const row of data.by_skill || []) {
+                    if (!skills[row.skill]) skills[row.skill] = {};
+                    skills[row.skill][row.status] = row.count;
+                }
+
+                const tbody = document.getElementById("skill-tbody");
+                tbody.innerHTML = "";
+                const maxAvailable = Math.max(...Object.values(skills).map(s => s.available || 0), 1);
+
+                for (const [skill, counts] of Object.entries(skills).sort((a, b) =>
+                    (b[1].available || 0) - (a[1].available || 0)
+                )) {
+                    const row = document.createElement("tr");
+                    const avail = counts.available || 0;
+                    const barWidth = (avail / maxAvailable * 100).toFixed(1);
+                    row.innerHTML = `
+                        <td><code>${skillLabel(skill)}</code></td>
+                        <td class="bar-cell">
+                            <div class="bar-bg" style="width:${barWidth}%"></div>
+                            ${formatNumber(avail)}
+                        </td>
+                        <td>${formatNumber(counts.claimed || 0)}</td>
+                        <td>${formatNumber(counts.completed || 0)}</td>
+                        <td>${formatNumber(counts.failed || 0)}</td>
+                    `;
+                    tbody.appendChild(row);
+                }
+            } catch (e) {
+                console.error("Failed to load task stats:", e);
+                document.getElementById("skill-tbody").innerHTML =
+                    '<tr><td colspan="5" style="color:var(--danger)">Failed to load stats</td></tr>';
+            }
+        }
+
+        // ── Leaderboard ─────────────────────────────────────────
+        async function loadLeaderboard() {
+            try {
+                const resp = await fetch(`${API}/leaderboard`);
+                const data = await resp.json();
+
+                const tbody = document.getElementById("leaderboard-tbody");
+                tbody.innerHTML = "";
+
+                if (!data.leaderboard?.length) {
+                    tbody.innerHTML = '<tr><td colspan="6" class="loading">No contributors yet — be the first!</td></tr>';
+                    return;
+                }
+
+                data.leaderboard.forEach((c, i) => {
+                    const row = document.createElement("tr");
+                    const id = String(c.contributor_id || "anonymous");
+                    const display = id.length > 16 ? id.slice(0, 6) + "…" + id.slice(-6) : id;
+                    row.innerHTML = `
+                        <td><span class="${rankClass(i)}">${i + 1}</span></td>
+                        <td title="${id}">${display}</td>
+                        <td>${c.results_published}</td>
+                        <td>${c.tasks_completed}</td>
+                        <td>${c.skills_used}</td>
+                        <td>${relativeTime(c.latest_result)}</td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            } catch (e) {
+                console.error("Failed to load leaderboard:", e);
+                document.getElementById("leaderboard-tbody").innerHTML =
+                    '<tr><td colspan="6" style="color:var(--danger)">Failed to load leaderboard</td></tr>';
+            }
+        }
+
+        // ── Init ────────────────────────────────────────────────
+        loadTaskStats();
+        loadLeaderboard();
+
+        // Auto-refresh every 30s
+        setInterval(loadTaskStats, 30000);
+        setInterval(loadLeaderboard, 60000);
+    </script>
+</body>
+
+</html>
