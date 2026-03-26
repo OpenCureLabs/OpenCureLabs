@@ -9,7 +9,7 @@
   <a href="https://opencurelabs.ai"><img src="https://img.shields.io/badge/Live_Feed-opencurelabs.ai-00bfff?style=flat&logo=data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0id2hpdGUiPjxjaXJjbGUgY3g9IjEyIiBjeT0iMTIiIHI9IjQiLz48cGF0aCBkPSJNMTIgMmE5Ljk3IDkuOTcgMCAwIDAtNy4wNzEgMi45MjkiIHN0cm9rZT0id2hpdGUiIHN0cm9rZS13aWR0aD0iMiIgZmlsbD0ibm9uZSIvPjxwYXRoIGQ9Ik0xMiAyYTkuOTcgOS45NyAwIDAgMSA3LjA3MSAyLjkyOSIgc3Ryb2tlPSJ3aGl0ZSIgc3Ryb2tlLXdpZHRoPSIyIiBmaWxsPSJub25lIi8+PC9zdmc+" alt="Live Feed"></a>
 </p>
 
-**Autonomous AI agents running real science — so every researcher can fight cancer like a funded lab.**
+**Autonomous AI agents running real science — open tools for computational biology.**
 
 > **🔬 Browse live discoveries → [opencurelabs.ai](https://opencurelabs.ai)**
 
