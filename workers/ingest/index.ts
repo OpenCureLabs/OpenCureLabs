@@ -140,13 +140,18 @@ export default {
             return handleTaskGenerate(request, env);
         }
 
+        if (request.method === "POST" && url.pathname === "/tasks/recycle") {
+            return handleTaskRecycle(request, env);
+        }
+
         return json({ error: "Not found" }, 404);
     },
 
     async scheduled(_event: ScheduledEvent, env: Env, _ctx: ExecutionContext): Promise<void> {
-        // Weekly cron: populate task queue + reclaim expired tasks
+        // Weekly cron: populate new tasks + reclaim abandoned claims + recycle old completions
         await populateTaskQueue(env);
         await reclaimExpiredTasks(env);
+        await recycleCompletedTasks(env);
     },
 };
 
@@ -469,8 +474,8 @@ async function handlePatchResult(request: Request, env: Env): Promise<Response> 
         return json({ error: "Invalid JSON body" }, 400);
     }
 
-    if (!body.status || !["published", "blocked"].includes(body.status)) {
-        return json({ error: "status must be 'published' or 'blocked'" }, 400);
+    if (!body.status || !["published", "blocked", "deferred"].includes(body.status)) {
+        return json({ error: "status must be 'published', 'blocked', or 'deferred'" }, 400);
     }
 
     // Update D1
@@ -873,6 +878,37 @@ async function handleTaskGenerate(request: Request, env: Env): Promise<Response>
 }
 
 /**
+ * POST /tasks/recycle  (admin-only)
+ * Reset completed tasks older than `days` (default 30) back to available.
+ * Accepts optional JSON body: { "days": 0 } to recycle all completed tasks immediately.
+ */
+async function handleTaskRecycle(request: Request, env: Env): Promise<Response> {
+    const adminKey = request.headers.get("X-Admin-Key");
+    if (env.ADMIN_KEY && adminKey !== env.ADMIN_KEY) {
+        return json({ error: "Unauthorized" }, 401);
+    }
+
+    let days = 30;
+    try {
+        const body = await request.json<{ days?: number }>();
+        if (typeof body.days === "number" && body.days >= 0) {
+            days = body.days;
+        }
+    } catch {
+        // No body or invalid JSON — use default
+    }
+
+    const cutoff = new Date(Date.now() - days * 24 * 60 * 60 * 1000).toISOString();
+    const result = await env.RESULTS_DB.prepare(
+        `UPDATE tasks SET status = 'available', claimed_by = NULL, claimed_at = NULL,
+                completed_at = NULL, result_id = NULL
+         WHERE status = 'completed' AND completed_at < ?`
+    ).bind(cutoff).run();
+
+    return json({ ok: true, recycled: result.meta.changes, cutoff_days: days });
+}
+
+/**
  * Generate tasks and INSERT OR IGNORE into D1. Returns count of newly inserted tasks.
  */
 async function populateTaskQueue(env: Env): Promise<number> {
@@ -913,6 +949,21 @@ async function reclaimExpiredTasks(env: Env): Promise<number> {
     const result = await env.RESULTS_DB.prepare(
         `UPDATE tasks SET status = 'available', claimed_by = NULL, claimed_at = NULL
          WHERE status = 'claimed' AND claimed_at < ?`
+    ).bind(cutoff).run();
+    return result.meta.changes;
+}
+
+/**
+ * Recycle tasks completed more than 30 days ago back to 'available'.
+ * Re-running experiments with updated models/data improves reproducibility.
+ * Clears result_id so the new run produces a fresh result.
+ */
+async function recycleCompletedTasks(env: Env): Promise<number> {
+    const cutoff = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString();
+    const result = await env.RESULTS_DB.prepare(
+        `UPDATE tasks SET status = 'available', claimed_by = NULL, claimed_at = NULL,
+                completed_at = NULL, result_id = NULL
+         WHERE status = 'completed' AND completed_at < ?`
     ).bind(cutoff).run();
     return result.meta.changes;
 }
