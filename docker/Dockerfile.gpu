@@ -52,10 +52,11 @@ RUN mhcflurry-downloads fetch models_class1_pan
 # PyEnsembl genome annotations — baked in to avoid cold-download on Vast.ai
 # Human GRCh38 release 110 (~500 MB) — used by all human pipelines
 RUN pyensembl install --release 110 --species human
-# Canine CanFam3.1 release 110 (~400 MB) — used by dog neoantigen/variant pipelines
-# Note: Ensembl renamed canis_familiaris → canis_lupus_familiaris at release 111
-# but pyensembl still uses the old name, causing 404s. Use release 110 instead.
-RUN pyensembl install --release 110 --species dog
+# Canine CanFam3.1 release 99 (~400 MB) — used by dog neoantigen/variant pipelines
+# Note: Ensembl renamed canis_familiaris → canis_lupus_familiaris at release 100
+# but pyensembl still uses the old name, causing 404s. Release 99 is the last
+# release with the old directory name.
+RUN pyensembl install --release 99 --species dog
 # Feline Felis_catus_9.0 release 111 (~350 MB) — used by cat neoantigen/variant pipelines
 RUN pyensembl install --release 111 --species cat
 
