@@ -1026,7 +1026,9 @@ async function handleLeaderboard(env: Env): Promise<Response> {
     const taskRows = await env.RESULTS_DB.prepare(
         `SELECT
             claimed_by as contributor_id,
-            COUNT(*) as tasks_completed
+            COUNT(*) as tasks_completed,
+            MIN(claimed_at) as first_task,
+            MAX(completed_at) as latest_task
          FROM tasks
          WHERE status = 'completed' AND claimed_by IS NOT NULL
          GROUP BY claimed_by
@@ -1034,20 +1036,40 @@ async function handleLeaderboard(env: Env): Promise<Response> {
          LIMIT 50`
     ).all();
 
-    // Merge results and task counts
-    const taskMap = new Map<string, number>();
-    for (const r of taskRows.results ?? []) {
-        taskMap.set(r.contributor_id as string, r.tasks_completed as number);
+    // Build unified leaderboard from both results AND tasks
+    const resultMap = new Map<string, { results_published: number; skills_used: number; first_result: string; latest_result: string }>();
+    for (const r of rows.results ?? []) {
+        resultMap.set(r.contributor_id as string, {
+            results_published: r.results_published as number,
+            skills_used: r.skills_used as number,
+            first_result: r.first_result as string,
+            latest_result: r.latest_result as string,
+        });
     }
 
-    const leaderboard = (rows.results ?? []).map((r) => ({
-        contributor_id: r.contributor_id,
-        results_published: r.results_published,
-        tasks_completed: taskMap.get(r.contributor_id as string) ?? 0,
-        skills_used: r.skills_used,
-        first_result: r.first_result,
-        latest_result: r.latest_result,
-    }));
+    const taskMap = new Map<string, { tasks_completed: number; first_task: string; latest_task: string }>();
+    for (const r of taskRows.results ?? []) {
+        taskMap.set(r.contributor_id as string, {
+            tasks_completed: r.tasks_completed as number,
+            first_task: r.first_task as string,
+            latest_task: r.latest_task as string,
+        });
+    }
+
+    // Union all contributor IDs from both tables
+    const allIds = new Set([...resultMap.keys(), ...taskMap.keys()]);
+    const leaderboard = [...allIds].map((id) => {
+        const res = resultMap.get(id);
+        const task = taskMap.get(id);
+        return {
+            contributor_id: id,
+            results_published: res?.results_published ?? 0,
+            tasks_completed: task?.tasks_completed ?? 0,
+            skills_used: res?.skills_used ?? 0,
+            first_result: res?.first_result ?? task?.first_task ?? null,
+            latest_result: res?.latest_result ?? task?.latest_task ?? null,
+        };
+    }).sort((a, b) => (b.tasks_completed + b.results_published) - (a.tasks_completed + a.results_published));
 
     return json({ leaderboard, updated_at: new Date().toISOString() });
 }
