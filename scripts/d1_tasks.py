@@ -131,7 +131,7 @@ def complete(task_id: str, result_id: str = "") -> bool:
 
 
 def stats() -> dict:
-    """Fetch queue stats from D1."""
+    """Fetch queue stats from D1. Returns {available: N, claimed: N, completed: N, total: N}."""
     url = f"{API_URL}/tasks/stats"
     req = urllib.request.Request(url, method="GET")  # noqa: S310
     req.add_header("Accept", "application/json")
@@ -139,7 +139,17 @@ def stats() -> dict:
 
     try:
         with urllib.request.urlopen(req, timeout=TIMEOUT) as resp:  # noqa: S310  # nosec B310
-            return json.loads(resp.read().decode())
+            raw = json.loads(resp.read().decode())
+            # Flatten totals array into a simple dict
+            result: dict = {"available": 0, "claimed": 0, "completed": 0, "total": 0}
+            for row in raw.get("totals", []):
+                status = row.get("status", "")
+                count = row.get("count", 0)
+                if status in result:
+                    result[status] = count
+                result["total"] += count
+            result["by_skill"] = raw.get("by_skill", [])
+            return result
     except (urllib.error.URLError, TimeoutError, OSError) as e:
         print(f"D1 stats failed: {e}", file=sys.stderr)
         return {}

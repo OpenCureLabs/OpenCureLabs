@@ -12,6 +12,8 @@ data/raw/
 data/human/
 data/canine/
 data/feline/
+data/dog/
+data/cat/
 logs/*.log
 logs/genesis-*/
 db/data/

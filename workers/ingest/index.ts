@@ -148,8 +148,9 @@ export default {
     },
 
     async scheduled(_event: ScheduledEvent, env: Env, _ctx: ExecutionContext): Promise<void> {
-        // Weekly cron: populate new tasks + reclaim abandoned claims + recycle old completions
-        await populateTaskQueue(env);
+        // Weekly cron: populate new tasks (first 5000 — idempotent, catches new additions)
+        // + reclaim abandoned claims + recycle old completions
+        await populateTaskQueue(env, 0, 5000);
         await reclaimExpiredTasks(env);
         await recycleCompletedTasks(env);
     },
@@ -873,8 +874,17 @@ async function handleTaskGenerate(request: Request, env: Env): Promise<Response>
         return json({ error: "Unauthorized" }, 401);
     }
 
-    const inserted = await populateTaskQueue(env);
-    return json({ ok: true, inserted, message: `Generated ${inserted} new tasks` });
+    // Support chunked generation: { offset?: number, limit?: number }
+    let offset = 0;
+    let limit = 5000; // Default: 5000 tasks per call (safe for Worker CPU limits)
+    try {
+        const body = await request.json() as { offset?: number; limit?: number };
+        if (typeof body.offset === "number") offset = body.offset;
+        if (typeof body.limit === "number") limit = Math.min(body.limit, 10000);
+    } catch { /* empty body OK, use defaults */ }
+
+    const inserted = await populateTaskQueue(env, offset, limit);
+    return json({ ok: true, inserted, offset, limit, message: `Generated ${inserted} new tasks (offset ${offset})` });
 }
 
 /**
@@ -911,14 +921,16 @@ async function handleTaskRecycle(request: Request, env: Env): Promise<Response> 
 /**
  * Generate tasks and INSERT OR IGNORE into D1. Returns count of newly inserted tasks.
  */
-async function populateTaskQueue(env: Env): Promise<number> {
+async function populateTaskQueue(env: Env, offset: number = 0, limit: number = Infinity): Promise<number> {
     const allTasks = generateAllTasks();
+    const end = Math.min(offset + limit, allTasks.length);
+    const slice = allTasks.slice(offset, end);
     let inserted = 0;
 
     // Process in batches of 50 to avoid D1 limits
     const batchSize = 50;
-    for (let i = 0; i < allTasks.length; i += batchSize) {
-        const batch = allTasks.slice(i, i + batchSize);
+    for (let i = 0; i < slice.length; i += batchSize) {
+        const batch = slice.slice(i, i + batchSize);
         const stmts = [];
 
         for (const task of batch) {

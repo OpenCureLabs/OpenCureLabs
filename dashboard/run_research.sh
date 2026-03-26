@@ -943,6 +943,7 @@ if $HAS_GUM; then
             GENESIS_START=$(date +%s)
             export GENESIS_START
             ROUND=0
+            _D1_EMPTY_STREAK=0
 
             export LABCLAW_COMPUTE=local
             [[ "$DATA_MODE" == "mydata" ]] && export OPENCURELABS_MODE=solo || export OPENCURELABS_MODE=contribute
@@ -1017,10 +1018,19 @@ if $HAS_GUM; then
 
                     # ── D1 mode: claim tasks from central queue ──────
                     if [[ "${TASK_SOURCE:-local}" == "d1" ]]; then
+                        # Show queue depth at start of round
+                        _D1_STATS=$(python3 "$PROJECT_DIR/scripts/d1_tasks.py" stats 2>/dev/null || echo "{}")
+                        _D1_AVAIL=$(echo "$_D1_STATS" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('available',0))" 2>/dev/null || echo "?")
+                        _D1_CLAIMED_STAT=$(echo "$_D1_STATS" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('claimed',0))" 2>/dev/null || echo "?")
+                        _D1_COMPLETED_STAT=$(echo "$_D1_STATS" | python3 -c "import json,sys; d=json.load(sys.stdin); print(d.get('completed',0))" 2>/dev/null || echo "?")
+                        gum style --foreground 39 \
+                            "  📊 D1 queue: $_D1_AVAIL available · $_D1_CLAIMED_STAT claimed · $_D1_COMPLETED_STAT completed" 2>/dev/null || true
+
                         D1_CLAIMED_JSON=$(python3 "$PROJECT_DIR/scripts/d1_tasks.py" claim --count "$TOTAL" 2>/dev/null || echo "[]")
                         D1_COUNT=$(echo "$D1_CLAIMED_JSON" | python3 -c "import json,sys; print(len(json.load(sys.stdin)))" 2>/dev/null || echo 0)
 
                         if [[ "$D1_COUNT" -gt 0 ]]; then
+                            _D1_EMPTY_STREAK=0  # Reset backoff on successful claim
                             gum style --foreground 46 "  🌐 Claimed $D1_COUNT tasks from D1 central queue"
                             echo ""
 
@@ -1050,13 +1060,33 @@ if $HAS_GUM; then
                                 echo ""
                             done
                         else
-                            gum style --foreground 242 "  ℹ️  No D1 tasks available — falling back to local list"
-                            TASK_SOURCE="local"
+                            # ── Queue empty — exponential backoff ──────
+                            _D1_EMPTY_STREAK=$((_D1_EMPTY_STREAK + 1))
+                            if [[ $_D1_EMPTY_STREAK -ge 4 ]]; then
+                                echo ""
+                                gum style --foreground 196 --bold \
+                                    "  🛑 Queue exhausted — no tasks available after $_D1_EMPTY_STREAK attempts. Stopping." 2>/dev/null \
+                                    || echo "  Queue exhausted — stopping."
+                                echo ""
+                                break
+                            fi
+                            case $_D1_EMPTY_STREAK in
+                                1) _BACKOFF=30  ;;
+                                2) _BACKOFF=120 ;;
+                                3) _BACKOFF=300 ;;
+                            esac
+                            gum style --foreground 214 \
+                                "  ⏸  D1 queue empty (attempt $_D1_EMPTY_STREAK/3) — waiting ${_BACKOFF}s before retry..." 2>/dev/null \
+                                || echo "  D1 queue empty — waiting ${_BACKOFF}s..."
+                            if ! gum spin --spinner dot --title "Waiting ${_BACKOFF}s for queue replenishment..." -- sleep "$_BACKOFF" 2>/dev/null; then
+                                sleep "$_BACKOFF" || true
+                            fi
+                            continue  # Retry the round without incrementing failure counts
                         fi
                     fi
 
-                    # ── Local mode: use hardcoded task list ──────────
-                    if [[ "${TASK_SOURCE:-local}" == "local" ]]; then
+                    # ── Local mode: use hardcoded task list (dev/mydata only) ──
+                    if [[ "${TASK_SOURCE:-local}" == "local" && "${DATA_MODE:-public}" != "public" ]]; then
                     for i in $(seq 0 $((TOTAL - 1))); do
                         TASK_NUM=$((i + 1))
                         RAW_LABEL="${ALL_LABELS[$i]}"
@@ -1079,6 +1109,14 @@ if $HAS_GUM; then
                         fi
                         echo ""
                     done
+                    elif [[ "${TASK_SOURCE:-local}" == "local" && "${DATA_MODE:-public}" == "public" ]]; then
+                        # Public mode with no D1 — don't loop on hardcoded tasks
+                        gum style --foreground 196 \
+                            "  🛑 No D1 queue available in public mode — cannot run hardcoded tasks (would produce duplicates)." 2>/dev/null \
+                            || echo "  No D1 queue available — stopping."
+                        gum style --foreground 242 \
+                            "  💡 Tip: switch to local/mydata mode, or check D1 connectivity." 2>/dev/null || true
+                        break
                     fi  # end TASK_SOURCE == local
                 else
                     # ── Parallel batch execution ─────────────────────

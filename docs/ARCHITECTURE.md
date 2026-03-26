@@ -512,6 +512,24 @@ GPU contributions. External contributors (or your own machines in
 `--mode contribute`) claim research tasks from the queue, run them locally, and
 report results back — eliminating duplicate work across the network.
 
+The queue is pre-populated with ~400K research tasks generated from curated
+parameter banks:
+
+| Parameter | Count | Examples |
+|---|---|---|
+| Cancer genes | 227 | TP53, BRCA1, EGFR, KRAS, … (tier 1 priority for top 15) |
+| Tumor types | 35 | BRCA, LUAD, GBM, PAAD, AML, SCLC, … (TCGA codes) |
+| HLA panels | 50 | Global population coverage (European, East Asian, African, …) |
+| Drug targets | 95 | Kinase inhibitors, CDK, PI3K-mTOR, KRAS, immune checkpoint, … |
+| ChEMBL datasets | 55 | Matching drug target categories |
+| Rare disease variants | 197 | Lysosomal storage, metabolic, connective tissue, neurological, … |
+| Vet (canine) | 20 genes, 14 tumors, 10 DLA, 18 variants |
+| Vet (feline) | 12 genes, 10 tumors, 6 FLA, 11 variants |
+
+Task generation supports chunked ingestion via `offset`/`limit` parameters and
+is fully idempotent (SHA-256 dedup). Use `scripts/seed_d1_queue.py` to seed or
+re-seed the queue, and `scripts/generate_vcfs.py` to regenerate synthetic VCFs.
+
 See [DISTRIBUTED-COMPUTING.md](DISTRIBUTED-COMPUTING.md) for the full protocol
 and contributor guide.
 
