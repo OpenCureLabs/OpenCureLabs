@@ -45,7 +45,7 @@ Think of the relationship like this:
 | **Guardrail enforcement** | Validates outputs before they reach downstream agents or publishing |
 | **Data registration** | Accepts newly discovered sources from Grok and queues them for ingestion |
 | **Result routing** | Sends novel results to the Grok reviewer agent (two-tier critique) |
-| **Publishing coordination** | Triggers GitHub commits and PDF report generation |
+| **Publishing coordination** | Triggers R2 publishing and local PDF report generation |
 
 ---
 

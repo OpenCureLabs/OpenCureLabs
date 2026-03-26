@@ -107,7 +107,7 @@ OpenCure Labs supports both **shared and private usage**. In the default mode, r
          ┌────────┐     ┌──────────┐    ┌───────────────────────┐
          │ GitHub │     │   PDF    │    │ R2 / opencurelabs.ai  │
          │Pipelines│    │ Reports  │    │   Global Dataset      │
-         │ + code │     │Findings  │    │ pub.opencurelabs.ai   │
+         │ + code │     │ (local)  │    │ pub.opencurelabs.ai   │
          └────────┘     └──────────┘    └───────────────────────┘
 ```
 
@@ -156,7 +156,7 @@ The coordinator is responsible for:
 - **Task routing** — dispatching jobs to the correct domain agent based on input type and objective
 - **Skill invocation** — calling specific scientific skill modules (e.g., structure prediction, neoantigen scoring)
 - **Guardrail enforcement** — validating outputs before downstream consumption
-- **Publishing** — coordinating delivery to GitHub, PDF reports, and the R2 global dataset
+- **Publishing** — coordinating delivery to the R2 global dataset (PDF reports generated locally)
 
 ### Specialist Agents
 
@@ -265,7 +265,7 @@ This triple-role design means Grok is not just a passive critic but an **active 
 | **R2 / pub.opencurelabs.ai** | All published results as JSON — public download, no auth required |
 | **opencurelabs.ai** | Live discovery feed — browse findings from all contributors |
 | **GitHub** | Pipelines, code, analysis artifacts, and reproducibility artifacts |
-| **PDF Reports** | Formal findings documents with methodology, results, and reviewer notes |
+| **PDF Reports** (local) | Formal findings documents with methodology, results, and reviewer notes — saved to `reports/`, not published externally |
 
 ---
 
