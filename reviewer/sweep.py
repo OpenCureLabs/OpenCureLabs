@@ -88,10 +88,49 @@ def fetch_r2_result(r2_url: str) -> dict | None:
         return None
 
 
-def get_pending_results(limit: int = 50) -> list[dict]:
-    """Fetch pending results from D1 awaiting batch verification."""
-    data = api_get("/results", {"status": "pending", "limit": str(limit)})
+def get_pending_results(limit: int = 50, novel_only: bool = True) -> list[dict]:
+    """Fetch pending results from D1 awaiting batch verification.
+
+    Args:
+        limit: Maximum results to fetch.
+        novel_only: If True, only fetch novel results (skip replications).
+    """
+    params: dict[str, str] = {"status": "pending", "limit": str(limit)}
+    if novel_only:
+        params["novel"] = "true"
+    data = api_get("/results", params)
     return data.get("results", [])
+
+
+def auto_publish_replications(limit: int = 50) -> int:
+    """Auto-publish pending replications without Grok review.
+
+    Replications (novel=false) have already been reviewed as the original
+    novel result. No need to spend API calls re-verifying them.
+
+    Returns the number of replications auto-published.
+    """
+    data = api_get("/results", {"status": "pending", "novel": "false", "limit": str(limit)})
+    replications = data.get("results", [])
+    if not replications:
+        return 0
+
+    published = 0
+    for result in replications:
+        result_id = result["id"]
+        try:
+            api_patch(f"/results/{result_id}", {
+                "status": "published",
+                "batch_critique": {
+                    "auto_published": True,
+                    "reason": "replication — original novel result already reviewed",
+                    "verification_score": None,
+                },
+            })
+            published += 1
+        except Exception as e:
+            logger.error("Auto-publish failed for %s: %s", result_id, e)
+    return published
 
 
 def run_grok_verification(skill: str, result_data: dict, local_critique: dict) -> tuple[dict | None, float]:
@@ -176,12 +215,20 @@ def run_grok_verification(skill: str, result_data: dict, local_critique: dict) -
 
 def sweep_once(limit: int = 50) -> dict:
     """Run one verification sweep. Returns counts of actions taken."""
-    logger.info("Fetching pending results (limit=%d)...", limit)
-    pending = get_pending_results(limit=limit)
+    # Phase 1: Auto-publish replications (no Grok call)
+    repl_count = auto_publish_replications()
+    if repl_count:
+        logger.info("Auto-published %d replication(s) (no Grok review needed)", repl_count)
 
-    if not pending:
+    # Phase 2: Fetch novel pending results for Grok verification
+    logger.info("Fetching pending novel results (limit=%d)...", limit)
+    pending = get_pending_results(limit=limit, novel_only=True)
+
+    if not pending and not repl_count:
         logger.info("No pending results found.")
-        return {"published": 0, "blocked": 0, "deferred": 0, "errors": 0}
+        return {"published": 0, "blocked": 0, "deferred": 0, "errors": 0, "replications": 0}
+    elif not pending:
+        return {"published": 0, "blocked": 0, "deferred": 0, "errors": 0, "replications": repl_count}
 
     logger.info("Found %d pending result(s)", len(pending))
     counts = {"published": 0, "blocked": 0, "deferred": 0, "errors": 0}
@@ -250,6 +297,7 @@ def sweep_once(limit: int = 50) -> dict:
             counts["errors"] += 1
 
     counts["cost_usd"] = sweep_cost
+    counts["replications"] = repl_count
     return counts
 
 
@@ -270,9 +318,9 @@ def main():
             counts = sweep_once(limit=args.limit)
             session_cost += counts.get("cost_usd", 0.0)
             logger.info(
-                "Sweep complete: %d published, %d blocked, %d deferred, %d errors | cost: $%.4f (session: $%.4f)",
+                "Sweep complete: %d published, %d blocked, %d deferred, %d errors, %d repl-autopub | cost: $%.4f (session: $%.4f)",
                 counts["published"], counts["blocked"], counts["deferred"], counts["errors"],
-                counts.get("cost_usd", 0.0), session_cost,
+                counts.get("replications", 0), counts.get("cost_usd", 0.0), session_cost,
             )
         except Exception as e:
             logger.error("Sweep error: %s", e)
