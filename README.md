@@ -11,7 +11,7 @@
 
 **Autonomous AI agents for computational biology — open tools, public artifacts, and reproducible.**
 
-> **🔬 Browse live discoveries → [opencurelabs.ai](https://opencurelabs.ai)**
+> **🔬 Browse open research artifacts → [opencurelabs.ai](https://opencurelabs.ai)**
 
 ---
 

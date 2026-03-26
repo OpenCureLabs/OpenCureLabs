@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>OpenCure Labs — Live Discoveries</title>
+    <title>OpenCure Labs — Open Research Artifacts</title>
     <link rel="icon" href="https://pub.opencurelabs.ai/assets/favicon.ico" type="image/x-icon" />
     <style>
         :root {
@@ -383,13 +383,14 @@
             <a href="/data" style="color:var(--muted);text-decoration:none;font-size:0.9rem;font-weight:500">Data</a>
             <a href="/about" style="color:var(--muted);text-decoration:none;font-size:0.9rem;font-weight:500">About</a>
         </nav>
-        <span id="last-updated">Fetching latest discoveries…</span>
+        <span id="last-updated">Fetching latest results…</span>
     </header>
 
     <div class="hero">
-        <h2>Global Research Feed</h2>
-        <p>AI-generated scientific discoveries contributed by researchers worldwide — open for anyone to download and
-            use.</p>
+        <h2>Public Research Artifacts</h2>
+        <p>Download AI-generated research artifacts with metadata, integrity signatures, and explicit validation
+            warnings. Outputs are open for inspection and reuse, but should be independently validated before scientific
+            or clinical use.</p>
     </div>
 
     <div class="stats-bar">
@@ -437,7 +438,7 @@
     </div>
 
     <div class="feed" id="feed">
-        <div class="loading pulse">Loading discoveries…</div>
+        <div class="loading pulse">Loading results…</div>
     </div>
 
     <div style="text-align:center;padding:0 1.5rem 2rem">
@@ -449,10 +450,11 @@
     </div>
 
     <footer>
-        Data is open and freely downloadable from <a
+        Downloadable artifacts with provenance metadata at <a
             href="https://pub.opencurelabs.ai/latest.json">pub.opencurelabs.ai</a> &middot;
         <a href="https://github.com/OpenCureLabs/OpenCureLabs">GitHub</a> &middot;
-        Results are AI-generated and should be independently validated before clinical use.
+        All outputs are AI-generated and carry validation warnings — verify independently before scientific or clinical
+        use.
     </footer>
 
     <script>
