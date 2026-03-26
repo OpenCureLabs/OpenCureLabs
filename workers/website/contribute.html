@@ -127,6 +127,10 @@
             color: var(--novel);
         }
 
+        .stat-card .value.accent2 {
+            color: var(--accent2);
+        }
+
         .stat-card .label {
             font-size: 0.8rem;
             color: var(--muted);
@@ -298,6 +302,14 @@
                 <div class="value loading" id="stat-total">—</div>
                 <div class="label">Total Tasks</div>
             </div>
+            <div class="stat-card">
+                <div class="value accent2 loading" id="stat-derived">—</div>
+                <div class="label">Derived from Results</div>
+            </div>
+            <div class="stat-card">
+                <div class="value accent2 loading" id="stat-discovery">—</div>
+                <div class="label">From Discoveries</div>
+            </div>
         </div>
 
         <h3>Tasks by Skill</h3>
@@ -432,6 +444,14 @@ python -m agentiq_labclaw.compute.batch_dispatcher \
                 document.getElementById("stat-failed").textContent = formatNumber(totals.failed || 0);
                 const total = Object.values(totals).reduce((a, b) => a + b, 0);
                 document.getElementById("stat-total").textContent = formatNumber(total);
+
+                // Source breakdown
+                const sources = {};
+                for (const row of data.by_source || []) {
+                    sources[row.source] = row.count;
+                }
+                document.getElementById("stat-derived").textContent = formatNumber(sources.result || 0);
+                document.getElementById("stat-discovery").textContent = formatNumber(sources.discovery || 0);
 
                 // Remove loading class
                 document.querySelectorAll(".stat-card .value").forEach(el => el.classList.remove("loading"));

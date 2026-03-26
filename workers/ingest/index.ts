@@ -18,7 +18,9 @@
  *
  * GET  /tasks/claim   — claim available research tasks from central queue.
  * POST /tasks/:id/complete — mark a claimed task as completed.
+ * POST /tasks/:id/fail    — report a task failure (auto-retries up to 3x).
  * GET  /tasks/stats   — task queue statistics.
+ * GET  /leaderboard   — public contributor rankings.
  * POST /tasks/generate — admin-only: populate task queue from parameter banks.
  *
  * Storage:
@@ -29,7 +31,7 @@
  *   D1  → tasks table                                (central research task queue)
  */
 
-import { generateAllTasks, inputHash, type TaskInput } from "./tasks";
+import { generateAllTasks, inputHash, deriveFollowUpTasks, deriveDiscoveryTasks, meetsChainThreshold, type TaskInput, type DerivedTask } from "./tasks";
 
 const KNOWN_SKILLS = [
     "neoantigen_prediction",
@@ -132,8 +134,16 @@ export default {
             return handleTaskComplete(request, env);
         }
 
+        if (request.method === "POST" && url.pathname.match(/^\/tasks\/[^/]+\/fail$/)) {
+            return handleTaskFail(request, env);
+        }
+
         if (request.method === "GET" && url.pathname === "/tasks/stats") {
             return handleTaskStats(env);
+        }
+
+        if (request.method === "GET" && url.pathname === "/leaderboard") {
+            return handleLeaderboard(env);
         }
 
         if (request.method === "POST" && url.pathname === "/tasks/generate") {
@@ -344,7 +354,42 @@ async function handlePost(request: Request, env: Env): Promise<Response> {
         ).bind(createdAt, id, hash).run();
     }
 
-    return json({ id, url: r2Url, status: "pending" }, 201);
+    // ── Dynamic task derivation (#49) ─────────────────────────────────────────
+    let derivedCount = 0;
+
+    if (novel && meetsChainThreshold(payload.skill, resultData0)) {
+        // Look up the parent task for chain tracking
+        let parentTaskId: string | null = null;
+        let chainId: string | null = null;
+        let chainStep = 0;
+        if (Object.keys(dedupInput).length > 0) {
+            const hash = await inputHash(dedupInput);
+            const parentTask = await env.RESULTS_DB.prepare(
+                `SELECT id, chain_id, chain_step FROM tasks WHERE input_hash = ?`
+            ).bind(hash).first<{ id: string; chain_id: string | null; chain_step: number | null }>();
+            if (parentTask) {
+                parentTaskId = parentTask.id;
+                chainId = parentTask.chain_id ?? crypto.randomUUID();
+                chainStep = (parentTask.chain_step ?? 0) + 1;
+            }
+        }
+        // Cap chain depth at 4
+        if (chainStep <= 4) {
+            const derived = deriveFollowUpTasks(payload.skill, resultData0, id, species);
+            derivedCount = await insertDerivedTasks(env, derived, parentTaskId, chainId, chainStep);
+        }
+    }
+
+    // Discovery-driven tasks from grok_research skill
+    if (payload.skill === "grok_research" && resultData0.discoveries) {
+        const discoveries = resultData0.discoveries as Array<{ url?: string; domain?: string; title?: string; notes?: string }>;
+        if (Array.isArray(discoveries) && discoveries.length > 0) {
+            const derived = deriveDiscoveryTasks(discoveries, id);
+            derivedCount += await insertDerivedTasks(env, derived, null, null, 0);
+        }
+    }
+
+    return json({ id, url: r2Url, status: "pending", derived_tasks: derivedCount }, 201);
 }
 
 // ── GET /results/count ────────────────────────────────────────────────────────
@@ -766,11 +811,41 @@ async function updateLatest(env: Env, entry: LatestEntry): Promise<void> {
     });
 }
 
+// ── Rate Limiting ────────────────────────────────────────────────────────
+
+const CLAIM_RATE_LIMIT = 100;   // max claims per contributor per window
+const CLAIM_RATE_WINDOW = 60;   // window in seconds (1 minute)
+
+/**
+ * D1-backed per-contributor rate limiter for /tasks/claim.
+ * Returns { allowed: true } or { allowed: false, retryAfter: seconds }.
+ *
+ * Uses the tasks table itself: COUNT claims made by this contributor
+ * within the rolling window. No extra table needed.
+ */
+async function checkClaimRateLimit(
+    env: Env,
+    contributorId: string,
+): Promise<{ allowed: boolean; retryAfter?: number; recentClaims?: number }> {
+    const windowStart = new Date(Date.now() - CLAIM_RATE_WINDOW * 1000).toISOString();
+    const result = await env.RESULTS_DB.prepare(
+        `SELECT COUNT(*) as cnt FROM tasks
+         WHERE claimed_by = ? AND claimed_at >= ?`
+    ).bind(contributorId, windowStart).first<{ cnt: number }>();
+
+    const recentClaims = result?.cnt ?? 0;
+    if (recentClaims >= CLAIM_RATE_LIMIT) {
+        return { allowed: false, retryAfter: CLAIM_RATE_WINDOW, recentClaims };
+    }
+    return { allowed: true, recentClaims };
+}
+
 // ── Task Queue Handlers ─────────────────────────────────────────────────
 
 /**
  * GET /tasks/claim?skill=neoantigen_prediction&count=5&contributor_id=abc
  * Atomically claim available tasks. Returns claimed tasks with input_data.
+ * Rate-limited: max 100 claims per contributor per minute.
  */
 async function handleTaskClaim(request: Request, env: Env): Promise<Response> {
     const url = new URL(request.url);
@@ -779,6 +854,23 @@ async function handleTaskClaim(request: Request, env: Env): Promise<Response> {
     const contributorId = url.searchParams.get("contributor_id") ?? "anonymous";
 
     if (count < 1) return json({ error: "count must be >= 1" }, 400);
+
+    // Rate limiting: per-contributor claim throttle
+    const rateCheck = await checkClaimRateLimit(env, contributorId);
+    if (!rateCheck.allowed) {
+        return new Response(JSON.stringify({
+            error: "Rate limit exceeded",
+            message: `Max ${CLAIM_RATE_LIMIT} claims per ${CLAIM_RATE_WINDOW}s. Try again in ${rateCheck.retryAfter}s.`,
+            recent_claims: rateCheck.recentClaims,
+        }), {
+            status: 429,
+            headers: {
+                "Content-Type": "application/json",
+                "Retry-After": String(rateCheck.retryAfter),
+                ...CORS_HEADERS,
+            },
+        });
+    }
 
     const now = new Date().toISOString();
 
@@ -849,6 +941,109 @@ async function handleTaskComplete(request: Request, env: Env): Promise<Response>
 }
 
 /**
+ * POST /tasks/:id/fail  { error: "reason..." }
+ * Report a task failure. Increments failure_count and returns task to available
+ * if under 3 attempts, otherwise marks permanently failed.
+ */
+const MAX_TASK_FAILURES = 3;
+
+async function handleTaskFail(request: Request, env: Env): Promise<Response> {
+    const url = new URL(request.url);
+    const match = url.pathname.match(/^\/tasks\/([^/]+)\/fail$/);
+    if (!match) return json({ error: "Invalid path" }, 400);
+
+    const taskId = match[1];
+    const body = await request.json<{ error?: string }>();
+    const reason = (body.error ?? "unknown error").slice(0, 2000); // cap length
+    const now = new Date().toISOString();
+
+    // Get current failure count
+    const task = await env.RESULTS_DB.prepare(
+        `SELECT failure_count FROM tasks WHERE id = ? AND status = 'claimed'`
+    ).bind(taskId).first<{ failure_count: number | null }>();
+
+    if (!task) {
+        return json({ error: "Task not found or not in claimed state" }, 404);
+    }
+
+    const newCount = (task.failure_count ?? 0) + 1;
+
+    if (newCount >= MAX_TASK_FAILURES) {
+        // Permanently failed — too many retries
+        await env.RESULTS_DB.prepare(
+            `UPDATE tasks SET status = 'failed', failure_reason = ?, failed_at = ?,
+                    failure_count = ?, claimed_by = NULL, claimed_at = NULL
+             WHERE id = ?`
+        ).bind(reason, now, newCount, taskId).run();
+
+        return json({
+            ok: true, task_id: taskId, status: "failed", failure_count: newCount,
+            message: `Permanently failed after ${MAX_TASK_FAILURES} attempts`
+        });
+    }
+
+    // Return to available for retry
+    await env.RESULTS_DB.prepare(
+        `UPDATE tasks SET status = 'available', failure_reason = ?, failed_at = ?,
+                failure_count = ?, claimed_by = NULL, claimed_at = NULL
+         WHERE id = ?`
+    ).bind(reason, now, newCount, taskId).run();
+
+    return json({
+        ok: true, task_id: taskId, status: "available", failure_count: newCount,
+        message: `Returned to queue for retry (${newCount}/${MAX_TASK_FAILURES})`
+    });
+}
+
+/**
+ * GET /leaderboard
+ * Public endpoint: contributor rankings by completed tasks.
+ */
+async function handleLeaderboard(env: Env): Promise<Response> {
+    const rows = await env.RESULTS_DB.prepare(
+        `SELECT
+            COALESCE(r.contributor_id, 'anonymous') as contributor_id,
+            COUNT(*) as results_published,
+            COUNT(DISTINCT r.skill) as skills_used,
+            MIN(r.created_at) as first_result,
+            MAX(r.created_at) as latest_result
+         FROM results r
+         WHERE r.status = 'published'
+         GROUP BY r.contributor_id
+         ORDER BY results_published DESC
+         LIMIT 50`
+    ).all();
+
+    const taskRows = await env.RESULTS_DB.prepare(
+        `SELECT
+            claimed_by as contributor_id,
+            COUNT(*) as tasks_completed
+         FROM tasks
+         WHERE status = 'completed' AND claimed_by IS NOT NULL
+         GROUP BY claimed_by
+         ORDER BY tasks_completed DESC
+         LIMIT 50`
+    ).all();
+
+    // Merge results and task counts
+    const taskMap = new Map<string, number>();
+    for (const r of taskRows.results ?? []) {
+        taskMap.set(r.contributor_id as string, r.tasks_completed as number);
+    }
+
+    const leaderboard = (rows.results ?? []).map((r) => ({
+        contributor_id: r.contributor_id,
+        results_published: r.results_published,
+        tasks_completed: taskMap.get(r.contributor_id as string) ?? 0,
+        skills_used: r.skills_used,
+        first_result: r.first_result,
+        latest_result: r.latest_result,
+    }));
+
+    return json({ leaderboard, updated_at: new Date().toISOString() });
+}
+
+/**
  * GET /tasks/stats
  * Return aggregate counts by status, optionally filtered by skill or domain.
  */
@@ -861,7 +1056,11 @@ async function handleTaskStats(env: Env): Promise<Response> {
         `SELECT status, COUNT(*) as count FROM tasks GROUP BY status`
     ).all();
 
-    return json({ by_skill: stats.results, totals: totals.results });
+    const bySrc = await env.RESULTS_DB.prepare(
+        `SELECT COALESCE(source, 'bank') as source, COUNT(*) as count FROM tasks GROUP BY source ORDER BY source`
+    ).all();
+
+    return json({ by_skill: stats.results, totals: totals.results, by_source: bySrc.results });
 }
 
 /**
@@ -941,6 +1140,52 @@ async function populateTaskQueue(env: Env, offset: number = 0, limit: number = I
                     `INSERT OR IGNORE INTO tasks (id, skill, input_hash, input_data, domain, species, label, priority)
                      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
                 ).bind(id, task.skill, hash, JSON.stringify(task.input_data), task.domain, task.species, task.label, task.priority)
+            );
+        }
+
+        const results = await env.RESULTS_DB.batch(stmts);
+        for (const r of results) {
+            if (r.meta.changes > 0) inserted++;
+        }
+    }
+
+    return inserted;
+}
+
+/**
+ * Insert derived tasks into D1 with provenance tracking. Returns count of newly inserted tasks.
+ */
+async function insertDerivedTasks(
+    env: Env,
+    tasks: DerivedTask[],
+    parentTaskId: string | null,
+    chainId: string | null,
+    chainStep: number,
+): Promise<number> {
+    if (tasks.length === 0) return 0;
+    let inserted = 0;
+    const createdAt = new Date().toISOString();
+    const batchSize = 50;
+
+    for (let i = 0; i < tasks.length; i += batchSize) {
+        const batch = tasks.slice(i, i + batchSize);
+        const stmts = [];
+
+        for (const task of batch) {
+            const hash = await inputHash(task.input_data);
+            const id = crypto.randomUUID();
+            stmts.push(
+                env.RESULTS_DB.prepare(
+                    `INSERT OR IGNORE INTO tasks
+                     (id, skill, input_hash, input_data, domain, species, label, priority,
+                      source, parent_result_id, parent_task_id, chain_id, chain_step, created_at)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+                ).bind(
+                    id, task.skill, hash, JSON.stringify(task.input_data),
+                    task.domain, task.species, task.label, task.priority,
+                    task.source, task.parent_result_id, parentTaskId, chainId, chainStep,
+                    createdAt
+                )
             );
         }
 

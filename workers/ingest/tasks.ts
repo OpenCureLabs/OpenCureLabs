@@ -1043,3 +1043,243 @@ export function generateAllTasks(): TaskInput[] {
 
     return tasks;
 }
+
+// ── Dynamic Task Derivation ─────────────────────────────────────────────────
+
+/** Per-skill confidence thresholds for triggering follow-up tasks. */
+export const CHAIN_THRESHOLDS: Record<string, { field: string; min?: number; max?: number }> = {
+    neoantigen_prediction: { field: "confidence_score", min: 0.6 },
+    structure_prediction: { field: "confidence_score", min: 0.7 },
+    molecular_docking: { field: "binding_affinity_kcal", max: -7.0 },
+    qsar: { field: "metrics.r2_mean", min: 0.65 },
+    variant_pathogenicity: { field: "pathogenicity_score", min: 0.7 },
+};
+
+/** Maximum derived tasks per single result to prevent queue flooding. */
+const MAX_DERIVED_PER_RESULT = 20;
+
+/** Extract a nested field value from result_data (supports "metrics.r2_mean" style paths). */
+function getNestedValue(obj: Record<string, unknown>, path: string): number | undefined {
+    const parts = path.split(".");
+    let current: unknown = obj;
+    for (const part of parts) {
+        if (current == null || typeof current !== "object") return undefined;
+        current = (current as Record<string, unknown>)[part];
+    }
+    return typeof current === "number" ? current : undefined;
+}
+
+/** Check whether a result meets the confidence threshold for its skill. */
+export function meetsChainThreshold(skill: string, resultData: Record<string, unknown>): boolean {
+    const threshold = CHAIN_THRESHOLDS[skill];
+    if (!threshold) return false;
+    const value = getNestedValue(resultData, threshold.field);
+    if (value === undefined) return false;
+    if (threshold.min !== undefined) return value >= threshold.min;
+    if (threshold.max !== undefined) return value <= threshold.max;
+    return false;
+}
+
+export interface DerivedTask extends TaskInput {
+    source: "result" | "discovery";
+    parent_result_id: string;
+}
+
+/**
+ * Derive follow-up research tasks from a completed result.
+ * Returns up to MAX_DERIVED_PER_RESULT tasks with dedup-safe input_data.
+ */
+export function deriveFollowUpTasks(
+    skill: string,
+    resultData: Record<string, unknown>,
+    resultId: string,
+    species: string,
+): DerivedTask[] {
+    const tasks: DerivedTask[] = [];
+    const base = { source: "result" as const, parent_result_id: resultId, priority: 2 };
+
+    if (skill === "neoantigen_prediction") {
+        // Strong neoantigen → predict structure of the mutated protein
+        const gene = resultData.gene as string
+            ?? (resultData.top_candidate as Record<string, unknown>)?.gene as string | undefined;
+        const mutation = (resultData.top_candidate as Record<string, unknown>)?.mutation as string | undefined;
+        if (gene) {
+            tasks.push({
+                ...base,
+                skill: "structure_prediction",
+                input_data: { protein_id: gene, sequence: `${gene}_mutant`, method: "esmfold" },
+                domain: "cancer",
+                species,
+                label: `Structure [${species}]: ${gene} (derived from neoantigen)`,
+            });
+        }
+        // Strong neoantigen → dock mutant peptide against top drug targets
+        const peptide = (resultData.top_candidate as Record<string, unknown>)?.mutant_peptide as string | undefined;
+        if (peptide && gene) {
+            const targets = DRUG_TARGETS.slice(0, 5); // Top 5 drug targets
+            for (const target of targets) {
+                tasks.push({
+                    ...base,
+                    skill: "molecular_docking",
+                    input_data: {
+                        ligand_smiles: target.smiles,
+                        receptor_pdb: target.pdb,
+                        center_x: 0, center_y: 0, center_z: 0,
+                        box_size: 25,
+                        method: "vina",
+                        derived_from_gene: gene,
+                    },
+                    domain: "drug_discovery",
+                    species,
+                    label: `Docking [${species}]: ${target.protein_id} vs ${gene} peptide (derived)`,
+                });
+            }
+        }
+    }
+
+    if (skill === "structure_prediction") {
+        // High-confidence structure → dock against known drug ligands
+        const proteinId = resultData.protein_id as string | undefined;
+        const pdbPath = resultData.pdb_path as string | undefined;
+        if (proteinId) {
+            // Find matching drug targets or use top targets
+            const matching = DRUG_TARGETS.filter(t => t.protein_id === proteinId);
+            const targets = matching.length > 0 ? matching : DRUG_TARGETS.slice(0, 5);
+            for (const target of targets.slice(0, 10)) {
+                tasks.push({
+                    ...base,
+                    skill: "molecular_docking",
+                    input_data: {
+                        ligand_smiles: target.smiles,
+                        receptor_pdb: pdbPath ?? target.pdb,
+                        center_x: 0, center_y: 0, center_z: 0,
+                        box_size: 25,
+                        method: "vina",
+                        derived_from_structure: proteinId,
+                    },
+                    domain: "drug_discovery",
+                    species,
+                    label: `Docking [${species}]: ${target.ligand} vs ${proteinId} (derived)`,
+                });
+            }
+        }
+    }
+
+    if (skill === "molecular_docking") {
+        // Strong binding → run QSAR for that target's ChEMBL dataset
+        const receptorPdb = resultData.receptor_pdb as string | undefined;
+        if (receptorPdb) {
+            // Find a matching ChEMBL dataset by protein name
+            const proteinId = resultData.derived_from_structure as string
+                ?? resultData.derived_from_gene as string
+                ?? receptorPdb;
+            const matchingDs = CHEMBL_DATASETS.find(ds =>
+                ds.name.toLowerCase().startsWith(proteinId.toLowerCase())
+            );
+            if (matchingDs) {
+                tasks.push({
+                    ...base,
+                    skill: "qsar",
+                    input_data: {
+                        dataset_path: `chembl/${matchingDs.name}.csv`,
+                        target_column: matchingDs.target_col,
+                        smiles_column: "canonical_smiles",
+                        model_type: "random_forest",
+                        mode: "train_predict",
+                        derived_from_docking: receptorPdb,
+                    },
+                    domain: "drug_discovery",
+                    species,
+                    label: `QSAR [${species}]: ${matchingDs.name} (derived from docking)`,
+                });
+            }
+        }
+    }
+
+    if (skill === "variant_pathogenicity") {
+        // Pathogenic novel variant → predict structure + neoantigen
+        const gene = resultData.gene as string | undefined;
+        const variantId = resultData.variant_id as string | undefined;
+        const classification = resultData.classification as string | undefined;
+        if (gene && (classification === "pathogenic" || classification === "likely_pathogenic")) {
+            tasks.push({
+                ...base,
+                skill: "structure_prediction",
+                input_data: { protein_id: gene, sequence: `${gene}_variant`, method: "esmfold" },
+                domain: "rare_disease",
+                species,
+                label: `Structure [${species}]: ${gene} (derived from variant ${variantId})`,
+            });
+            // If somatic variant → also queue neoantigen prediction
+            if (variantId && species === "human") {
+                tasks.push({
+                    ...base,
+                    skill: "neoantigen_prediction",
+                    input_data: {
+                        sample_id: `derived_${gene}_${variantId.replace(/[^a-zA-Z0-9]/g, "_")}`,
+                        vcf_path: `synthetic/${gene}_derived.vcf`,
+                        hla_alleles: ["HLA-A*02:01", "HLA-B*07:02", "HLA-C*07:02"],
+                        tumor_type: "pan_cancer",
+                        species: "human",
+                    },
+                    domain: "cancer",
+                    species,
+                    label: `Neoantigen [${species}]: ${gene} variant-derived`,
+                });
+            }
+        }
+    }
+
+    return tasks.slice(0, MAX_DERIVED_PER_RESULT);
+}
+
+/**
+ * Derive tasks from grok_research discovery results.
+ * Maps discoveries by domain to appropriate research task types.
+ */
+export function deriveDiscoveryTasks(
+    discoveries: Array<{ url?: string; domain?: string; title?: string; notes?: string }>,
+    resultId: string,
+): DerivedTask[] {
+    const tasks: DerivedTask[] = [];
+    const base = { source: "discovery" as const, parent_result_id: resultId, priority: 2, species: "human" };
+
+    for (const disc of discoveries) {
+        const domain = disc.domain ?? "";
+        const title = disc.title ?? "unknown";
+
+        if (domain.includes("drug") || domain.includes("compound")) {
+            // New drug target → structure prediction + docking
+            tasks.push({
+                ...base,
+                skill: "structure_prediction",
+                input_data: { protein_id: title.slice(0, 50), sequence: `discovery_${title.slice(0, 30)}`, method: "esmfold" },
+                domain: "drug_discovery",
+                label: `Structure: ${title.slice(0, 40)} (discovery)`,
+            });
+        }
+
+        if (domain.includes("gene") || domain.includes("variant") || domain.includes("mutation")) {
+            // New gene variant → variant pathogenicity + neoantigen
+            tasks.push({
+                ...base,
+                skill: "variant_pathogenicity",
+                input_data: { variant_id: `discovery_${title.slice(0, 40)}`, gene: title.slice(0, 20), hgvs: "unknown", species: "human" },
+                domain: "rare_disease",
+                label: `Variant: ${title.slice(0, 40)} (discovery)`,
+            });
+        }
+
+        if (domain.includes("protein") || domain.includes("structure")) {
+            tasks.push({
+                ...base,
+                skill: "structure_prediction",
+                input_data: { protein_id: title.slice(0, 50), sequence: `discovery_${title.slice(0, 30)}`, method: "esmfold" },
+                domain: "cancer",
+                label: `Structure: ${title.slice(0, 40)} (discovery)`,
+            });
+        }
+    }
+
+    return tasks.slice(0, MAX_DERIVED_PER_RESULT);
+}
