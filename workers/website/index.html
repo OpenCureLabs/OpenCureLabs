@@ -372,6 +372,109 @@
             background: rgba(100, 116, 139, 0.12);
             color: #64748b;
         }
+
+        /* Review score column */
+        .card-score {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-width: 52px;
+            flex-shrink: 0;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+        }
+
+        .card-score .score-value {
+            font-size: 1.1rem;
+            font-weight: 700;
+            line-height: 1;
+        }
+
+        .card-score .score-label {
+            font-size: 0.6rem;
+            color: var(--muted);
+            margin-top: 0.15rem;
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+        }
+
+        .score-high { color: #34d399; }
+        .score-mid { color: #fbbf24; }
+        .score-low { color: #f87171; }
+        .score-none { color: var(--muted); }
+
+        /* View toggle */
+        .view-toggle {
+            margin-left: auto;
+            display: flex;
+            gap: 0.25rem;
+        }
+
+        .view-btn {
+            padding: 0.3rem 0.6rem;
+            border: 1px solid var(--border);
+            background: var(--tag-bg);
+            color: var(--muted);
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: all 0.15s;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+        }
+
+        .view-btn:first-child { border-radius: 4px 0 0 4px; }
+        .view-btn:last-child { border-radius: 0 4px 4px 0; }
+
+        .view-btn.active {
+            border-color: var(--accent);
+            color: var(--accent);
+            background: rgba(34, 211, 238, 0.08);
+        }
+
+        /* Table view */
+        .feed-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.82rem;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+        }
+
+        .feed-table th {
+            text-align: left;
+            padding: 0.5rem 0.6rem;
+            color: var(--muted);
+            font-size: 0.7rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            background: var(--bg);
+        }
+
+        .feed-table td {
+            padding: 0.4rem 0.6rem;
+            border-bottom: 1px solid var(--border);
+            color: var(--text);
+            white-space: nowrap;
+        }
+
+        .feed-table tr:hover td {
+            background: rgba(34, 211, 238, 0.04);
+        }
+
+        .feed-table a {
+            color: inherit;
+            text-decoration: none;
+        }
+
+        .feed-table a:hover {
+            color: var(--accent);
+        }
+
+        .feed-table .td-muted {
+            color: var(--muted);
+        }
     </style>
 </head>
 
@@ -431,6 +534,14 @@
         <button class="filter-btn" data-skill="sequencing_qc" onclick="setSkillFilter(this,'sequencing_qc')">QC</button>
         <button class="filter-btn" data-skill="grok_research"
             onclick="setSkillFilter(this,'grok_research')">Literature</button>
+    </div>
+
+    <div class="filters" style="border-top:1px solid var(--border);padding-top:0.5rem;padding-bottom:0.5rem">
+        <span style="font-size:0.8rem;color:var(--muted);margin-right:0.5rem">View:</span>
+        <div class="view-toggle">
+            <button class="view-btn active" onclick="setView('cards',this)">Cards</button>
+            <button class="view-btn" onclick="setView('table',this)">Table</button>
+        </div>
     </div>
 
     <div class="filters species-filters">
@@ -502,6 +613,7 @@
         let activeSkill = 'all';
         let activeSpecies = 'all';
         let activeStatFilter = 'all';  // 'all' | 'novel' | 'today'
+        let activeView = 'cards';  // 'cards' | 'table'
         let nextCursor = null;
         let hasMore = false;
         let isLoadingMore = false;
@@ -591,6 +703,35 @@
             }).join('') + '</div>';
         }
 
+        function getReviewScore(resultId) {
+            const crits = allCritiques[resultId];
+            if (!crits || !crits.length) return null;
+            // Use highest-priority reviewer score (grok_literature > claude_opus > first)
+            const grok = crits.find(c => c.reviewer === 'grok_literature');
+            const opus = crits.find(c => c.reviewer === 'claude_opus');
+            const best = grok || opus || crits[0];
+            return best.overall_score != null ? best.overall_score : null;
+        }
+
+        function scoreHtml(resultId) {
+            const score = getReviewScore(resultId);
+            if (score == null) return '<div class="card-score"><span class="score-value score-none">—</span><span class="score-label">review</span></div>';
+            const cls = score >= 7 ? 'score-high' : score >= 4 ? 'score-mid' : 'score-low';
+            return `<div class="card-score"><span class="score-value ${cls}">${score.toFixed(1)}</span><span class="score-label">/ 10</span></div>`;
+        }
+
+        function scoreClass(score) {
+            if (score == null) return 'score-none';
+            return score >= 7 ? 'score-high' : score >= 4 ? 'score-mid' : 'score-low';
+        }
+
+        function setView(view, btn) {
+            activeView = view;
+            document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            renderFeed(allResults);
+        }
+
         function renderFeed(results) {
             const feed = document.getElementById('feed');
             let filtered = results;
@@ -611,6 +752,11 @@
                 return;
             }
 
+            if (activeView === 'table') {
+                renderTable(filtered);
+                return;
+            }
+
             feed.innerHTML = filtered.map(r => `
     <a class="result-card" href="${r.r2_url}" target="_blank" rel="noopener">
       <div class="skill-icon">${SKILL_ICONS[r.skill] || '🔬'}</div>
@@ -628,9 +774,24 @@
         </div>
         ${critiqueBadges(r.id)}
       </div>
+      ${scoreHtml(r.id)}
       <div class="card-time">${timeAgo(r.created_at)}</div>
     </a>
   `).join('');
+        }
+
+        function renderTable(results) {
+            const feed = document.getElementById('feed');
+            const rows = results.map(r => {
+                const score = getReviewScore(r.id);
+                const cls = scoreClass(score);
+                const scoreText = score != null ? score.toFixed(1) : '—';
+                const gene = r.gene || '—';
+                const novel = r.novel ? '✨' : '';
+                const species = (!r.species || r.species === 'human') ? '' : r.species === 'dog' ? '🐕' : '🐈';
+                return `<tr><td><a href="${r.r2_url}" target="_blank" rel="noopener">${gene}</a></td><td>${SKILL_LABELS[r.skill] || r.skill}</td><td>${species}</td><td class="${cls}">${scoreText}</td><td>${novel}</td><td class="td-muted">${r.date}</td><td class="td-muted">${r.status}</td><td class="td-muted">${timeAgo(r.created_at)}</td></tr>`;
+            }).join('');
+            feed.innerHTML = `<table class="feed-table"><thead><tr><th>Gene</th><th>Skill</th><th>Sp.</th><th>Score</th><th>Novel</th><th>Date</th><th>Status</th><th>Age</th></tr></thead><tbody>${rows}</tbody></table>`;
         }
 
         function updateStats(counts) {
