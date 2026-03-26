@@ -13,7 +13,7 @@ protein structure prediction, molecular docking, QSAR modeling — through
 specialist agents coordinated by NVIDIA NeMo Agent Toolkit (AgentIQ).
 
 Results are reviewed by Grok (scientific critic + literature monitor) through a
-two-tier review process, then published to GitHub, PDF reports, and R2.
+two-tier review process, then published to Cloudflare R2 and PDF reports.
 
 Full details: see README.md (source of truth — never overwrite it).
 Architecture spec: see LABCLAW.md.
