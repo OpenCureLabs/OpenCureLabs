@@ -211,3 +211,26 @@ The task queue sits alongside the existing result lifecycle:
 
 Both modes ultimately publish results through the same R2/D1 ingest pipeline
 with Ed25519 signing and Grok two-tier review.
+
+### Contribute Mode Flow
+
+In contribute mode, your coordinator machine handles all queue interaction while
+Vast.ai GPU instances only execute the scientific skills:
+
+```
+Your machine (coordinator)              Vast.ai GPU instance
+─────────────────────────               ────────────────────
+batch_dispatcher                        Docker: labclaw-gpu:latest
+  --mode contribute                       ↑
+  │                                       │ SSH
+  ├─ claim task from D1                   │
+  ├─ ssh skill.run(task) ────────────────→│ execute neoantigen/docking/etc.
+  ├─ receive result ←────────────────────│ return JSON
+  └─ POST /tasks/{id}/complete            │
+```
+
+The Docker image (`ghcr.io/opencurelabs/labclaw-gpu:latest`) contains only the
+skill execution code — it has no knowledge of D1- or the task queue. Task
+sourcing, deduplication, and result reporting all happen on your coordinator.
+This means changes to the queue (new tasks, new parameter banks) never require
+rebuilding or redeploying the Docker image.
