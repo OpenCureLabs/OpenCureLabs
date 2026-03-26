@@ -40,11 +40,11 @@ See also: **[CONTRIBUTING.md](CONTRIBUTING.md)** — full guide for researchers 
 
 ## Overview
 
-OpenCure Labs is an autonomous AI-for-Science environment built to explore **computational biology**, **personalized medicine**, and **large-scale scientific workflows** through multi-agent orchestration.
+OpenCure Labs is open infrastructure for computational biology, with a long-term goal of enabling more open and accessible personalized medicine workflows.
 
-Rather than a traditional research pipeline with manual handoffs, OpenCure Labs runs **agents that coordinate, critique, and iterate** — analyzing genomics data, predicting protein structures, running docking simulations, and publishing findings, all with minimal human bottlenecking.
+The platform runs **agents that coordinate, critique, and iterate** — analyzing genomics data, predicting protein structures, running docking simulations, and publishing structured artifacts with provenance metadata. A Cloudflare D1 task queue coordinates shared work; results are signed by the contributing system and stored in R2.
 
-Every result is published to a public global dataset at **[opencurelabs.ai](https://opencurelabs.ai)** — researchers anywhere can browse findings, download raw result objects, and build on what the agents discover.
+OpenCure Labs supports both **shared and private usage**. In the default mode, results are published to a public dataset at **[opencurelabs.ai](https://opencurelabs.ai)** — researchers anywhere can browse artifacts, download raw result objects, and build on what the agents produce. In [solo mode](#my-data--solo-mode), users run the same pipelines locally on their own data with no external calls.
 
 ---
 

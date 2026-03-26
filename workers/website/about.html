@@ -231,22 +231,27 @@
 
     <div class="hero">
         <h2>About OpenCure Labs</h2>
-        <p>An autonomous computational biology platform that runs AI-driven workflows across genomics, drug discovery,
-            and protein science — open-source, open-data, and open for contribution.</p>
+        <p>Open infrastructure for computational biology — with a long-term goal of enabling more open and accessible
+            personalized medicine workflows.</p>
     </div>
 
     <div class="content">
 
         <h3>What We Do</h3>
 
-        <p>OpenCure Labs is an autonomous computational biology platform that runs AI-driven workflows across genomics,
-            drug discovery, and protein science. The platform continuously generates research tasks from public
-            biomedical datasets (TCGA, ClinVar, ChEMBL, GEO), executes them on GPU compute, and publishes the outputs as
-            downloadable artifacts.</p>
+        <p>OpenCure Labs is open infrastructure for computational biology. The platform runs AI-driven workflows
+            across genomics, drug discovery, and protein science — generating research tasks from public biomedical
+            datasets (TCGA, ClinVar, ChEMBL, GEO), executing them on GPU compute, and publishing the outputs as
+            downloadable artifacts with provenance metadata.</p>
 
         <p>Each result is independently reviewed by Grok, which critiques methodology, checks for literature overlap,
-            and assigns a confidence-oriented review score before publication. Published artifacts and associated
-            metadata are stored in Cloudflare R2/D1 and made available for public inspection and download.</p>
+            and assigns a confidence-oriented review score before publication. Published artifacts are stored in
+            Cloudflare R2, with a D1 task queue coordinating shared work across contributors. Results are signed by
+            the contributing system for auditability.</p>
+
+        <p>The platform supports both shared and private usage. In the default mode, results are published to the
+            public feed. In solo mode, users run the same pipelines locally on their own data with no external calls.
+            The long-term goal is enabling more open and accessible personalized medicine workflows.</p>
 
         <p>Download AI-generated research artifacts with metadata, integrity signatures, and explicit validation
             warnings. Outputs are open for inspection and reuse, but should be independently validated before scientific
