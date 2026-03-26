@@ -33,7 +33,7 @@ COMMIT_MSG_FILE="${GIT_DIR:-.git}/COMMIT_EDITMSG"
 EXEMPT=false
 if [[ -f "$COMMIT_MSG_FILE" ]]; then
     FIRST_LINE=$(head -1 "$COMMIT_MSG_FILE" 2>/dev/null || true)
-    if echo "$FIRST_LINE" | grep -qiE '^(docs:|fix:|chore:|test:|refactor:|ci:|style:|wip)'; then
+    if echo "$FIRST_LINE" | grep -qiE '^(docs|fix|chore|test|refactor|ci|style|wip)(\(.*\))?[!]?:'; then
         EXEMPT=true
     fi
 fi

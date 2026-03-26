@@ -94,8 +94,11 @@ def get_pending_results(limit: int = 50) -> list[dict]:
     return data.get("results", [])
 
 
-def run_grok_verification(skill: str, result_data: dict, local_critique: dict) -> dict | None:
-    """Run Grok batch verification — validates local_critique against result_data."""
+def run_grok_verification(skill: str, result_data: dict, local_critique: dict) -> tuple[dict | None, float]:
+    """Run Grok batch verification — validates local_critique against result_data.
+
+    Returns (verification_dict, cost_usd). cost_usd is 0.0 on failure.
+    """
     try:
         from reviewer.grok_reviewer import GrokReviewer
         grok = GrokReviewer()
@@ -151,6 +154,13 @@ def run_grok_verification(skill: str, result_data: dict, local_critique: dict) -
 
         response_text = response.choices[0].message.content
 
+        # Extract cost from API response (cost_in_usd_ticks: 1 tick = 1e-10 USD)
+        cost_usd = 0.0
+        usage = getattr(response, "usage", None)
+        if usage:
+            ticks = getattr(usage, "cost_in_usd_ticks", 0) or 0
+            cost_usd = ticks * 1e-10
+
         if "```json" in response_text:
             json_str = response_text.split("```json")[1].split("```")[0]
         elif "```" in response_text:
@@ -158,10 +168,10 @@ def run_grok_verification(skill: str, result_data: dict, local_critique: dict) -
         else:
             json_str = response_text
 
-        return json.loads(json_str)
+        return json.loads(json_str), cost_usd
     except Exception as e:
         logger.error("Grok verification failed: %s", e)
-        return None
+        return None, 0.0
 
 
 def sweep_once(limit: int = 50) -> dict:
@@ -175,6 +185,7 @@ def sweep_once(limit: int = 50) -> dict:
 
     logger.info("Found %d pending result(s)", len(pending))
     counts = {"published": 0, "blocked": 0, "deferred": 0, "errors": 0}
+    sweep_cost = 0.0
 
     for result in pending:
         result_id = result["id"]
@@ -199,7 +210,8 @@ def sweep_once(limit: int = 50) -> dict:
             continue
 
         # Run verification
-        verification = run_grok_verification(skill, result_data, local_critique)
+        verification, call_cost = run_grok_verification(skill, result_data, local_critique)
+        sweep_cost += call_cost
         if not verification:
             counts["errors"] += 1
             continue
@@ -213,7 +225,14 @@ def sweep_once(limit: int = 50) -> dict:
         elif score < REJECT_THRESHOLD or rec == "reject":
             action = "blocked"
         else:
-            # Borderline — leave as pending for manual review
+            # Borderline — mark as deferred so we don't re-review unchanged data
+            try:
+                api_patch(f"/results/{result_id}", {
+                    "status": "deferred",
+                    "batch_critique": verification,
+                })
+            except Exception as e:
+                logger.error("  PATCH failed for %s: %s", result_id, e)
             logger.info("  Deferred %s (score=%.1f, rec=%s) — borderline", result_id, score, rec)
             counts["deferred"] += 1
             continue
@@ -230,6 +249,7 @@ def sweep_once(limit: int = 50) -> dict:
             logger.error("  PATCH failed for %s: %s", result_id, e)
             counts["errors"] += 1
 
+    counts["cost_usd"] = sweep_cost
     return counts
 
 
@@ -244,12 +264,15 @@ def main():
     parser.add_argument("--interval", type=int, default=60, help="Poll interval in seconds (watch mode)")
     args = parser.parse_args()
 
+    session_cost = 0.0
     while True:
         try:
             counts = sweep_once(limit=args.limit)
+            session_cost += counts.get("cost_usd", 0.0)
             logger.info(
-                "Sweep complete: %d published, %d blocked, %d deferred, %d errors",
+                "Sweep complete: %d published, %d blocked, %d deferred, %d errors | cost: $%.4f (session: $%.4f)",
                 counts["published"], counts["blocked"], counts["deferred"], counts["errors"],
+                counts.get("cost_usd", 0.0), session_cost,
             )
         except Exception as e:
             logger.error("Sweep error: %s", e)
