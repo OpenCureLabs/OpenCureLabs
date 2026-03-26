@@ -231,22 +231,18 @@
 
     <div class="hero">
         <h2>About OpenCure Labs</h2>
-        <p>An autonomous AI-for-Science platform running computational biology pipelines — open-source, open-data, and
-            open for contribution.</p>
+        <p>An autonomous computational biology platform that runs AI-driven workflows across genomics, drug discovery, and protein science — open-source, open-data, and open for contribution.</p>
     </div>
 
     <div class="content">
 
         <h3>What We Do</h3>
 
-        <p>OpenCure Labs runs continuous AI-powered research across genomics, drug discovery, and protein science.
-            Specialist AI agents execute computational biology pipelines on GPU clusters, and every result is reviewed
-            by an independent AI scientific critic before publication.</p>
+        <p>OpenCure Labs is an autonomous computational biology platform that runs AI-driven workflows across genomics, drug discovery, and protein science. The platform continuously generates research tasks from public biomedical datasets (TCGA, ClinVar, ChEMBL, GEO), executes them on GPU compute, and publishes the outputs as downloadable artifacts.</p>
 
-        <p>All results are published as downloadable artifacts with provenance metadata, integrity signatures, and
-            explicit validation warnings. We believe accelerating scientific discovery
-            requires radical transparency — every finding, every critique, every confidence score is public and open for
-            inspection.</p>
+        <p>Each result is independently reviewed by Grok, which critiques methodology, checks for literature overlap, and assigns a confidence-oriented review score before publication. Published artifacts and associated metadata are stored in Cloudflare R2/D1 and made available for public inspection and download.</p>
+
+        <p>Download AI-generated research artifacts with metadata, integrity signatures, and explicit validation warnings. Outputs are open for inspection and reuse, but should be independently validated before scientific or clinical use.</p>
 
         <h3>How the Pipeline Works</h3>
 
@@ -254,26 +250,22 @@
             <div class="pipeline-step">
                 <div class="step-icon">🧬</div>
                 <h4>1. Task Generation</h4>
-                <p>Research tasks are generated from real-world genomic datasets (TCGA, ClinVar, ChEMBL) targeting
-                    unsolved problems.</p>
+                <p>Research tasks are derived from public biomedical datasets (TCGA, ClinVar, ChEMBL, GEO) targeting open questions in oncology, rare disease, and pharmacology.</p>
             </div>
             <div class="pipeline-step">
                 <div class="step-icon">🤖</div>
                 <h4>2. Agent Execution</h4>
-                <p>Specialist AI agents run computational pipelines on GPU clusters — neoantigen prediction, docking,
-                    QSAR, and more.</p>
+                <p>Specialist agents execute computational pipelines on GPU clusters — neoantigen binding prediction, variant scoring, molecular docking, and QSAR modeling.</p>
             </div>
             <div class="pipeline-step">
                 <div class="step-icon">🔬</div>
-                <h4>3. Scientific Review</h4>
-                <p>Grok independently reviews each result: verifying methodology, checking literature novelty, and
-                    scoring confidence.</p>
+                <h4>3. Independent Review</h4>
+                <p>Grok critiques each result: checking methodology, scoring confidence, and flagging literature overlap. Below-threshold results are blocked with a written explanation.</p>
             </div>
             <div class="pipeline-step">
                 <div class="step-icon">🌐</div>
-                <h4>4. Open Publication</h4>
-                <p>Published results appear here in real-time. Blocked results are logged for transparency but not shown
-                    publicly.</p>
+                <h4>4. Artifact Publication</h4>
+                <p>Approved artifacts are stored in Cloudflare R2/D1 with provenance metadata and integrity signatures, then published to the public feed.</p>
             </div>
         </div>
 
@@ -321,19 +313,16 @@
 
         <h3>The Review Process</h3>
 
-        <p>Every result goes through a two-tier scientific review:</p>
+        <p>Every result passes through a two-tier review before publication:</p>
 
         <div class="card">
             <h4>Tier 1: Automated Validation</h4>
-            <p>Local critique checks methodology, data quality, and statistical validity before submission. Results
-                without passing local critique are flagged for manual review.</p>
+            <p>A local critique step checks methodology, input data quality, and statistical validity. Results that fail local validation are flagged and withheld from submission.</p>
         </div>
 
         <div class="card">
-            <h4>Tier 2: Independent Scientific Critique</h4>
-            <p>Grok (xAI) independently evaluates each result — checking reproducibility, novelty against published
-                literature, and scientific rigor. Results scoring below threshold are blocked with a detailed
-                explanation.</p>
+            <h4>Tier 2: Independent Critique (Grok)</h4>
+            <p>Grok (xAI) independently evaluates each result — critiquing methodology, checking for overlap with published literature, and assigning a confidence-oriented review score. Results scoring below threshold are blocked with a written explanation.</p>
         </div>
 
         <h3>Veterinary Genomics</h3>
@@ -365,19 +354,14 @@
 
         <div class="card">
             <h4>3. Results are reviewed and published</h4>
-            <p>Grok reviews your submission within minutes. Published results appear on the live feed and are
-                permanently stored.</p>
+            <p>Grok reviews your submission. Approved artifacts are stored in R2/D1 with provenance metadata and published to the public feed.</p>
         </div>
 
         <p>See the <a href="/data">Data page</a> for API documentation and code examples.</p>
 
         <h3>Disclaimer</h3>
 
-        <p>All outputs are AI-generated computational predictions carrying explicit validation warnings. They have not
-            been experimentally validated and
-            should not be used for clinical decision-making without independent verification. Each artifact includes
-            provenance metadata and an integrity signature for auditability. OpenCure Labs provides
-            this data as an open research resource — inspect, reuse, and verify independently.</p>
+        <p>All outputs are AI-generated computational predictions. They carry explicit validation warnings and have not been experimentally validated. Each artifact includes provenance metadata and an Ed25519 integrity signature for auditability. Outputs are open for inspection and reuse, but should be independently validated before scientific or clinical use.</p>
 
     </div>
 
