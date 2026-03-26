@@ -964,6 +964,10 @@ if $HAS_GUM; then
                     --max-cost 0.50
                     --config "$PROJECT_DIR/config/research_tasks.yaml"
                 )
+                # Use D1 central queue when in public data mode
+                if [[ "$DATA_MODE" == "public" ]]; then
+                    BATCH_CMD+=(--mode contribute)
+                fi
                 BATCH_CMD+=(--continuous)
                 # Pass budget if set
                 if [[ -n "${VAST_AI_BUDGET:-}" ]] && [[ "$VAST_AI_BUDGET" != "0" ]]; then
@@ -2089,6 +2093,10 @@ select domain in "${DOMAINS[@]}"; do
                             --max-cost 0.50
                             --config "$PROJECT_DIR/config/research_tasks.yaml"
                         )
+                        # Use D1 central queue when in public data mode
+                        if [[ "$DATA_MODE" == "public" ]]; then
+                            BATCH_CMD+=(--mode contribute)
+                        fi
                         if [[ "${CONTINUOUS_BATCH:-0}" -eq 1 ]]; then
                             BATCH_CMD+=(--continuous)
                             if [[ -n "${VAST_AI_BUDGET:-}" ]] && [[ "$VAST_AI_BUDGET" != "0" ]]; then

@@ -10,7 +10,7 @@ works on what.
 ## How It Works
 
 ```
-1. Admin populates queue    →  POST /tasks/generate (1,330 deterministic tasks)
+1. Admin populates queue    →  POST /tasks/generate (~400K deterministic tasks)
 2. Contributor claims tasks →  GET /tasks/claim?count=5&contributor_id=alice
 3. Contributor runs skills  →  Vast.ai GPU executes neoantigen/docking/QSAR/etc.
 4. Contributor reports done →  POST /tasks/{id}/complete
@@ -52,16 +52,16 @@ The batch dispatcher will:
 
 ## Task Types
 
-The queue contains 1,330 pre-generated research tasks across 5 scientific
+The queue contains ~400K pre-generated research tasks across 5 scientific
 skills:
 
 | Skill | Count | Description | Example |
 |---|---|---|---|
-| `neoantigen_prediction` | ~1,240 | MHC binding analysis for tumor mutations | TP53 × breast × HLA-A*02:01 |
-| `variant_pathogenicity` | ~29 | ClinVar/CADD pathogenicity scoring | CFTR (Cystic fibrosis) |
-| `structure_prediction` | ~21 | Protein structure via ESMFold/AlphaFold | EGFR structure prediction |
-| `molecular_docking` | ~20 | AutoDock Vina binding affinity | EGFR × Erlotinib |
-| `qsar` | ~20 | QSAR model training on ChEMBL data | CHEMBL25 EGFR bioactivity |
+| `neoantigen_prediction` | ~397K | MHC binding analysis for tumor mutations | TP53 × breast × HLA-A*02:01 |
+| `variant_pathogenicity` | ~224 | ClinVar/CADD pathogenicity scoring | CFTR (Cystic fibrosis) |
+| `structure_prediction` | ~278 | Protein structure via ESMFold/AlphaFold | EGFR structure prediction |
+| `molecular_docking` | ~285 | AutoDock Vina/GnINA/DiffDock binding affinity | EGFR × Erlotinib |
+| `qsar` | ~162 | QSAR model training (RF/XGBoost/GNN) on ChEMBL | CHEMBL25 EGFR bioactivity |
 
 Tasks span three domains: **cancer** (human + veterinary), **rare disease**,
 and **drug response**.
@@ -71,13 +71,13 @@ and **drug response**.
 Tasks are generated deterministically from parameter banks defined in
 `workers/ingest/tasks.ts`:
 
-- **CANCER_GENES** — 15 genes (TP53, BRCA1, EGFR, KRAS, ...)
-- **TUMOR_TYPES** — 10 types (breast, lung, melanoma, ...)
-- **HLA_PANELS** — 5 representative HLA allele sets
-- **DRUG_TARGETS** — 10 target-compound pairs
-- **CHEMBL_DATASETS** — 10 ChEMBL assay datasets
-- **RARE_DISEASE_VARIANTS** — 15 gene-disease pairs
-- **Veterinary** — canine (10 genes, 5 tumors) and feline (6 genes, 4 tumors)
+- **CANCER_GENES** — 227 genes (TP53, BRCA1, EGFR, KRAS, ...) — first 15 are tier 1 (priority 3), rest tier 2 (priority 5)
+- **TUMOR_TYPES** — 35 TCGA codes (BRCA, LUAD, GBM, PAAD, AML, SCLC, ...)
+- **HLA_PANELS** — 50 allele sets (global population coverage: European, East Asian, African, ...)
+- **DRUG_TARGETS** — 95 target-compound pairs (kinase inhibitors, CDK, PI3K-mTOR, immune checkpoint, ...)
+- **CHEMBL_DATASETS** — 55 ChEMBL assay datasets
+- **RARE_DISEASE_VARIANTS** — 197 gene-disease pairs (lysosomal storage, metabolic, neurological, ...)
+- **Veterinary** — canine (20 genes, 14 tumors, 10 DLA panels) and feline (12 genes, 10 tumors, 6 FLA panels)
 
 ---
 
@@ -178,7 +178,7 @@ CREATE INDEX idx_tasks_domain       ON tasks(domain);
 | D1 writes | ~$2.50 | 1M writes/month at $0.001/1K |
 | Worker invocations | Free tier | <100K requests/day |
 | R2 storage | ~$0.15/GB | Result blobs |
-| **Total infrastructure** | **~$3.40/month** | For 1,330 tasks + active contributors |
+| **Total infrastructure** | **~$5/month** | For ~400K tasks + active contributors |
 
 GPU compute cost is borne by each contributor via their own Vast.ai account.
 
@@ -191,8 +191,10 @@ To add new research tasks to the queue:
 1. Edit `workers/ingest/tasks.ts` — add entries to the relevant parameter bank
    (e.g., add a gene to `CANCER_GENES`, a drug target to `DRUG_TARGETS`)
 2. Deploy the worker: `cd workers/ingest && npx wrangler deploy`
-3. Trigger regeneration: `POST /tasks/generate` with `X-Admin-Key` header
-4. Only new tasks (with new `input_hash` values) will be inserted
+3. Seed in chunks: `python scripts/seed_d1_queue.py` (calls `/tasks/generate`
+   with `offset`/`limit` to avoid Worker CPU limits)
+4. Only new tasks (with new `input_hash` values) will be inserted —
+   regeneration is fully idempotent
 
 ---
 
