@@ -1,0 +1,31 @@
+[Unit]
+Description=OpenCure Labs Batch Dispatcher (continuous)
+Documentation=https://github.com/OpenCureLabs/OpenCureLabs
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/opencurelabs
+EnvironmentFile=/root/opencurelabs/.env
+ExecStart=/root/opencurelabs/.venv/bin/python3 -m agentiq_labclaw.compute.batch_dispatcher \
+    --continuous \
+    --count 100 \
+    --pool-size 10 \
+    --max-cost 0.50 \
+    --config /root/opencurelabs/config/research_tasks.yaml
+Restart=on-failure
+RestartSec=30
+# Stop gracefully — dispatcher traps SIGINT for clean shutdown
+KillSignal=SIGINT
+TimeoutStopSec=60
+# Budget safety: if it crashes 5 times in 10 minutes, stop trying
+StartLimitIntervalSec=600
+StartLimitBurst=5
+# Logging
+StandardOutput=append:/root/opencurelabs/logs/dispatcher.log
+StandardError=append:/root/opencurelabs/logs/dispatcher.log
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,23 @@
+[Unit]
+Description=OpenCure Labs Reviewer Sweep (Grok + Opus critique)
+Documentation=https://github.com/OpenCureLabs/OpenCureLabs
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=root
+WorkingDirectory=/root/opencurelabs
+EnvironmentFile=/root/opencurelabs/.env
+ExecStart=/root/opencurelabs/.venv/bin/python3 reviewer/sweep.py --watch --interval 60
+Restart=on-failure
+RestartSec=15
+KillSignal=SIGINT
+TimeoutStopSec=30
+StartLimitIntervalSec=600
+StartLimitBurst=10
+StandardOutput=append:/root/opencurelabs/logs/reviewer-sweep.log
+StandardError=append:/root/opencurelabs/logs/reviewer-sweep.log
+
+[Install]
+WantedBy=multi-user.target
