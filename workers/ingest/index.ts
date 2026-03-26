@@ -146,6 +146,15 @@ export default {
             return handleLeaderboard(env);
         }
 
+        const chainMatch = url.pathname.match(/^\/tasks\/chain\/([a-f0-9-]{36})$/);
+        if (request.method === "GET" && chainMatch) {
+            return handleTaskChain(chainMatch[1], env);
+        }
+
+        if (request.method === "GET" && url.pathname === "/tasks/chains") {
+            return handleTaskChains(env);
+        }
+
         if (request.method === "POST" && url.pathname === "/tasks/generate") {
             return handleTaskGenerate(request, env);
         }
@@ -1041,6 +1050,72 @@ async function handleLeaderboard(env: Env): Promise<Response> {
     }));
 
     return json({ leaderboard, updated_at: new Date().toISOString() });
+}
+
+/**
+ * GET /tasks/chain/:chainId
+ * Return all tasks in a dependency chain, ordered by step.
+ */
+async function handleTaskChain(chainId: string, env: Env): Promise<Response> {
+    const rows = await env.RESULTS_DB.prepare(
+        `SELECT t.id, t.skill, t.label, t.status, t.domain, t.species, t.priority,
+                t.chain_step, t.source, t.parent_task_id, t.parent_result_id,
+                t.claimed_by, t.claimed_at, t.completed_at, t.result_id,
+                t.failure_count, t.failure_reason, t.created_at
+         FROM tasks t
+         WHERE t.chain_id = ?
+         ORDER BY t.chain_step ASC, t.created_at ASC`
+    ).bind(chainId).all();
+
+    if (!rows.results || rows.results.length === 0) {
+        return json({ error: "Chain not found" }, 404);
+    }
+
+    return json({
+        chain_id: chainId,
+        tasks: rows.results,
+        total: rows.results.length,
+        completed: rows.results.filter((r) => r.status === "completed").length,
+    });
+}
+
+/**
+ * GET /tasks/chains
+ * Return the 20 most recent pipeline chains with their tasks.
+ */
+async function handleTaskChains(env: Env): Promise<Response> {
+    // Find distinct chain IDs, most recent first
+    const chainRows = await env.RESULTS_DB.prepare(
+        `SELECT chain_id, COUNT(*) as task_count, MAX(created_at) as latest
+         FROM tasks
+         WHERE chain_id IS NOT NULL
+         GROUP BY chain_id
+         ORDER BY latest DESC
+         LIMIT 20`
+    ).all();
+
+    if (!chainRows.results || chainRows.results.length === 0) {
+        return json({ chains: [] });
+    }
+
+    const chains = [];
+    for (const row of chainRows.results) {
+        const cid = row.chain_id as string;
+        const tasksInChain = await env.RESULTS_DB.prepare(
+            `SELECT id, skill, label, status, chain_step, source, created_at
+             FROM tasks WHERE chain_id = ?
+             ORDER BY chain_step ASC, created_at ASC`
+        ).bind(cid).all();
+
+        chains.push({
+            chain_id: cid,
+            task_count: row.task_count,
+            latest: row.latest,
+            tasks: tasksInChain.results ?? [],
+        });
+    }
+
+    return json({ chains });
 }
 
 /**

@@ -210,6 +210,122 @@
             color: #d97706;
         }
 
+        /* ── Pipeline Chains ─────────────────────────────────────── */
+        .chain-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .chain-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.25rem;
+        }
+
+        .chain-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.75rem;
+        }
+
+        .chain-id {
+            font-family: monospace;
+            font-size: 0.8rem;
+            color: var(--muted);
+        }
+
+        .chain-progress {
+            font-size: 0.85rem;
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        .pipeline-steps {
+            display: flex;
+            align-items: center;
+            gap: 0;
+            overflow-x: auto;
+            padding: 0.5rem 0;
+        }
+
+        .pipeline-step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-width: 120px;
+            padding: 0.5rem;
+        }
+
+        .step-dot {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: 700;
+            margin-bottom: 0.4rem;
+        }
+
+        .step-dot.completed {
+            background: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+            border: 2px solid #10b981;
+        }
+
+        .step-dot.claimed {
+            background: rgba(251, 191, 36, 0.2);
+            color: #fbbf24;
+            border: 2px solid #fbbf24;
+        }
+
+        .step-dot.available {
+            background: rgba(34, 211, 238, 0.15);
+            color: var(--accent);
+            border: 2px solid var(--accent);
+        }
+
+        .step-dot.failed {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+            border: 2px solid #ef4444;
+        }
+
+        .step-skill {
+            font-size: 0.75rem;
+            color: var(--text);
+            text-align: center;
+            max-width: 120px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .step-status {
+            font-size: 0.65rem;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .pipeline-arrow {
+            color: var(--muted);
+            font-size: 1.2rem;
+            margin: 0 0.25rem;
+            flex-shrink: 0;
+        }
+
+        .no-chains {
+            color: var(--muted);
+            font-style: italic;
+            text-align: center;
+            padding: 2rem;
+        }
+
         /* ── Getting Started ────────────────────────────────────── */
         .card {
             background: var(--surface);
@@ -329,6 +445,15 @@
                 </tr>
             </tbody>
         </table>
+
+        <!-- ── Pipeline Chains ─────────────────────────────────────── -->
+        <h3>Active Pipeline Chains</h3>
+        <p style="color:var(--muted);font-size:0.9rem;margin-bottom:1rem;">When a result exceeds confidence thresholds,
+            follow-up tasks are auto-spawned in a chain (e.g. neoantigen &rarr; structure &rarr; docking &rarr; QSAR).
+        </p>
+        <div class="chain-list" id="chain-list">
+            <div class="no-chains">Loading pipeline chains…</div>
+        </div>
 
         <!-- ── Leaderboard ────────────────────────────────────────── -->
         <h3>Contributor Leaderboard</h3>
@@ -527,13 +652,73 @@ python -m agentiq_labclaw.compute.batch_dispatcher \
             }
         }
 
+        // ── Pipeline Chains ─────────────────────────────────────
+        async function loadChains() {
+            try {
+                // Get recent chains from stats - we need chain IDs
+                // First, query tasks with chain_id set to get active chains
+                const resp = await fetch(`${API}/tasks/stats`);
+                const stats = await resp.json();
+
+                // Fetch chains by querying the chain endpoint for known chain IDs
+                // We discover chains from the tasks/chains listing endpoint
+                const chainsResp = await fetch(`${API}/tasks/chains`);
+                const chainsData = await chainsResp.json();
+
+                const container = document.getElementById("chain-list");
+
+                if (!chainsData.chains?.length) {
+                    container.innerHTML = '<div class="no-chains">No pipeline chains yet — chains are created when results exceed confidence thresholds.</div>';
+                    return;
+                }
+
+                container.innerHTML = "";
+
+                for (const chain of chainsData.chains.slice(0, 10)) {
+                    const card = document.createElement("div");
+                    card.className = "chain-card";
+
+                    const completed = chain.tasks.filter(t => t.status === "completed").length;
+                    const total = chain.tasks.length;
+
+                    let html = `<div class="chain-header">`;
+                    html += `<span class="chain-id">${chain.chain_id.slice(0, 8)}…</span>`;
+                    html += `<span class="chain-progress">${completed}/${total} steps complete</span>`;
+                    html += `</div>`;
+                    html += `<div class="pipeline-steps">`;
+
+                    chain.tasks.forEach((task, idx) => {
+                        if (idx > 0) {
+                            html += `<span class="pipeline-arrow">→</span>`;
+                        }
+                        const skillShort = (task.skill || "").replace("_prediction", "").replace("_", " ");
+                        html += `<div class="pipeline-step">`;
+                        html += `<div class="step-dot ${task.status}">${task.chain_step ?? idx}</div>`;
+                        html += `<div class="step-skill" title="${task.skill}">${skillShort}</div>`;
+                        html += `<div class="step-status">${task.status}</div>`;
+                        html += `</div>`;
+                    });
+
+                    html += `</div>`;
+                    card.innerHTML = html;
+                    container.appendChild(card);
+                }
+            } catch (e) {
+                console.error("Failed to load chains:", e);
+                document.getElementById("chain-list").innerHTML =
+                    '<div class="no-chains">No pipeline chains yet — chains are created when results exceed confidence thresholds.</div>';
+            }
+        }
+
         // ── Init ────────────────────────────────────────────────
         loadTaskStats();
         loadLeaderboard();
+        loadChains();
 
         // Auto-refresh every 30s
         setInterval(loadTaskStats, 30000);
         setInterval(loadLeaderboard, 60000);
+        setInterval(loadChains, 60000);
     </script>
 </body>
 
