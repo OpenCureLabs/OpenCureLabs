@@ -803,25 +803,52 @@ def run_contribute(
             # Monitor until batch complete
             _monitor_loop(batch_id, queue, pool, workers, threads, idle_timeout=120)
 
-            # Report completions back to central queue
+            # Report completions and failures back to central queue
             reported = 0
+            failed_reported = 0
+            job_statuses = queue.jobs_by_label(batch_id)
             for _central_label, central_id in central_id_map.items():
-                try:
-                    complete_url = f"{api_url}/tasks/{central_id}/complete"
-                    body = json.dumps({"result_id": batch_id}).encode()
-                    req = urllib.request.Request(  # noqa: S310
-                        complete_url, data=body, method="POST",
-                        headers={
-                            "Content-Type": "application/json",
-                            "User-Agent": "opencure-contribute/1.0",
-                        },
-                    )
-                    urllib.request.urlopen(req, timeout=15)  # noqa: S310  # nosec B310
-                    reported += 1
-                except Exception as e:
-                    _log("Failed to report task %s completion: %s", central_id, e)
+                job_info = job_statuses.get(_central_label, {})
+                job_status = job_info.get("status", "done")
+                job_error = job_info.get("error")
 
-            _log("Cycle %d complete — reported %d/%d completions", cycle, reported, len(central_id_map))
+                if job_status == "failed" and job_error:
+                    # Report failure to central queue
+                    try:
+                        fail_url = f"{api_url}/tasks/{central_id}/fail"
+                        body = json.dumps({"error": job_error[:2000]}).encode()
+                        req = urllib.request.Request(  # noqa: S310
+                            fail_url, data=body, method="POST",
+                            headers={
+                                "Content-Type": "application/json",
+                                "User-Agent": "opencure-contribute/1.0",
+                            },
+                        )
+                        urllib.request.urlopen(req, timeout=15)  # noqa: S310  # nosec B310
+                        failed_reported += 1
+                    except Exception as e:
+                        _log("Failed to report task %s failure: %s", central_id, e)
+                else:
+                    # Report completion
+                    try:
+                        complete_url = f"{api_url}/tasks/{central_id}/complete"
+                        body = json.dumps({"result_id": batch_id}).encode()
+                        req = urllib.request.Request(  # noqa: S310
+                            complete_url, data=body, method="POST",
+                            headers={
+                                "Content-Type": "application/json",
+                                "User-Agent": "opencure-contribute/1.0",
+                            },
+                        )
+                        urllib.request.urlopen(req, timeout=15)  # noqa: S310  # nosec B310
+                        reported += 1
+                    except Exception as e:
+                        _log("Failed to report task %s completion: %s", central_id, e)
+
+            _log(
+                "Cycle %d complete — reported %d/%d completions, %d failures",
+                cycle, reported, len(central_id_map), failed_reported,
+            )
 
             if not _shutdown.is_set():
                 _shutdown.wait(cooldown)

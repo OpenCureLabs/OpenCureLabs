@@ -319,6 +319,30 @@ class BatchQueue:
 
     # ── Status ───────────────────────────────────────────────────────────
 
+    def jobs_by_label(self, batch_id: str) -> dict[str, dict]:
+        """Get per-job status keyed by label for a batch.
+
+        Returns {label: {"status": "done"/"failed", "error": "..."}}.
+        """
+        conn = _get_conn()
+        try:
+            cur = conn.cursor()
+            cur.execute(
+                """
+                SELECT label, status, error FROM batch_jobs
+                WHERE batch_id = %s AND label IS NOT NULL
+                """,
+                (batch_id,),
+            )
+            rows = cur.fetchall()
+            cur.close()
+            return {
+                row[0]: {"status": row[1], "error": row[2]}
+                for row in rows
+            }
+        finally:
+            conn.close()
+
     def batch_status(self, batch_id: str) -> dict:
         """Get counts by status for a batch."""
         conn = _get_conn()
