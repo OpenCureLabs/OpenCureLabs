@@ -993,17 +993,20 @@ if $HAS_GUM; then
 
                 # ── Budget check before each round ───────────────────
                 if python3 -c "exit(0 if float('$VAST_BUDGET') > 0 else 1)" 2>/dev/null; then
-                    VAST_SPENT=$(psql -p 5433 -d opencurelabs -t -A -c \
-                        "SELECT COALESCE(SUM(total_cost), 0) FROM vast_spend" 2>/dev/null || echo "0")
-                    VAST_REMAINING=$(python3 -c "print(f'{max(0, float(\"$VAST_BUDGET\") - float(\"$VAST_SPENT\")):.2f}')" 2>/dev/null || echo "0")
+                    # Use live API balance (already reflects charges)
+                    VAST_BALANCE=$(curl -sf -H "Authorization: Bearer $VAST_AI_KEY" \
+                        "https://console.vast.ai/api/v0/users/current/" 2>/dev/null \
+                        | python3 -c "import json,sys; print(f'{json.loads(sys.stdin.read()).get(\"credit\",0):.2f}')" 2>/dev/null \
+                        || echo "0")
+                    VAST_REMAINING=$(python3 -c "print(f'{min(float(\"$VAST_BUDGET\"), float(\"$VAST_BALANCE\")):.2f}')" 2>/dev/null || echo "0")
                     if python3 -c "exit(0 if float('$VAST_REMAINING') <= 0 else 1)" 2>/dev/null; then
                         echo ""
                         gum style --foreground 196 --bold \
-                            "  💰 Budget exhausted! Spent: \$$VAST_SPENT / \$$VAST_BUDGET"
+                            "  💰 Budget exhausted! Balance: \$$VAST_BALANCE"
                         break
                     fi
                     gum style --foreground 214 \
-                        "  💰 Round $ROUND — \$$VAST_REMAINING remaining of \$$VAST_BUDGET"
+                        "  💰 Round $ROUND — \$$VAST_REMAINING remaining (API balance: \$$VAST_BALANCE)"
                 else
                     # No budget/balance — run only one round
                     if [[ $ROUND -gt 1 ]]; then
@@ -2121,15 +2124,18 @@ select domain in "${DOMAINS[@]}"; do
 
                         # Budget check before each round
                         if python3 -c "exit(0 if float('$VAST_BUDGET') > 0 else 1)" 2>/dev/null; then
-                            VAST_SPENT=$(psql -p 5433 -d opencurelabs -t -A -c \
-                                "SELECT COALESCE(SUM(total_cost), 0) FROM vast_spend" 2>/dev/null || echo "0")
-                            VAST_REMAINING=$(python3 -c "print(f'{max(0, float(\"$VAST_BUDGET\") - float(\"$VAST_SPENT\")):.2f}')" 2>/dev/null || echo "0")
+                            # Use live API balance (already reflects charges)
+                            VAST_BALANCE=$(curl -sf -H "Authorization: Bearer $VAST_AI_KEY" \
+                                "https://console.vast.ai/api/v0/users/current/" 2>/dev/null \
+                                | python3 -c "import json,sys; print(f'{json.loads(sys.stdin.read()).get(\"credit\",0):.2f}')" 2>/dev/null \
+                                || echo "0")
+                            VAST_REMAINING=$(python3 -c "print(f'{min(float(\"$VAST_BUDGET\"), float(\"$VAST_BALANCE\")):.2f}')" 2>/dev/null || echo "0")
                             if python3 -c "exit(0 if float('$VAST_REMAINING') <= 0 else 1)" 2>/dev/null; then
                                 echo ""
-                                echo -e "${RED}  💰 Budget exhausted! Spent: \$$VAST_SPENT / \$$VAST_BUDGET${RESET}"
+                                echo -e "${RED}  💰 Budget exhausted! Balance: \$$VAST_BALANCE${RESET}"
                                 break
                             fi
-                            echo -e "${YELLOW}  💰 Round $ROUND — \$$VAST_REMAINING remaining of \$$VAST_BUDGET${RESET}"
+                            echo -e "${YELLOW}  💰 Round $ROUND — \$$VAST_REMAINING remaining (API balance: \$$VAST_BALANCE)${RESET}"
                         else
                             if [[ $ROUND -gt 1 ]]; then
                                 break
