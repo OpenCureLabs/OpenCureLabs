@@ -36,15 +36,19 @@ _GENESIS_STOP=0
 _teardown_vast() {
     _GENESIS_STOP=1
     echo ""
-    echo -e "\033[1;93m── Tearing down Vast.ai instances before exit... ──\033[0m"
     # Kill any running nat run children
     pkill -TERM -f "nat run" 2>/dev/null || true
     sleep 1
     pkill -KILL -f "nat run" 2>/dev/null || true
-    python3 -c "
+    if [[ "${BATCH_MODE:-0}" -eq 1 ]]; then
+        echo -e "\033[1;93m── Tearing down Vast.ai instances before exit... ──\033[0m"
+        python3 -c "
 from agentiq_labclaw.compute.vast_dispatcher import teardown_all_instances
 teardown_all_instances()
 " 2>&1 | sed 's/^/  /' || true
+    else
+        echo -e "\033[1;93m── Stopping agents... ──\033[0m"
+    fi
 }
 trap '_teardown_vast; exit 0' INT TERM
 
@@ -1198,12 +1202,14 @@ if $HAS_GUM; then
 
             export LABCLAW_COMPUTE=local
 
-            # ── Teardown persistent pool instances ───────────────────────
-            gum style --foreground 214 "  🧹 Tearing down Vast.ai pool instances..." 2>/dev/null || true
-            python3 -c "
+            # ── Teardown persistent pool instances (batch mode only) ──────
+            if [[ "${BATCH_MODE:-0}" -eq 1 ]]; then
+                gum style --foreground 214 "  🧹 Tearing down Vast.ai pool instances..." 2>/dev/null || true
+                python3 -c "
 from agentiq_labclaw.compute.vast_dispatcher import teardown_all_instances
 teardown_all_instances()
 " 2>&1 | sed 's/^/  /' || true
+            fi
 
             # ── Genesis Summary ──────────────────────────────────────────
             GENESIS_END=$(date +%s)
@@ -2237,12 +2243,14 @@ select domain in "${DOMAINS[@]}"; do
 
                     export LABCLAW_COMPUTE=local
 
-                    # ── Teardown persistent pool instances ───────────────
-                    echo -e "  🧹 Tearing down Vast.ai pool instances..."
-                    python3 -c "
+                    # ── Teardown persistent pool instances (batch mode only)
+                    if [[ "${BATCH_MODE:-0}" -eq 1 ]]; then
+                        echo -e "  🧹 Tearing down Vast.ai pool instances..."
+                        python3 -c "
 from agentiq_labclaw.compute.vast_dispatcher import teardown_all_instances
 teardown_all_instances()
 " 2>&1 | sed 's/^/  /' || true
+                    fi
 
                     GENESIS_END=$(date +%s)
                     GENESIS_ELAPSED=$(( GENESIS_END - GENESIS_START ))
