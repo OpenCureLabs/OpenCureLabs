@@ -117,7 +117,7 @@ class TestGuardrailsIntegration:
         from pydantic import BaseModel
 
         class TestOutput(BaseModel):
-            confidence_score: float = 0.01
+            confidence_score: float = 0.001
 
         output = TestOutput()
         is_safe, reason = safety_check(output, agent_run_id=1)

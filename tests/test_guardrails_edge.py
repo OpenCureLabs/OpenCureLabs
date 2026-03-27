@@ -44,7 +44,7 @@ class TestSafetyCheck:
         assert "agent_run_id" in reason
 
     def test_blocks_confidence_below_threshold(self):
-        output = SampleOutput(gene="TP53", confidence_score=0.05)
+        output = SampleOutput(gene="TP53", confidence_score=0.001)
         ok, reason = safety_check(output, agent_run_id=1)
         assert ok is False
         assert "Confidence" in reason

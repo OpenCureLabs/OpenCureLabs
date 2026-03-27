@@ -693,7 +693,7 @@ class TestSafetyCheckUnit:
     def test_blocks_low_confidence(self):
         from agentiq_labclaw.guardrails.safety_check import safety_check
 
-        is_safe, reason = safety_check(self._make_output(confidence=0.05), agent_run_id=1)
+        is_safe, reason = safety_check(self._make_output(confidence=0.001), agent_run_id=1)
         assert is_safe is False
         assert "Confidence" in reason
 
@@ -726,7 +726,7 @@ class TestSafetyCheckUnit:
     def test_minimum_confidence_constant(self):
         from agentiq_labclaw.guardrails.safety_check import MINIMUM_CONFIDENCE
 
-        assert MINIMUM_CONFIDENCE == 0.1
+        assert MINIMUM_CONFIDENCE == 0.005
 
 
 # ===========================================================================

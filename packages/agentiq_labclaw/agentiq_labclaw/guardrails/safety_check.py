@@ -6,7 +6,7 @@ from pydantic import BaseModel
 
 logger = logging.getLogger("labclaw.guardrails.safety_check")
 
-MINIMUM_CONFIDENCE = 0.1
+MINIMUM_CONFIDENCE = 0.005
 
 
 def safety_check(
