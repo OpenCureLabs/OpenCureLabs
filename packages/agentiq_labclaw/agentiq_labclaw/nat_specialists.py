@@ -261,6 +261,25 @@ async def specialist_agent(config: SpecialistAgentConfig, builder: Builder):
 
 # ── Hierarchical Coordinator ────────────────────────────────────────────────
 
+# Fallback descriptions when FunctionInfo.description is not available
+_SPECIALIST_DESCRIPTIONS = {
+    "cancer_agent": (
+        "CALL THIS TOOL for any task involving tumor immunology, neoantigen prediction, "
+        "cancer genomics, or veterinary oncology (canine/feline). Pass the complete task "
+        "description including sample IDs, VCF paths, HLA alleles, tumor types, and species."
+    ),
+    "rare_disease_agent": (
+        "CALL THIS TOOL for any task involving variant pathogenicity, rare disease analysis, "
+        "de novo mutations, or genetic variant assessment. Pass the complete task description "
+        "including gene names, variant IDs, and species."
+    ),
+    "drug_response_agent": (
+        "CALL THIS TOOL for any task involving QSAR modeling, molecular docking, drug discovery, "
+        "or drug response prediction. Pass the complete task description including SMILES, "
+        "receptor PDB IDs, and dataset paths."
+    ),
+}
+
 
 class HierarchicalCoordinatorConfig(AgentBaseConfig, name="hierarchical_coordinator"):
     """Top-level coordinator that routes to specialist agents + utility tools."""
@@ -276,19 +295,21 @@ class HierarchicalCoordinatorConfig(AgentBaseConfig, name="hierarchical_coordina
 
 COORDINATOR_SYSTEM_PROMPT = (
     "You are the LabClaw scientific coordinator for OpenCure Labs.\n"
-    "You route research tasks to the correct specialist agent:\n\n"
-    "- **cancer_agent**: Tumor immunology, neoantigen prediction, cancer genomics\n"
-    "- **rare_disease_agent**: Variant pathogenicity, rare disease analysis, de novo mutations\n"
-    "- **drug_response_agent**: QSAR models, molecular docking, drug discovery\n\n"
-    "You also have utility tools:\n"
-    "- **register_discovered_source**: Log a newly discovered data source\n"
-    "- **report_generator**: Generate a PDF report of results\n\n"
-    "Rules:\n"
-    "1. Always delegate scientific work to the appropriate specialist.\n"
-    "2. Never fabricate results — only report what specialists return.\n"
-    "3. If a task spans domains, call multiple specialists in sequence.\n"
-    "4. Use report_generator to produce final reports when requested.\n"
-    "5. Pass complete task context to each specialist — include data paths, parameters, etc."
+    "You route research tasks to the correct specialist agent.\n\n"
+    "CRITICAL RULES — you MUST follow these without exception:\n"
+    "1. For ANY scientific task, you MUST call the appropriate specialist agent tool.\n"
+    "   Do NOT answer scientific questions with text — ALWAYS delegate by calling a tool.\n"
+    "2. Route to the correct specialist:\n"
+    "   - cancer_agent: neoantigen prediction, tumor immunology, cancer genomics, veterinary oncology\n"
+    "   - rare_disease_agent: variant pathogenicity, rare disease analysis, de novo mutations\n"
+    "   - drug_response_agent: QSAR modeling, molecular docking, drug discovery\n"
+    "3. Pass the COMPLETE task description to the specialist — include ALL data paths, parameters,\n"
+    "   sample IDs, species, HLA alleles, tumor types, VCF paths, etc. Do not summarize or omit details.\n"
+    "4. Never fabricate results — only report what specialists return.\n"
+    "5. If a task spans domains, call multiple specialists in sequence.\n"
+    "6. Use register_discovered_source to log new data sources.\n"
+    "7. Use report_generator to produce PDF reports when requested.\n\n"
+    "REMEMBER: Your job is to DELEGATE, not to answer. Call a tool for every scientific request."
 )
 
 
@@ -318,10 +339,15 @@ async def hierarchical_coordinator(config: HierarchicalCoordinatorConfig, builde
             async def _tool_fn(input_text: str, _fn=nat_fn) -> str:
                 return await _fn.ainvoke(input_text)
 
+            # Use the description from the FunctionInfo if available
+            spec_desc = getattr(fn, 'description', '') or ''
+            if not spec_desc:
+                spec_desc = _SPECIALIST_DESCRIPTIONS.get(tool_name, f"Delegate to {tool_name}")
+
             tool = StructuredTool.from_function(
                 coroutine=_tool_fn,
                 name=tool_name,
-                description=f"Delegate to {tool_name}",
+                description=spec_desc,
             )
         else:
             # Utility tools — try to get skill schema for structured args
