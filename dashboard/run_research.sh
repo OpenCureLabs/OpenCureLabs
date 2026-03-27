@@ -923,9 +923,9 @@ if $HAS_GUM; then
                         || echo -e "${RED}  ⚠️  No Vast.ai balance — will run once locally${RESET}"
                 fi
             else
-                # Local modes — fetch balance for loop control
-                API_BALANCE=$(get_vast_balance)
-                VAST_BUDGET="$API_BALANCE"
+                # Local modes — no Vast.ai needed
+                VAST_BUDGET=0
+                BATCH_MODE=0
             fi
 
             echo ""
@@ -992,26 +992,31 @@ if $HAS_GUM; then
                 ROUND=$((ROUND + 1))
 
                 # ── Budget check before each round ───────────────────
-                if python3 -c "exit(0 if float('$VAST_BUDGET') > 0 else 1)" 2>/dev/null; then
-                    # Use live API balance (already reflects charges)
-                    VAST_BALANCE=$(curl -sf -H "Authorization: Bearer $VAST_AI_KEY" \
-                        "https://console.vast.ai/api/v0/users/current/" 2>/dev/null \
-                        | python3 -c "import json,sys; print(f'{json.loads(sys.stdin.read()).get(\"credit\",0):.2f}')" 2>/dev/null \
-                        || echo "0")
-                    VAST_REMAINING=$(python3 -c "print(f'{min(float(\"$VAST_BUDGET\"), float(\"$VAST_BALANCE\")):.2f}')" 2>/dev/null || echo "0")
-                    if python3 -c "exit(0 if float('$VAST_REMAINING') <= 0 else 1)" 2>/dev/null; then
-                        echo ""
-                        gum style --foreground 196 --bold \
-                            "  💰 Budget exhausted! Balance: \$$VAST_BALANCE"
-                        break
+                if [[ "${BATCH_MODE:-0}" -eq 1 ]]; then
+                    # Vast.ai batch mode — check live API balance
+                    if python3 -c "exit(0 if float('$VAST_BUDGET') > 0 else 1)" 2>/dev/null; then
+                        VAST_BALANCE=$(curl -sf -H "Authorization: Bearer $VAST_AI_KEY" \
+                            "https://console.vast.ai/api/v0/users/current/" 2>/dev/null \
+                            | python3 -c "import json,sys; print(f'{json.loads(sys.stdin.read()).get(\"credit\",0):.2f}')" 2>/dev/null \
+                            || echo "0")
+                        VAST_REMAINING=$(python3 -c "print(f'{min(float(\"$VAST_BUDGET\"), float(\"$VAST_BALANCE\")):.2f}')" 2>/dev/null || echo "0")
+                        if python3 -c "exit(0 if float('$VAST_REMAINING') <= 0 else 1)" 2>/dev/null; then
+                            echo ""
+                            gum style --foreground 196 --bold \
+                                "  💰 Budget exhausted! Balance: \$$VAST_BALANCE"
+                            break
+                        fi
+                        gum style --foreground 214 \
+                            "  💰 Round $ROUND — \$$VAST_REMAINING remaining (API balance: \$$VAST_BALANCE)"
+                    else
+                        if [[ $ROUND -gt 1 ]]; then
+                            break
+                        fi
                     fi
-                    gum style --foreground 214 \
-                        "  💰 Round $ROUND — \$$VAST_REMAINING remaining (API balance: \$$VAST_BALANCE)"
                 else
-                    # No budget/balance — run only one round
-                    if [[ $ROUND -gt 1 ]]; then
-                        break
-                    fi
+                    # Local mode — just show round counter
+                    gum style --foreground 214 \
+                        "  🔄 Round $ROUND"
                 fi
 
                 GENESIS_LOG_DIR="$PROJECT_DIR/logs/genesis-$(date +%Y%m%d-%H%M%S)"
@@ -2066,9 +2071,9 @@ select domain in "${DOMAINS[@]}"; do
                     echo -e "${RED}  ⚠️  No Vast.ai balance — will run once locally${RESET}"
                 fi
             else
-                # Local modes — fetch balance for loop control
-                API_BALANCE=$(get_vast_balance)
-                VAST_BUDGET="$API_BALANCE"
+                # Local modes — no Vast.ai needed
+                VAST_BUDGET=0
+                BATCH_MODE=0
             fi
 
             echo ""
@@ -2124,23 +2129,28 @@ select domain in "${DOMAINS[@]}"; do
                         ROUND=$((ROUND + 1))
 
                         # Budget check before each round
-                        if python3 -c "exit(0 if float('$VAST_BUDGET') > 0 else 1)" 2>/dev/null; then
-                            # Use live API balance (already reflects charges)
-                            VAST_BALANCE=$(curl -sf -H "Authorization: Bearer $VAST_AI_KEY" \
-                                "https://console.vast.ai/api/v0/users/current/" 2>/dev/null \
-                                | python3 -c "import json,sys; print(f'{json.loads(sys.stdin.read()).get(\"credit\",0):.2f}')" 2>/dev/null \
-                                || echo "0")
-                            VAST_REMAINING=$(python3 -c "print(f'{min(float(\"$VAST_BUDGET\"), float(\"$VAST_BALANCE\")):.2f}')" 2>/dev/null || echo "0")
-                            if python3 -c "exit(0 if float('$VAST_REMAINING') <= 0 else 1)" 2>/dev/null; then
-                                echo ""
-                                echo -e "${RED}  💰 Budget exhausted! Balance: \$$VAST_BALANCE${RESET}"
-                                break
+                        if [[ "${BATCH_MODE:-0}" -eq 1 ]]; then
+                            # Vast.ai batch mode — check live API balance
+                            if python3 -c "exit(0 if float('$VAST_BUDGET') > 0 else 1)" 2>/dev/null; then
+                                VAST_BALANCE=$(curl -sf -H "Authorization: Bearer $VAST_AI_KEY" \
+                                    "https://console.vast.ai/api/v0/users/current/" 2>/dev/null \
+                                    | python3 -c "import json,sys; print(f'{json.loads(sys.stdin.read()).get(\"credit\",0):.2f}')" 2>/dev/null \
+                                    || echo "0")
+                                VAST_REMAINING=$(python3 -c "print(f'{min(float(\"$VAST_BUDGET\"), float(\"$VAST_BALANCE\")):.2f}')" 2>/dev/null || echo "0")
+                                if python3 -c "exit(0 if float('$VAST_REMAINING') <= 0 else 1)" 2>/dev/null; then
+                                    echo ""
+                                    echo -e "${RED}  💰 Budget exhausted! Balance: \$$VAST_BALANCE${RESET}"
+                                    break
+                                fi
+                                echo -e "${YELLOW}  💰 Round $ROUND — \$$VAST_REMAINING remaining (API balance: \$$VAST_BALANCE)${RESET}"
+                            else
+                                if [[ $ROUND -gt 1 ]]; then
+                                    break
+                                fi
                             fi
-                            echo -e "${YELLOW}  💰 Round $ROUND — \$$VAST_REMAINING remaining (API balance: \$$VAST_BALANCE)${RESET}"
                         else
-                            if [[ $ROUND -gt 1 ]]; then
-                                break
-                            fi
+                            # Local mode — just show round counter
+                            echo -e "${YELLOW}  🔄 Round $ROUND${RESET}"
                         fi
 
                         GENESIS_LOG_DIR="$PROJECT_DIR/logs/genesis-$(date +%Y%m%d-%H%M%S)"
