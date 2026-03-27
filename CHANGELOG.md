@@ -17,6 +17,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 - central task queue + distributed computing (v0.52.0)
 
+## v0.52.1 (2026-03-26)
+
+### Feat
+
+- **worker**: Failure reporting — `POST /tasks/:id/fail` with 3-retry auto-recovery (#47)
+- **worker**: Rate limiting — 100 claims per 60s per contributor, 429 response (#48)
+- **worker**: Contributor leaderboard — `GET /leaderboard` merges tasks + results (#50)
+- **worker**: Dynamic task derivation — `deriveFollowUpTasks()` + `deriveDiscoveryTasks()` with per-skill confidence thresholds (#49)
+- **worker**: Pipeline chain endpoints — `GET /tasks/chains`, `GET /tasks/chain/:chainId` (#52)
+- **worker**: Task recycle endpoint — `POST /tasks/recycle` resets old completions
+- **website**: Contribute dashboard (`contribute.html`) — live stats, skill breakdown, pipeline chain visualization, leaderboard, getting started guide (#46)
+- **website**: Contribute nav link added to all pages
+- **dispatcher**: Failure reporting in contribute mode — differentiates completions vs failures
+
+### Docs
+
+- Updated: `docs/API-REFERENCE.md` — 6 new endpoints, rate limiting, dynamic derivation, chain rules
+- Updated: `docs/DISTRIBUTED-COMPUTING.md` — failure reporting, rate limiting, chain rules, dashboard, updated schema
+- Updated: `docs/DATABASE.md` — full D1 schema (tasks, results, contributors, critiques tables)
+- Updated: `docs/ARCHITECTURE.md` — dynamic derivation flow, D1 tasks table reference
+- Updated: `docs/SKILLS.md` — chain thresholds, skill-to-skill derivation rules
+- Updated: `LABCLAW.md` — dynamic task derivation responsibility
+- Updated: `README.md` — expanded distributed computing section, updated roadmap
+- Updated: `CHANGELOG.md` — itemized feature entries
+
+### Fix
+
+- **leaderboard**: Show contributors from tasks table (not just published results)
+
 ## v0.52.0 (2026-03-25)
 
 ### Feat

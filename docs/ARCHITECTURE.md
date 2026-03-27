@@ -61,6 +61,7 @@ stored and published.
 │                                                                      │
 │  R2 (pub.opencurelabs.ai): results/{skill}/{date}/{uuid}.json       │
 │  D1 (opencurelabs): results table — queryable via ingest Worker     │
+│                     tasks table — central task queue (400K+ tasks)   │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 
@@ -375,6 +376,16 @@ with automatic TTL expiration.
    All results ──→ PostgreSQL (experiment_results, pipeline_runs, agent_runs)
                ──→ Cloudflare R2 (full result blobs)
                ──→ Cloudflare D1 (queryable index)
+
+7. DYNAMIC DERIVATION (automated pipeline chaining)
+   High-confidence result ──→ deriveFollowUpTasks()
+                           ──→ inserts new tasks into D1 task queue
+                           ──→ chain_id links parent → child tasks
+                           ──→ next contributor claims derived task → cycle repeats
+
+   Example chain:
+   neoantigen (conf ≥ 0.7) → structure_prediction → molecular_docking → QSAR
+   [chain_step: 0]          [chain_step: 1]        [chain_step: 2]     [step: 3]
 ```
 
 ---

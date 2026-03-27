@@ -354,6 +354,9 @@ Claim semantics:
 - Claims expire after 24 hours (reclaimed by weekly cron)
 - Empty result (`claimed: 0`) means no matching tasks available
 
+**Rate limiting:** 100 claims per 60 seconds per `contributor_id`. Exceeding
+this returns `429 Too Many Requests` with a `Retry-After` header.
+
 #### `POST /tasks/:id/complete`
 
 Mark a claimed task as completed.
@@ -369,22 +372,117 @@ Body:
 Returns `200 { "ok": true }` on success, `404` if the task is not in `claimed`
 status (already completed or expired).
 
+#### `POST /tasks/:id/fail`
+
+Report that a task failed during execution. Failed tasks are automatically
+retried up to 3 times before being permanently marked as `failed`.
+
+Body:
+
+```json
+{
+  "reason": "CUDA out of memory on RTX 3060 (8GB VRAM)"
+}
+```
+
+| Failure count | Behavior |
+|---|---|
+| 1–2 | Task reset to `available` for retry by another contributor |
+| 3 | Task permanently marked `failed` |
+
+Returns:
+
+```json
+{
+  "ok": true,
+  "task_id": "uuid",
+  "failure_count": 2,
+  "status": "available"
+}
+```
+
 #### `GET /tasks/stats`
 
-Returns task queue statistics grouped by status and skill.
+Returns task queue statistics grouped by status, skill, and source.
 
 ```json
 {
   "totals": [
-    { "status": "available", "count": 1319 },
-    { "status": "claimed", "count": 6 },
-    { "status": "completed", "count": 5 }
+    { "status": "available", "count": 396100 },
+    { "status": "claimed", "count": 812 },
+    { "status": "completed", "count": 327 }
   ],
   "by_skill": [
-    { "skill": "neoantigen_prediction", "status": "available", "count": 1234 }
+    { "skill": "neoantigen_prediction", "status": "available", "count": 396100 }
+  ],
+  "by_source": [
+    { "source": "bank", "count": 397000 },
+    { "source": "derived", "count": 12 },
+    { "source": "discovery", "count": 3 }
   ]
 }
 ```
+
+#### `GET /leaderboard`
+
+Public contributor rankings. Merges data from both the `results` and `tasks`
+tables — contributors appear as soon as they complete tasks, even before results
+pass Grok review.
+
+```json
+{
+  "leaderboard": [
+    {
+      "contributor_id": "alice-gpu-node",
+      "results_published": 42,
+      "tasks_completed": 327,
+      "skills_used": 3,
+      "first_result": "2026-03-20T...",
+      "latest_result": "2026-03-26T..."
+    }
+  ],
+  "updated_at": "2026-03-26T..."
+}
+```
+
+Ranked by `tasks_completed + results_published`. Returns top 50.
+
+#### `GET /tasks/chains`
+
+Lists the 20 most recent pipeline chains. A chain is a sequence of derived
+tasks spawned when results exceed confidence thresholds.
+
+```json
+{
+  "chains": [
+    {
+      "chain_id": "550e8400-...",
+      "task_count": 4,
+      "latest": "2026-03-26T...",
+      "tasks": [
+        { "id": "...", "skill": "neoantigen_prediction", "status": "completed", "chain_step": 0 },
+        { "id": "...", "skill": "structure_prediction", "status": "claimed", "chain_step": 1 },
+        { "id": "...", "skill": "molecular_docking", "status": "available", "chain_step": 2 }
+      ]
+    }
+  ]
+}
+```
+
+#### `GET /tasks/chain/:chainId`
+
+Returns all tasks in a single dependency chain, ordered by step.
+
+```json
+{
+  "chain_id": "550e8400-...",
+  "tasks": [ ... ],
+  "total": 4,
+  "completed": 1
+}
+```
+
+Returns `404` if the chain ID does not exist.
 
 #### `POST /tasks/generate`
 
@@ -398,11 +496,44 @@ zero rows if the queue is already populated.
 
 Returns: `{ "ok": true, "inserted": 1330 }`
 
+#### `POST /tasks/recycle`
+
+Admin-only. Resets completed tasks older than N days back to `available` for
+re-execution with updated models/data.
+
+| Header | Required | Description |
+|---|---|---|
+| `X-Admin-Key` | Yes | Must match the `ADMIN_KEY` Cloudflare secret |
+
+Body: `{ "days": 30 }` (default 30, use 0 to recycle all).
+
+Returns: `{ "ok": true, "recycled": 150, "cutoff_days": 30 }`
+
 #### Cron: `0 0 * * SUN`
 
 Weekly scheduled trigger that:
 1. Reclaims tasks stuck in `claimed` status for >24 hours (resets to `available`)
 2. Calls `populateTaskQueue()` to insert any new tasks from parameter banks
+3. Recycles tasks completed more than 30 days ago
+
+#### Dynamic Task Derivation
+
+When a result is submitted via `POST /results`, the worker automatically checks
+whether to spawn follow-up tasks based on confidence thresholds:
+
+| Completed Skill | Threshold | Auto-spawns |
+|---|---|---|
+| `neoantigen_prediction` | confidence ≥ 0.7 | `structure_prediction` + `molecular_docking` |
+| `structure_prediction` | confidence ≥ 0.6 | `molecular_docking` |
+| `molecular_docking` | affinity ≤ -8.0 | `qsar` |
+| `variant_pathogenicity` | score ≥ 0.7 | `structure_prediction` + `neoantigen_prediction` |
+
+Derived tasks are tracked via `chain_id` / `chain_step` fields. Maximum chain
+depth is 4 steps, with a cap of 20 derived tasks per result. Derived tasks get
+`priority: 2` (higher than bank tasks at priority 1–10).
+
+Discovery tasks are also spawned from `grok_research` results when genes or drug
+targets appear in the findings.
 
 ---
 

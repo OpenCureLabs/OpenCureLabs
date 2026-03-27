@@ -2,15 +2,28 @@
 
 ## Overview
 
-OpenCure Labs uses **PostgreSQL 16** on port **5433** (non-standard to avoid
-conflicts with other PostgreSQL instances). The database stores all agent
-activity, pipeline results, scientific critiques, and discovered data sources.
+OpenCure Labs uses **two database systems**:
+
+1. **PostgreSQL 16** (local, port 5433) — stores agent activity, pipeline results,
+   scientific critiques, and discovered data sources.
+2. **Cloudflare D1** (remote, SQLite-compatible) — stores the central task queue,
+   published results index, contributor registrations, and critiques for the
+   distributed computing system.
+
+### PostgreSQL
 
 - **Database name:** `opencurelabs`
 - **Default connection:** `postgresql://localhost:5433/opencurelabs`
 - **Environment variable:** `POSTGRES_URL`
 - **Schema file:** `db/schema.sql`
 - **DB abstraction layer:** `packages/agentiq_labclaw/agentiq_labclaw/db/`
+
+### Cloudflare D1
+
+- **Database name:** `opencurelabs`
+- **Schema file:** `workers/ingest/tasks-schema.sql`
+- **Migrations:** `workers/ingest/migrations/`
+- **Accessed via:** Cloudflare Worker at `ingest.opencurelabs.ai`
 
 ---
 
@@ -285,3 +298,107 @@ su - postgres -c "pg_restore --data-only -p 5433 -d opencurelabs backup.dump"
 
 The automated backup script at `/root/backups/opencurelabs/backup.sh` dumps the
 database daily at 5:30 AM PST and mirrors to `C:\Backups\OpenCureLabs\db\`.
+
+---
+
+## Cloudflare D1 Tables
+
+The D1 database powers the distributed computing system. It is accessed
+exclusively through the Cloudflare Worker at `ingest.opencurelabs.ai` — no
+direct SQL connections. Schema is defined in `workers/ingest/tasks-schema.sql`.
+
+### tasks
+
+The central task queue. Contains ~400K pre-generated research tasks plus
+dynamically derived follow-up tasks.
+
+| Column | Type | Default | Description |
+|---|---|---|---|
+| `id` | `TEXT` | PRIMARY KEY | UUID task identifier |
+| `skill` | `TEXT` | NOT NULL | Skill name (e.g., `neoantigen_prediction`) |
+| `input_hash` | `TEXT` | NOT NULL, UNIQUE | SHA-256 of canonical input JSON (dedup key) |
+| `input_data` | `TEXT` | NOT NULL | Full input parameters as JSON |
+| `domain` | `TEXT` | `''` | Research domain: `cancer`, `rare_disease`, `drug_response` |
+| `species` | `TEXT` | `'human'` | Species: `human`, `dog`, `cat` |
+| `label` | `TEXT` | `''` | Human-readable task label |
+| `priority` | `INTEGER` | `10` | Priority (lower = higher): derived=2, tier1=3, tier2=5 |
+| `status` | `TEXT` | `'available'` | Lifecycle: `available`, `claimed`, `completed`, `failed` |
+| `claimed_by` | `TEXT` | NULL | Contributor ID who claimed the task |
+| `claimed_at` | `TEXT` | NULL | ISO timestamp of claim |
+| `completed_at` | `TEXT` | NULL | ISO timestamp of completion |
+| `result_id` | `TEXT` | NULL | UUID of the submitted result |
+| `failure_count` | `INTEGER` | `0` | Number of failed attempts (max 3) |
+| `failure_reason` | `TEXT` | NULL | Most recent failure reason |
+| `failed_at` | `TEXT` | NULL | Timestamp of last failure |
+| `source` | `TEXT` | `'bank'` | Origin: `bank` (parameter bank), `derived` (chain), `discovery` (Grok) |
+| `parent_result_id` | `TEXT` | NULL | Result ID that triggered this derived task |
+| `parent_task_id` | `TEXT` | NULL | Task ID whose completion spawned this task |
+| `chain_id` | `TEXT` | NULL | UUID grouping related pipeline tasks |
+| `chain_step` | `INTEGER` | `0` | Step number within the chain (0–4) |
+| `created_at` | `TEXT` | `datetime('now')` | Creation timestamp |
+
+**Indexes:**
+- `idx_tasks_status_skill` — `(status, skill, priority)` — claim query optimization
+- `idx_tasks_claimed` — `(claimed_by)` — rate limiting lookups
+- `idx_tasks_domain` — `(domain)` — domain filtering
+- `idx_tasks_chain` — `(chain_id)` — chain lookups
+- `idx_tasks_source` — `(source)` — source breakdown queries
+- `idx_tasks_parent_result` — `(parent_result_id)` — provenance tracking
+
+### results
+
+Published scientific results, indexed for querying. Full result blobs are stored
+in R2; this table holds the queryable metadata.
+
+| Column | Type | Description |
+|---|---|---|
+| `id` | `TEXT` (PK) | UUID result identifier |
+| `skill` | `TEXT` | Skill that produced this result |
+| `date` | `TEXT` | Date of submission |
+| `novel` | `INTEGER` | Whether the result is novel (1/0) |
+| `status` | `TEXT` | `pending`, `published`, or `blocked` |
+| `r2_url` | `TEXT` | URL to the full result blob in R2 |
+| `species` | `TEXT` | Species |
+| `confidence_score` | `REAL` | Skill-specific confidence metric |
+| `gene` | `TEXT` | Gene symbol (if applicable) |
+| `contributor_id` | `TEXT` | Contributing system's UUID |
+| `created_at` | `TEXT` | Submission timestamp |
+
+### contributors
+
+Registered contributor public keys for Ed25519 signature verification.
+
+| Column | Type | Description |
+|---|---|---|
+| `contributor_id` | `TEXT` (PK) | UUID contributor identifier |
+| `public_key` | `TEXT` | Hex-encoded Ed25519 public key |
+| `status` | `TEXT` | `active` or `suspended` |
+| `created_at` | `TEXT` | Registration timestamp |
+
+### critiques
+
+Grok sweep verification results (Tier 2 review).
+
+| Column | Type | Description |
+|---|---|---|
+| `id` | `TEXT` (PK) | UUID critique identifier |
+| `result_id` | `TEXT` | Result being reviewed |
+| `reviewer` | `TEXT` | Reviewer identifier (e.g., `grok-sweep`) |
+| `critique_json` | `TEXT` | Full critique payload as JSON |
+| `score` | `REAL` | Overall score (0–10) |
+| `recommendation` | `TEXT` | `publish`, `block`, or `defer` |
+| `created_at` | `TEXT` | Review timestamp |
+
+### D1 Migrations
+
+Migrations are in `workers/ingest/migrations/` and applied with:
+
+```bash
+npx wrangler d1 execute opencurelabs --remote --file=migrations/004_add_task_failures.sql
+npx wrangler d1 execute opencurelabs --remote --file=migrations/005_dynamic_tasks.sql
+```
+
+| Migration | Purpose |
+|---|---|
+| `004_add_task_failures.sql` | Adds `failure_count`, `failure_reason`, `failed_at` columns |
+| `005_dynamic_tasks.sql` | Adds `source`, `parent_result_id`, `parent_task_id`, `chain_id`, `chain_step` + indexes |

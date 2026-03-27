@@ -46,6 +46,7 @@ Think of the relationship like this:
 | **Data registration** | Accepts newly discovered sources from Grok and queues them for ingestion |
 | **Result routing** | Sends novel results to the Grok reviewer agent (two-tier critique) |
 | **Publishing coordination** | Triggers R2 publishing and local PDF report generation |
+| **Dynamic task derivation** | Auto-spawns follow-up tasks when results exceed confidence thresholds (chain tracking) |
 
 ---
 

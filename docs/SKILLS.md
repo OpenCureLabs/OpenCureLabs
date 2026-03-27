@@ -560,3 +560,55 @@ python pipelines/eval_mode.py  # runs all suites
 ```
 
 Output: summary table + `reports/eval_results.json`
+
+---
+
+## Dynamic Task Derivation — Chain Thresholds
+
+When a skill produces a result that exceeds a confidence threshold, the ingest
+worker automatically spawns follow-up tasks using related skills. This creates
+a chain of progressively deeper analysis.
+
+### Chain Threshold Configuration
+
+Defined in `workers/ingest/tasks.ts` as `CHAIN_THRESHOLDS`:
+
+| Skill | Metric | Threshold | Follow-up Skills |
+|---|---|---|---|
+| `neoantigen_prediction` | `confidence_score` | ≥ 0.7 | `structure_prediction`, `molecular_docking` |
+| `structure_prediction` | `confidence_score` | ≥ 0.6 | `molecular_docking` |
+| `molecular_docking` | `binding_affinity_kcal` | ≤ -8.0 | `qsar` |
+| `variant_pathogenicity` | `pathogenicity_score` | ≥ 0.7 | `structure_prediction`, `neoantigen_prediction` |
+
+### How Skills Connect in Chains
+
+```
+neoantigen_prediction (novel strong binder found)
+    │ confidence ≥ 0.7
+    ├──→ structure_prediction (predict protein structure for the gene)
+    │        │ confidence ≥ 0.6
+    │        └──→ molecular_docking (dock candidate against predicted structure)
+    │                 │ affinity ≤ -8.0
+    │                 └──→ qsar (build QSAR model from docking results)
+    │
+    └──→ molecular_docking (dock against known receptor)
+
+variant_pathogenicity (pathogenic variant found)
+    │ score ≥ 0.7
+    ├──→ structure_prediction (predict impact on protein)
+    └──→ neoantigen_prediction (check for neoantigen potential)
+```
+
+### Discovery-Driven Tasks
+
+The `grok_research` skill (Grok literature monitoring) can also spawn tasks when
+it discovers new gene or drug targets. These get `source: "discovery"` in the
+tasks table.
+
+### Guardrails
+
+- Max chain depth: 4 steps
+- Max 20 derived tasks per result
+- Derived tasks use `priority: 2` (higher than bank tasks)
+- Results must be `novel` to trigger derivation
+- `input_hash` deduplication prevents duplicate derived tasks

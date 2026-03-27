@@ -13,8 +13,9 @@ works on what.
 1. Admin populates queue    →  POST /tasks/generate (~400K deterministic tasks)
 2. Contributor claims tasks →  GET /tasks/claim?count=5&contributor_id=alice
 3. Contributor runs skills  →  Vast.ai GPU executes neoantigen/docking/QSAR/etc.
-4. Contributor reports done →  POST /tasks/{id}/complete
-5. Weekly cron reclaims     →  Tasks claimed >24h ago reset to "available"
+4. Contributor reports done →  POST /tasks/{id}/complete  (or /fail on error)
+5. Worker derives tasks     →  High-confidence results auto-spawn follow-ups
+6. Weekly cron reclaims     →  Tasks claimed >24h ago reset to "available"
 ```
 
 ---
@@ -116,16 +117,102 @@ submitted twice.
 
 ---
 
+## Rate Limiting
+
+To prevent a single contributor from draining the queue, `GET /tasks/claim` is
+rate-limited to **100 claims per 60 seconds** per `contributor_id`.
+
+Exceeding this limit returns `429 Too Many Requests` with a `Retry-After` header
+indicating how many seconds to wait. The batch dispatcher respects this automatically.
+
+---
+
+## Failure Reporting
+
+When a task crashes mid-execution (CUDA OOM, timeout, invalid input, etc.),
+contributors should report the failure:
+
+```bash
+curl -X POST https://ingest.opencurelabs.ai/tasks/{id}/fail \
+  -H "Content-Type: application/json" \
+  -d '{"reason": "CUDA out of memory on RTX 3060 (8GB VRAM)"}'
+```
+
+**Retry logic:** Failed tasks are automatically retried up to 3 times. On
+failures 1–2, the task is reset to `available` for another contributor to claim.
+After the 3rd failure, the task is permanently marked `failed`.
+
+| Column | Description |
+|---|---|
+| `failure_count` | Number of times this task has failed (0–3) |
+| `failure_reason` | Most recent failure reason string |
+| `failed_at` | Timestamp of last failure |
+
+---
+
+## Dynamic Task Derivation
+
+The task queue is not static. When a result exceeds confidence thresholds, the
+ingest worker automatically spawns follow-up tasks — building a chain of
+progressively deeper analysis.
+
+### How It Works
+
+1. Contributor completes a neoantigen prediction with confidence ≥ 0.7
+2. The `POST /results` handler calls `deriveFollowUpTasks()`
+3. New `structure_prediction` and `molecular_docking` tasks are auto-inserted
+4. These derived tasks share a `chain_id` so you can track the full pipeline
+5. When the structure prediction completes with confidence ≥ 0.6, a docking task
+   is spawned at `chain_step: 2`
+
+### Chain Rules
+
+| Completed Skill | Confidence Needed | Auto-spawns |
+|---|---|---|
+| `neoantigen_prediction` | ≥ 0.7 | `structure_prediction` + `molecular_docking` |
+| `structure_prediction` | ≥ 0.6 | `molecular_docking` |
+| `molecular_docking` | affinity ≤ -8.0 | `qsar` |
+| `variant_pathogenicity` | ≥ 0.7 | `structure_prediction` + `neoantigen_prediction` |
+
+### Discovery-Driven Tasks
+
+When Grok's `grok_research` skill finds new gene or drug targets in the
+literature, `deriveDiscoveryTasks()` auto-spawns neoantigen and docking tasks
+for those targets.
+
+### Guardrails
+
+- **Max chain depth:** 4 steps — prevents infinite cascading
+- **Max derived tasks per result:** 20
+- **Deduplication:** derived tasks use the same `input_hash` UNIQUE constraint
+- **Priority:** Derived tasks get `priority: 2` (higher than bank tasks)
+- **Source tracking:** `source` field is `"derived"` or `"discovery"`
+
+### Visualizing Chains
+
+The contribute dashboard at `https://opencurelabs.ai/contribute` shows active
+pipeline chains with step-by-step visualization. The API also exposes:
+
+- `GET /tasks/chains` — list 20 most recent chains
+- `GET /tasks/chain/:chainId` — single chain detail with all tasks
+
+---
+
 ## API Reference
 
 All endpoints are on the ingest worker at `https://ingest.opencurelabs.ai`.
 
 | Endpoint | Method | Auth | Description |
 |---|---|---|---|
-| `/tasks/claim` | GET | None | Claim available tasks |
+| `/tasks/claim` | GET | None | Claim available tasks (rate-limited: 100/60s) |
 | `/tasks/:id/complete` | POST | None | Mark a task completed |
-| `/tasks/stats` | GET | None | Queue statistics by status/skill |
+| `/tasks/:id/fail` | POST | None | Report task failure (3-retry logic) |
+| `/tasks/stats` | GET | None | Queue statistics by status/skill/source |
+| `/tasks/chains` | GET | None | List 20 most recent pipeline chains |
+| `/tasks/chain/:chainId` | GET | None | Single chain detail with all tasks |
+| `/leaderboard` | GET | None | Contributor rankings (top 50) |
 | `/tasks/generate` | POST | `X-Admin-Key` | Populate queue (admin only, idempotent) |
+| `/tasks/recycle` | POST | `X-Admin-Key` | Reset old completions to available |
 
 See [API-REFERENCE.md](API-REFERENCE.md) for full request/response details.
 
@@ -147,25 +234,47 @@ This ensures the queue is always populated and stale claims don't block work.
 
 ```sql
 CREATE TABLE IF NOT EXISTS tasks (
-  id          TEXT PRIMARY KEY,
-  skill       TEXT NOT NULL,
-  input_hash  TEXT NOT NULL UNIQUE,
-  input_data  TEXT NOT NULL,     -- JSON
-  domain      TEXT DEFAULT '',
-  species     TEXT DEFAULT 'human',
-  label       TEXT DEFAULT '',
-  priority    INTEGER DEFAULT 10,
-  status      TEXT DEFAULT 'available',
-  claimed_by  TEXT,
-  claimed_at  TEXT,
-  completed_at TEXT,
-  result_id   TEXT,
-  created_at  TEXT DEFAULT (datetime('now'))
+  id               TEXT PRIMARY KEY,
+  skill            TEXT NOT NULL,
+  input_hash       TEXT NOT NULL UNIQUE,
+  input_data       TEXT NOT NULL,           -- JSON
+  domain           TEXT DEFAULT '',
+  species          TEXT DEFAULT 'human',
+  label            TEXT DEFAULT '',
+  priority         INTEGER DEFAULT 10,
+  status           TEXT DEFAULT 'available',
+  claimed_by       TEXT,
+  claimed_at       TEXT,
+  completed_at     TEXT,
+  result_id        TEXT,
+  -- Failure tracking
+  failure_count    INTEGER DEFAULT 0,
+  failure_reason   TEXT,
+  failed_at        TEXT,
+  -- Dynamic derivation / chain tracking
+  source           TEXT DEFAULT 'bank',     -- 'bank', 'derived', or 'discovery'
+  parent_result_id TEXT,                    -- result that spawned this task
+  parent_task_id   TEXT,                    -- task whose completion triggered derivation
+  chain_id         TEXT,                    -- UUID grouping a pipeline chain
+  chain_step       INTEGER DEFAULT 0,       -- step number within the chain (max 4)
+  created_at       TEXT DEFAULT (datetime('now'))
 );
 
-CREATE INDEX idx_tasks_status_skill ON tasks(status, skill, priority);
-CREATE INDEX idx_tasks_claimed      ON tasks(claimed_by);
-CREATE INDEX idx_tasks_domain       ON tasks(domain);
+CREATE INDEX idx_tasks_status_skill   ON tasks(status, skill, priority);
+CREATE INDEX idx_tasks_claimed        ON tasks(claimed_by);
+CREATE INDEX idx_tasks_domain         ON tasks(domain);
+CREATE INDEX idx_tasks_chain          ON tasks(chain_id);
+CREATE INDEX idx_tasks_source         ON tasks(source);
+CREATE INDEX idx_tasks_parent_result  ON tasks(parent_result_id);
+```
+
+### Migrations
+
+Migrations live in `workers/ingest/migrations/` and are applied with:
+
+```bash
+npx wrangler d1 execute opencurelabs --remote --file=migrations/004_add_task_failures.sql
+npx wrangler d1 execute opencurelabs --remote --file=migrations/005_dynamic_tasks.sql
 ```
 
 ---
@@ -211,6 +320,21 @@ The task queue sits alongside the existing result lifecycle:
 
 Both modes ultimately publish results through the same R2/D1 ingest pipeline
 with Ed25519 signing and Grok two-tier review.
+
+---
+
+## Contribute Dashboard
+
+A live dashboard is available at **https://opencurelabs.ai/contribute** showing:
+
+- **Task stats** — available, claimed, completed, failed counts with auto-refresh
+- **Skill breakdown** — tasks per skill with bar chart visualization
+- **Active pipeline chains** — chain visualizations with step dots and status
+- **Contributor leaderboard** — top 50 contributors ranked by tasks + results
+- **Getting started guide** — setup instructions for new contributors
+
+The dashboard fetches from `GET /tasks/stats`, `GET /leaderboard`, and
+`GET /tasks/chains` with 30–60 second auto-refresh intervals.
 
 ### Contribute Mode Flow
 

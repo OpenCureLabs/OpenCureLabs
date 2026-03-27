@@ -307,7 +307,7 @@ Every result submitted to the global dataset is signed with an Ed25519 keypair t
 ## Distributed Computing
 
 OpenCure Labs includes a BOINC-style central task queue — like Folding@home, but
-for cancer genomics. A Cloudflare D1 database holds 1,330+ pre-generated research
+for cancer genomics. A Cloudflare D1 database holds ~400K pre-generated research
 tasks (neoantigen predictions, molecular docking, QSAR modeling, etc.), and any
 contributor can claim tasks, run them on GPU, and report results back.
 
@@ -324,9 +324,16 @@ protocol, and [CONTRIBUTING.md](CONTRIBUTING.md) for getting started.
 
 | Endpoint | Purpose |
 |---|---|
-| `GET /tasks/stats` | Queue status — available, claimed, completed counts |
-| `GET /tasks/claim` | Atomically claim tasks for execution |
+| `GET /tasks/stats` | Queue status — available, claimed, completed, failed counts |
+| `GET /tasks/claim` | Atomically claim tasks for execution (rate-limited: 100/60s) |
 | `POST /tasks/:id/complete` | Report task completion |
+| `POST /tasks/:id/fail` | Report task failure (auto-retry up to 3 times) |
+| `GET /leaderboard` | Contributor rankings by tasks completed |
+| `GET /tasks/chains` | Active pipeline chains (derived task sequences) |
+
+**Pipeline chaining:** When a result exceeds confidence thresholds, follow-up
+tasks are automatically spawned (e.g., neoantigen → structure → docking → QSAR).
+Chains are tracked and visualized on the **[Contribute Dashboard](https://opencurelabs.ai/contribute)**.
 
 ---
 
@@ -436,10 +443,15 @@ OpenCure Labs is currently capable of or actively building toward:
 - GitHub Actions–based pipeline CI/CD
 
 **Phase 2.5 — Distributed Computing** ✓
-- Central task queue on Cloudflare D1 (1,330 research tasks)
+- Central task queue on Cloudflare D1 (~400K research tasks)
 - `--mode contribute` for batch dispatcher (claim → execute → report)
 - Deduplication at task generation and result submission
 - Weekly cron for queue maintenance and expired claim recovery
+- Failure reporting with 3-retry auto-recovery
+- Rate limiting (100 claims/60s per contributor)
+- Contributor leaderboard + contribute dashboard
+- Dynamic task derivation — pipeline chaining from high-confidence results
+- Chain tracking (neoantigen → structure → docking → QSAR)
 
 **Phase 3 — Autonomy**
 - Closed-loop experiment design and iteration
