@@ -13,6 +13,9 @@
         "noEmit": true
     },
     "include": [
-        "index.ts"
+        "index.ts",
+        "tasks.ts",
+        "vitest.config.ts",
+        "*.test.ts"
     ]
 }
