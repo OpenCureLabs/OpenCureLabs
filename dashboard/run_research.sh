@@ -1016,6 +1016,7 @@ if $HAS_GUM; then
 
                 GENESIS_LOG_DIR="$PROJECT_DIR/logs/genesis-$(date +%Y%m%d-%H%M%S)"
                 mkdir -p "$GENESIS_LOG_DIR"
+                genesis_run_id="$(basename "$GENESIS_LOG_DIR")"
 
                 ROUND_OK=0
                 ROUND_FAILED=0
