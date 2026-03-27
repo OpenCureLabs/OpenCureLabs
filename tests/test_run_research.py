@@ -8,7 +8,6 @@ subprocess.
 
 from __future__ import annotations
 
-import json
 import os
 import re
 import subprocess
@@ -463,11 +462,11 @@ command -v gum &>/dev/null && echo "HAS_GUM=true" || echo "HAS_GUM=false"
 
     def test_parameterize_fallback_on_python_failure(self):
         """If parameterize_task.py fails, the shell function returns original desc."""
-        snippet = f"""
-parameterize_task() {{
+        snippet = """
+parameterize_task() {
     local desc="$1"
     python3 /nonexistent/script.py "$desc" 2>/dev/null || echo "$desc"
-}}
+}
 result=$(parameterize_task "My test task")
 echo "RESULT=$result"
 """

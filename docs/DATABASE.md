@@ -339,10 +339,11 @@ dynamically derived follow-up tasks.
 
 **Indexes:**
 - `idx_tasks_status_skill` — `(status, skill, priority)` — claim query optimization
-- `idx_tasks_claimed` — `(claimed_by)` — rate limiting lookups
-- `idx_tasks_domain` — `(domain)` — domain filtering
-- `idx_tasks_chain` — `(chain_id)` — chain lookups
-- `idx_tasks_source` — `(source)` — source breakdown queries
+- `idx_tasks_claimed_by` — `(claimed_by, status)` — rate limiting lookups
+- `idx_tasks_domain` — `(domain, status)` — domain + status filtering
+- `idx_tasks_failed` — `(status, failure_count)` — failure analysis
+- `idx_tasks_source` — `(source, status)` — source breakdown queries
+- `idx_tasks_chain` — `(chain_id, chain_step)` — chain lookups with step ordering
 - `idx_tasks_parent_result` — `(parent_result_id)` — provenance tracking
 
 ### results

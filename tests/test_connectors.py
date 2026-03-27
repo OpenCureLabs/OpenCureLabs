@@ -2,15 +2,15 @@
 
 import os
 import sys
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock
 
 import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "packages", "agentiq_labclaw"))
 
-from agentiq_labclaw.connectors.tcga import TCGAConnector
 from agentiq_labclaw.connectors.chembl import ChEMBLConnector
 from agentiq_labclaw.connectors.clinvar import ClinVarConnector
+from agentiq_labclaw.connectors.tcga import TCGAConnector
 
 
 def _mock_session(connector):

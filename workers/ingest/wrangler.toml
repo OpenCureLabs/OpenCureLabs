@@ -18,3 +18,7 @@ zone_name = "opencurelabs.ai"
 # Weekly cron: repopulate task queue + reclaim expired claims (every Sunday midnight UTC)
 [triggers]
 crons = ["0 0 * * SUN"]
+
+# Secrets (set via: npx wrangler secret put ADMIN_KEY)
+# ADMIN_KEY is REQUIRED — the worker refuses admin operations if unset.
+# Set it in each environment: wrangler secret put ADMIN_KEY

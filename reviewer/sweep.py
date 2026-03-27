@@ -19,8 +19,8 @@ import logging
 import os
 import sys
 import time
-from urllib.request import Request, urlopen
 from urllib.error import URLError
+from urllib.request import Request, urlopen
 
 # Allow import from project root
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))

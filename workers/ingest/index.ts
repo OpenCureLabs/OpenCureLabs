@@ -91,79 +91,85 @@ export default {
             return new Response(null, { headers: CORS_HEADERS });
         }
 
-        const url = new URL(request.url);
+        try {
+            const url = new URL(request.url);
 
-        if (request.method === "POST" && url.pathname === "/results") {
-            return handlePost(request, env);
+            if (request.method === "POST" && url.pathname === "/results") {
+                return handlePost(request, env);
+            }
+
+            if (request.method === "GET" && url.pathname === "/results/count") {
+                return handleGetCount(request, env);
+            }
+
+            if (request.method === "GET" && url.pathname === "/results") {
+                return handleGet(request, env);
+            }
+
+            if (request.method === "PATCH" && url.pathname.startsWith("/results/")) {
+                return handlePatchResult(request, env);
+            }
+
+            if (request.method === "POST" && url.pathname === "/contributors") {
+                return handlePostContributor(request, env);
+            }
+
+            if (request.method === "GET" && url.pathname === "/contributors") {
+                return handleGetContributors(request, env);
+            }
+
+            if (request.method === "POST" && url.pathname === "/critiques") {
+                return handlePostCritique(request, env);
+            }
+
+            if (request.method === "GET" && url.pathname === "/critiques") {
+                return handleGetCritiques(request, env);
+            }
+
+            // ── Task Queue Routes ───────────────────────────────────────────
+            if (request.method === "GET" && url.pathname === "/tasks/claim") {
+                return handleTaskClaim(request, env);
+            }
+
+            if (request.method === "POST" && url.pathname.match(/^\/tasks\/[^/]+\/complete$/)) {
+                return handleTaskComplete(request, env);
+            }
+
+            if (request.method === "POST" && url.pathname.match(/^\/tasks\/[^/]+\/fail$/)) {
+                return handleTaskFail(request, env);
+            }
+
+            if (request.method === "GET" && url.pathname === "/tasks/stats") {
+                return handleTaskStats(env);
+            }
+
+            if (request.method === "GET" && url.pathname === "/leaderboard") {
+                return handleLeaderboard(env);
+            }
+
+            const chainMatch = url.pathname.match(/^\/tasks\/chain\/([a-f0-9-]{36})$/);
+            if (request.method === "GET" && chainMatch) {
+                return handleTaskChain(chainMatch[1], env);
+            }
+
+            if (request.method === "GET" && url.pathname === "/tasks/chains") {
+                return handleTaskChains(env);
+            }
+
+            if (request.method === "POST" && url.pathname === "/tasks/generate") {
+                return handleTaskGenerate(request, env);
+            }
+
+            if (request.method === "POST" && url.pathname === "/tasks/recycle") {
+                return handleTaskRecycle(request, env);
+            }
+
+            return json({ error: "Not found" }, 404);
+        } catch (e: unknown) {
+            const message = e instanceof Error ? e.message : String(e);
+            console.error("Unhandled error in fetch():", message);
+            return json({ error: "Internal server error" }, 500);
         }
-
-        if (request.method === "GET" && url.pathname === "/results/count") {
-            return handleGetCount(request, env);
-        }
-
-        if (request.method === "GET" && url.pathname === "/results") {
-            return handleGet(request, env);
-        }
-
-        if (request.method === "PATCH" && url.pathname.startsWith("/results/")) {
-            return handlePatchResult(request, env);
-        }
-
-        if (request.method === "POST" && url.pathname === "/contributors") {
-            return handlePostContributor(request, env);
-        }
-
-        if (request.method === "GET" && url.pathname === "/contributors") {
-            return handleGetContributors(request, env);
-        }
-
-        if (request.method === "POST" && url.pathname === "/critiques") {
-            return handlePostCritique(request, env);
-        }
-
-        if (request.method === "GET" && url.pathname === "/critiques") {
-            return handleGetCritiques(request, env);
-        }
-
-        // ── Task Queue Routes ───────────────────────────────────────────
-        if (request.method === "GET" && url.pathname === "/tasks/claim") {
-            return handleTaskClaim(request, env);
-        }
-
-        if (request.method === "POST" && url.pathname.match(/^\/tasks\/[^/]+\/complete$/)) {
-            return handleTaskComplete(request, env);
-        }
-
-        if (request.method === "POST" && url.pathname.match(/^\/tasks\/[^/]+\/fail$/)) {
-            return handleTaskFail(request, env);
-        }
-
-        if (request.method === "GET" && url.pathname === "/tasks/stats") {
-            return handleTaskStats(env);
-        }
-
-        if (request.method === "GET" && url.pathname === "/leaderboard") {
-            return handleLeaderboard(env);
-        }
-
-        const chainMatch = url.pathname.match(/^\/tasks\/chain\/([a-f0-9-]{36})$/);
-        if (request.method === "GET" && chainMatch) {
-            return handleTaskChain(chainMatch[1], env);
-        }
-
-        if (request.method === "GET" && url.pathname === "/tasks/chains") {
-            return handleTaskChains(env);
-        }
-
-        if (request.method === "POST" && url.pathname === "/tasks/generate") {
-            return handleTaskGenerate(request, env);
-        }
-
-        if (request.method === "POST" && url.pathname === "/tasks/recycle") {
-            return handleTaskRecycle(request, env);
-        }
-
-        return json({ error: "Not found" }, 404);
     },
 
     async scheduled(_event: ScheduledEvent, env: Env, _ctx: ExecutionContext): Promise<void> {
@@ -627,6 +633,9 @@ async function handlePatchResult(request: Request, env: Env): Promise<Response> 
 
 // ── POST /contributors ────────────────────────────────────────────────────────
 
+const REGISTRATION_RATE_LIMIT = 10;    // max registrations per window
+const REGISTRATION_RATE_WINDOW = 3600; // window in seconds (1 hour)
+
 async function handlePostContributor(request: Request, env: Env): Promise<Response> {
     let body: { contributor_id: string; public_key: string };
     try {
@@ -642,6 +651,21 @@ async function handlePostContributor(request: Request, env: Env): Promise<Respon
     // Validate public_key is 64 hex chars (32 bytes)
     if (!/^[0-9a-f]{64}$/i.test(body.public_key)) {
         return json({ error: "public_key must be a 64-character hex string (32-byte Ed25519 key)" }, 400);
+    }
+
+    // Rate limit: max 10 registrations per hour (by contributor_id prefix as proxy for origin)
+    const windowStart = new Date(Date.now() - REGISTRATION_RATE_WINDOW * 1000).toISOString();
+    const recent = await env.RESULTS_DB.prepare(
+        `SELECT COUNT(*) as cnt FROM contributors WHERE created_at >= ?`
+    ).bind(windowStart).first<{ cnt: number }>();
+    if ((recent?.cnt ?? 0) >= REGISTRATION_RATE_LIMIT) {
+        return new Response(JSON.stringify({
+            error: "Registration rate limit exceeded",
+            message: `Max ${REGISTRATION_RATE_LIMIT} registrations per ${REGISTRATION_RATE_WINDOW / 3600} hour(s). Try again later.`,
+        }), {
+            status: 429,
+            headers: { "Content-Type": "application/json", "Retry-After": String(REGISTRATION_RATE_WINDOW), ...CORS_HEADERS },
+        });
     }
 
     const now = new Date().toISOString();
@@ -933,7 +957,12 @@ async function handleTaskComplete(request: Request, env: Env): Promise<Response>
     if (!match) return json({ error: "Invalid path" }, 400);
 
     const taskId = match[1];
-    const body = await request.json<{ result_id?: string }>();
+    let body: { result_id?: string };
+    try {
+        body = await request.json<{ result_id?: string }>();
+    } catch {
+        return json({ error: "Invalid JSON body" }, 400);
+    }
 
     const now = new Date().toISOString();
 
@@ -962,7 +991,12 @@ async function handleTaskFail(request: Request, env: Env): Promise<Response> {
     if (!match) return json({ error: "Invalid path" }, 400);
 
     const taskId = match[1];
-    const body = await request.json<{ error?: string }>();
+    let body: { error?: string };
+    try {
+        body = await request.json<{ error?: string }>();
+    } catch {
+        return json({ error: "Invalid JSON body" }, 400);
+    }
     const reason = (body.error ?? "unknown error").slice(0, 2000); // cap length
     const now = new Date().toISOString();
 
@@ -1166,7 +1200,7 @@ async function handleTaskStats(env: Env): Promise<Response> {
  */
 async function handleTaskGenerate(request: Request, env: Env): Promise<Response> {
     const adminKey = request.headers.get("X-Admin-Key");
-    if (env.ADMIN_KEY && adminKey !== env.ADMIN_KEY) {
+    if (!env.ADMIN_KEY || adminKey !== env.ADMIN_KEY) {
         return json({ error: "Unauthorized" }, 401);
     }
 
@@ -1190,7 +1224,7 @@ async function handleTaskGenerate(request: Request, env: Env): Promise<Response>
  */
 async function handleTaskRecycle(request: Request, env: Env): Promise<Response> {
     const adminKey = request.headers.get("X-Admin-Key");
-    if (env.ADMIN_KEY && adminKey !== env.ADMIN_KEY) {
+    if (!env.ADMIN_KEY || adminKey !== env.ADMIN_KEY) {
         return json({ error: "Unauthorized" }, 401);
     }
 

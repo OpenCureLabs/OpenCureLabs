@@ -1,6 +1,5 @@
 """Tests for Claude and Grok reviewer wrappers."""
 
-import importlib
 import json
 import os
 import sys

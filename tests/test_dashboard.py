@@ -2,9 +2,7 @@
 
 import os
 import sys
-from unittest.mock import patch, MagicMock
-
-import pytest
+from unittest.mock import MagicMock, patch
 
 # Add dashboard to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "dashboard"))
@@ -24,7 +22,6 @@ from fastapi.testclient import TestClient
 def _make_client():
     """Create a test client with mocked DB connections."""
     # Re-import to get fresh module with mocked psycopg2
-    import importlib
     if "dashboard" in sys.modules:
         del sys.modules["dashboard"]
 

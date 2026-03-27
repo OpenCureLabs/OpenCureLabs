@@ -158,7 +158,6 @@ class TestQSAR:
 
     def test_train_and_predict(self, tmp_path):
         import pandas as pd
-
         from agentiq_labclaw.skills.qsar import QSARInput, QSARSkill
 
         # Create synthetic dataset

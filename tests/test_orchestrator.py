@@ -1,9 +1,8 @@
 """Tests for the post-execution orchestrator pipeline."""
 
-import json
 import os
 import sys
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 from pydantic import BaseModel
@@ -50,7 +49,7 @@ class TestOrchestratorConfig:
         assert _guardrails_enabled("nonexistent") is False
 
     def test_publisher_enabled(self):
-        from agentiq_labclaw.orchestrator import _publisher_enabled, _get_config
+        from agentiq_labclaw.orchestrator import _get_config, _publisher_enabled
 
         if hasattr(_get_config, '_cache'):
             del _get_config._cache
@@ -64,7 +63,7 @@ class TestPostExecuteValidation:
 
     @pytest.mark.asyncio
     async def test_passes_valid_output(self):
-        from agentiq_labclaw.orchestrator import post_execute, _get_config
+        from agentiq_labclaw.orchestrator import _get_config, post_execute
 
         if hasattr(_get_config, '_cache'):
             del _get_config._cache
@@ -84,7 +83,7 @@ class TestPostExecuteReviewer:
 
     @pytest.mark.asyncio
     async def test_grok_critique_called_when_required(self):
-        from agentiq_labclaw.orchestrator import post_execute, _get_config
+        from agentiq_labclaw.orchestrator import _get_config, post_execute
 
         if hasattr(_get_config, '_cache'):
             del _get_config._cache
@@ -116,7 +115,7 @@ class TestPostExecuteReviewer:
 
     @pytest.mark.asyncio
     async def test_grok_called_when_novel(self):
-        from agentiq_labclaw.orchestrator import post_execute, _get_config
+        from agentiq_labclaw.orchestrator import _get_config, post_execute
 
         if hasattr(_get_config, '_cache'):
             del _get_config._cache
@@ -153,7 +152,7 @@ class TestPostExecuteSafety:
 
     @pytest.mark.asyncio
     async def test_blocks_when_unsafe(self):
-        from agentiq_labclaw.orchestrator import post_execute, _get_config
+        from agentiq_labclaw.orchestrator import _get_config, post_execute
 
         if hasattr(_get_config, '_cache'):
             del _get_config._cache
@@ -180,7 +179,7 @@ class TestPostExecutePublishers:
 
     @pytest.mark.asyncio
     async def test_pdf_generation(self):
-        from agentiq_labclaw.orchestrator import post_execute, _get_config
+        from agentiq_labclaw.orchestrator import _get_config, post_execute
 
         if hasattr(_get_config, '_cache'):
             del _get_config._cache

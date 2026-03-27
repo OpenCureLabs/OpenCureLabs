@@ -8,14 +8,14 @@ Each test cleans up after itself.
 
 import os
 import sys
-import json
+
 import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "packages", "agentiq_labclaw"))
 
 # Ensure we have a working DB connection
 try:
-    from agentiq_labclaw.db.connection import get_connection, close_connection
+    from agentiq_labclaw.db.connection import get_connection
     _conn = get_connection()
     DB_AVAILABLE = not _conn.closed
 except Exception:
@@ -54,7 +54,7 @@ class TestAgentRuns:
         assert run_id > 0
 
     def test_complete_run(self):
-        from agentiq_labclaw.db.agent_runs import start_run, complete_run, get_run
+        from agentiq_labclaw.db.agent_runs import complete_run, get_run, start_run
         run_id = start_run("test_agent_beta")
         complete_run(run_id, "completed", {"output": "ok"})
         row = get_run(run_id)
@@ -79,7 +79,7 @@ class TestPipelineRuns:
         assert isinstance(run_id, int)
 
     def test_complete_pipeline(self):
-        from agentiq_labclaw.db.pipeline_runs import start_pipeline, complete_pipeline
+        from agentiq_labclaw.db.pipeline_runs import complete_pipeline, start_pipeline
         run_id = start_pipeline("test_pipeline_b")
         complete_pipeline(run_id, "completed", "/tmp/out.pdf")
         conn = get_connection()
@@ -97,8 +97,8 @@ class TestPipelineRuns:
 
 class TestCritiqueLog:
     def test_log_and_retrieve(self):
+        from agentiq_labclaw.db.critique_log import get_critiques_for_run, log_critique
         from agentiq_labclaw.db.pipeline_runs import start_pipeline
-        from agentiq_labclaw.db.critique_log import log_critique, get_critiques_for_run
 
         run_id = start_pipeline("test_pipeline_crit")
         cid = log_critique(run_id, "test_claude", {"score": 8, "comment": "good"})
@@ -117,8 +117,8 @@ class TestCritiqueLog:
 
 class TestExperimentResults:
     def test_store_result(self):
-        from agentiq_labclaw.db.pipeline_runs import start_pipeline
         from agentiq_labclaw.db.experiment_results import store_result
+        from agentiq_labclaw.db.pipeline_runs import start_pipeline
 
         run_id = start_pipeline("test_pipeline_exp")
         rid = store_result(run_id, "test_neoantigen", {"gene": "TP53"}, novel=True)
@@ -130,8 +130,8 @@ class TestExperimentResults:
         assert check_novelty("test_unique_type", {"key": "abc123xyz"}) is True
 
     def test_check_novelty_existing(self):
+        from agentiq_labclaw.db.experiment_results import check_novelty, store_result
         from agentiq_labclaw.db.pipeline_runs import start_pipeline
-        from agentiq_labclaw.db.experiment_results import store_result, check_novelty
 
         run_id = start_pipeline("test_pipeline_nov")
         data = {"gene": "BRCA1_test_dup"}
@@ -161,7 +161,7 @@ class TestDiscoveredSources:
             assert cur.fetchone()[0] is True
 
     def test_list_unvalidated(self):
-        from agentiq_labclaw.db.discovered_sources import register_source, list_unvalidated
+        from agentiq_labclaw.db.discovered_sources import list_unvalidated, register_source
         register_source("https://example.com/unval", "chembl", "test_agent")
         unval = list_unvalidated()
         urls = [s["url"] for s in unval]

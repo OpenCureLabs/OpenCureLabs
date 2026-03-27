@@ -10,17 +10,18 @@ Marks xfail when pyensembl canine database is not downloaded.
 Run `bash scripts/download_ensembl_species.sh dog` to enable full tests.
 """
 
+import logging
 import os
 import sys
-import logging
+from unittest.mock import patch
+
 import pytest
-from unittest.mock import MagicMock, patch
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "packages", "agentiq_labclaw"))
 
 logging.basicConfig(level=logging.INFO, format="%(name)s | %(levelname)s | %(message)s")
 
-from agentiq_labclaw.species import get_species, DOG
+from agentiq_labclaw.species import get_species
 
 VCF_PATH = os.path.join(os.path.dirname(__file__), "data", "synthetic_canine_somatic.vcf")
 
@@ -130,7 +131,7 @@ def test_fla_allele_normalization():
 
 def test_mhc_predictor_factory():
     """get_predictor() should return an MHCPredictor for dog species."""
-    from agentiq_labclaw.skills.mhc_predictor import get_predictor, MHCPredictor
+    from agentiq_labclaw.skills.mhc_predictor import MHCPredictor, get_predictor
 
     cfg = get_species("dog")
     predictor = get_predictor(cfg)
@@ -160,7 +161,7 @@ def test_sequencing_qc_canine_ref_derivation():
 
 def test_variant_pathogenicity_routes_to_vet():
     """VariantInput with species='dog' should dispatch to _run_veterinary()."""
-    from agentiq_labclaw.skills.variant_pathogenicity import VariantPathogenicitySkill, VariantInput
+    from agentiq_labclaw.skills.variant_pathogenicity import VariantInput, VariantPathogenicitySkill
 
     skill = VariantPathogenicitySkill()
     inp = VariantInput(
@@ -210,7 +211,7 @@ def test_canine_neoantigen_pipeline_e2e():
 
     Marks xfail (not error) if pyensembl canine data is not downloaded.
     """
-    from agentiq_labclaw.skills.neoantigen import NeoantigenSkill, NeoantigenInput
+    from agentiq_labclaw.skills.neoantigen import NeoantigenInput, NeoantigenSkill
 
     skill = NeoantigenSkill()
     inp = NeoantigenInput(

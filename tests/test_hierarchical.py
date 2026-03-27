@@ -1,11 +1,7 @@
 """Tests for hierarchical multi-agent architecture routing."""
 
-import json
 import os
 import sys
-from unittest.mock import AsyncMock, MagicMock, patch
-
-import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "packages", "agentiq_labclaw"))
 
@@ -147,8 +143,8 @@ class TestGrokResearchSkill:
     """Test the Grok researcher skill registration."""
 
     def test_skill_registered(self):
-        from agentiq_labclaw.skills import grok_research  # noqa: F401
         from agentiq_labclaw.base import get_skill
+        from agentiq_labclaw.skills import grok_research  # noqa: F401
 
         skill_cls = get_skill("grok_research")
         assert skill_cls is not None

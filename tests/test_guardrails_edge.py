@@ -2,16 +2,14 @@
 
 import os
 import sys
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
-import pytest
-from pydantic import BaseModel, ValidationError
+from pydantic import BaseModel
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "packages", "agentiq_labclaw"))
 
-from agentiq_labclaw.guardrails.safety_check import safety_check, MINIMUM_CONFIDENCE
 from agentiq_labclaw.guardrails.output_validator import validate_output
-
+from agentiq_labclaw.guardrails.safety_check import MINIMUM_CONFIDENCE, safety_check
 
 # ── Test schemas ──────────────────────────────────────────────────────────────
 

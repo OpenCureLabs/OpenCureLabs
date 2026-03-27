@@ -7,13 +7,13 @@ Uses:
 - Ensembl release 110 (GRCh38) gene annotations
 """
 
-import os
-import sys
 import json
 import logging
+import os
+import sys
+from unittest.mock import MagicMock
+
 import pytest
-from unittest.mock import MagicMock, patch
-from types import SimpleNamespace
 
 # Ensure the package is importable
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "packages", "agentiq_labclaw"))
@@ -21,17 +21,17 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "packages", "ag
 logging.basicConfig(level=logging.INFO, format="%(name)s | %(levelname)s | %(message)s")
 
 from agentiq_labclaw.skills.neoantigen import (
+    PEPTIDE_LENGTHS,
+    STRONG_BINDER_IC50,
+    WEAK_BINDER_IC50,
     NeoantigenInput,
     NeoantigenOutput,
     NeoantigenSkill,
-    _parse_vcf_variants,
-    _normalize_allele,
     _generate_peptide_windows,
     _genomic_to_coding_offset,
     _mutate_codon,
-    STRONG_BINDER_IC50,
-    WEAK_BINDER_IC50,
-    PEPTIDE_LENGTHS,
+    _normalize_allele,
+    _parse_vcf_variants,
 )
 
 
@@ -82,7 +82,7 @@ def test_full_pipeline():
     print(f"Critique required: {result.critique_required}")
 
     if result.candidates:
-        print(f"\nTop candidate:")
+        print("\nTop candidate:")
         top = result.top_candidate
         print(f"  Gene: {top.get('gene')}")
         print(f"  Mutation: {top.get('mutation')}")
@@ -93,14 +93,14 @@ def test_full_pipeline():
         print(f"  Binding category: {top.get('binding_category')}")
         print(f"  Fold change: {top.get('fold_change')}")
 
-        print(f"\nAll strong binders:")
+        print("\nAll strong binders:")
         for c in result.candidates:
             if c["binding_category"] == "strong":
                 print(f"  {c['gene']} {c['mutation']} | {c['mutant_peptide']} | "
                       f"{c['hla_allele']} | IC50={c['ic50_mt']} nM")
 
     print(f"{'='*60}")
-    print(f"\nFull output JSON:")
+    print("\nFull output JSON:")
     print(json.dumps(result.model_dump(), indent=2, default=str))
 
     # Basic assertions

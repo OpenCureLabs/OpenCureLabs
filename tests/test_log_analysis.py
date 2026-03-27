@@ -7,7 +7,6 @@ category, fixture-based integration scanning, and optional real-log scanning.
 from __future__ import annotations
 
 import json
-import os
 import sys
 from pathlib import Path
 
@@ -19,7 +18,6 @@ sys.path.insert(0, str(PROJECT_DIR / "scripts"))
 
 from log_analyzer import (  # noqa: E402
     Finding,
-    ScanSummary,
     find_latest_genesis,
     find_log_files,
     format_json,

@@ -4,11 +4,10 @@ filtering, Finding/ScanResult data classes, baseline comparison, and
 classification.
 """
 
+import json
 import os
 import sys
-import json
 import tempfile
-import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
@@ -18,13 +17,10 @@ from security.security_scan import (
     _compute_grade,
     _fail,
     classify_findings,
-    generate_report,
-    generate_json_report,
     compare_baseline,
-    save_baseline,
-    check_static_pip_audit,
+    generate_json_report,
+    generate_report,
 )
-
 
 # ---------------------------------------------------------------------------
 # _compute_grade

@@ -32,3 +32,4 @@ CREATE INDEX IF NOT EXISTS idx_tasks_domain ON tasks (domain, status);
 CREATE INDEX IF NOT EXISTS idx_tasks_failed ON tasks (status, failure_count);
 CREATE INDEX IF NOT EXISTS idx_tasks_source ON tasks (source, status);
 CREATE INDEX IF NOT EXISTS idx_tasks_chain ON tasks (chain_id, chain_step);
+CREATE INDEX IF NOT EXISTS idx_tasks_parent_result ON tasks (parent_result_id);

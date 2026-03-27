@@ -310,7 +310,7 @@ def main():
     flagged = flagged_critiques(args.days)
     report["flagged_critiques"] = flagged
     if not args.json:
-        print(f"\n── Flagged Critiques (score=None or parse_error) ──")
+        print("\n── Flagged Critiques (score=None or parse_error) ──")
         if flagged and "error" in flagged[0]:
             print(f"  Error: {flagged[0]['error']}")
         elif flagged:

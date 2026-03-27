@@ -3,8 +3,7 @@
 import json
 import os
 import sys
-import time
-from unittest.mock import MagicMock, patch, PropertyMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 import requests
@@ -13,18 +12,11 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "packages", "ag
 
 from agentiq_labclaw.compute.vast_dispatcher import (
     VastInstance,
+    _create_instance,
     _find_cheapest_offer,
     _find_reusable_instance,
-    _claim_pool_instance,
-    _register_pool_instance,
-    _release_pool_instance,
-    teardown_all_instances,
-    _create_instance,
-    _run_remote,
     dispatch,
-    VAST_API,
 )
-
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  VastInstance

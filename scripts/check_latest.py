@@ -1,6 +1,8 @@
 #!/usr/bin/env python3
 """Check latest.json and D1 results count."""
-import urllib.request, json, sys
+import json
+import urllib.request
+
 
 def main():
     # Check latest.json

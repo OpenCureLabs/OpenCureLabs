@@ -2,24 +2,21 @@
 
 import os
 import sys
-from pathlib import Path
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "packages", "agentiq_labclaw"))
 
 from agentiq_labclaw.cli import (
+    _list_instances,
+    _opencure_instances,
+    _read_env_compute_mode,
     _read_env_key,
     _set_env_key,
-    _read_env_compute_mode,
     _vast_headers,
-    _opencure_instances,
-    _list_instances,
     main,
-    ENV_FILE,
 )
-
 
 # ═══════════════════════════════════════════════════════════════════════════
 #  _read_env_key

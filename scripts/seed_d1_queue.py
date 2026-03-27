@@ -82,14 +82,14 @@ def main() -> None:
                 consecutive_empty += 1
                 # Stop after 5 consecutive empty chunks past the expected total
                 if consecutive_empty >= 5 and offset >= args.total:
-                    print(f"\n  5 consecutive empty chunks past total — queue fully seeded.")
+                    print("\n  5 consecutive empty chunks past total — queue fully seeded.")
                     break
             else:
                 consecutive_empty = 0
 
         except Exception as e:
             print(f"  chunk {chunk_num}: ERROR at offset={offset} — {e}")
-            print(f"  Retrying in 5s...")
+            print("  Retrying in 5s...")
             time.sleep(5)
             continue
 

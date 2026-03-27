@@ -1,8 +1,6 @@
 #!/usr/bin/env python3
 """Backfill critiques table for published results that have batch_critique in R2."""
 import json
-import os
-import sys
 import urllib.request
 
 BASE = "https://ingest.opencurelabs.ai"

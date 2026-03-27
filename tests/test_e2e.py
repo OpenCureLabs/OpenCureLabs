@@ -1,9 +1,8 @@
 """End-to-end integration tests for the LabClaw hierarchical agent system."""
 
-import json
 import os
 import sys
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 
@@ -18,6 +17,7 @@ class TestSkillRegistry:
     """Verify all skills are properly registered."""
 
     def test_all_skills_registered(self):
+        from agentiq_labclaw.base import list_skills
         from agentiq_labclaw.skills import (  # noqa: F401
             docking,
             grok_research,
@@ -29,7 +29,6 @@ class TestSkillRegistry:
             structure,
             variant_pathogenicity,
         )
-        from agentiq_labclaw.base import list_skills
 
         skills = list_skills()
         expected = [
@@ -47,6 +46,7 @@ class TestSkillRegistry:
             assert name in skills, f"Skill {name} not registered"
 
     def test_skill_schemas_defined(self):
+        from agentiq_labclaw.base import get_skill
         from agentiq_labclaw.skills import (  # noqa: F401
             docking,
             grok_research,
@@ -58,7 +58,6 @@ class TestSkillRegistry:
             structure,
             variant_pathogenicity,
         )
-        from agentiq_labclaw.base import get_skill
 
         for name in ["neoantigen_prediction", "structure_prediction", "molecular_docking",
                       "qsar", "variant_pathogenicity", "sequencing_qc", "register_source",
@@ -89,9 +88,8 @@ class TestGuardrailsIntegration:
     """Test the guardrails modules are properly wired."""
 
     def test_output_validator(self):
-        from pydantic import BaseModel
-
         from agentiq_labclaw.guardrails.output_validator import validate_output
+        from pydantic import BaseModel
 
         class TestSchema(BaseModel):
             value: int
@@ -102,9 +100,8 @@ class TestGuardrailsIntegration:
         assert error is None
 
     def test_safety_check_blocks_no_run_id(self):
-        from pydantic import BaseModel
-
         from agentiq_labclaw.guardrails.safety_check import safety_check
+        from pydantic import BaseModel
 
         class TestOutput(BaseModel):
             confidence_score: float = 0.9
@@ -116,9 +113,8 @@ class TestGuardrailsIntegration:
         assert "agent_run_id" in reason
 
     def test_safety_check_blocks_low_confidence(self):
-        from pydantic import BaseModel
-
         from agentiq_labclaw.guardrails.safety_check import safety_check
+        from pydantic import BaseModel
 
         class TestOutput(BaseModel):
             confidence_score: float = 0.01
@@ -129,9 +125,8 @@ class TestGuardrailsIntegration:
         assert "Confidence" in reason
 
     def test_safety_check_passes(self):
-        from pydantic import BaseModel
-
         from agentiq_labclaw.guardrails.safety_check import safety_check
+        from pydantic import BaseModel
 
         class TestOutput(BaseModel):
             confidence_score: float = 0.9
@@ -185,26 +180,26 @@ class TestDBInterfaces:
     """Test DB interface modules are importable with correct signatures."""
 
     def test_critique_log_interface(self):
-        from agentiq_labclaw.db.critique_log import log_critique, get_critiques_for_run
+        from agentiq_labclaw.db.critique_log import get_critiques_for_run, log_critique
 
         assert callable(log_critique)
         assert callable(get_critiques_for_run)
 
     def test_agent_runs_interface(self):
-        from agentiq_labclaw.db.agent_runs import start_run, complete_run, get_run
+        from agentiq_labclaw.db.agent_runs import complete_run, get_run, start_run
 
         assert callable(start_run)
         assert callable(complete_run)
         assert callable(get_run)
 
     def test_experiment_results_interface(self):
-        from agentiq_labclaw.db.experiment_results import store_result, check_novelty
+        from agentiq_labclaw.db.experiment_results import check_novelty, store_result
 
         assert callable(store_result)
         assert callable(check_novelty)
 
     def test_pipeline_runs_interface(self):
-        from agentiq_labclaw.db.pipeline_runs import start_pipeline, complete_pipeline
+        from agentiq_labclaw.db.pipeline_runs import complete_pipeline, start_pipeline
 
         assert callable(start_pipeline)
         assert callable(complete_pipeline)
@@ -216,8 +211,8 @@ class TestFullPipeline:
     @pytest.mark.asyncio
     async def test_neoantigen_pipeline_e2e(self):
         """Simulate a neoantigen prediction flowing through the full orchestrator."""
+        from agentiq_labclaw.orchestrator import _get_config, post_execute
         from pydantic import BaseModel
-        from agentiq_labclaw.orchestrator import post_execute, _get_config
 
         if hasattr(_get_config, '_cache'):
             del _get_config._cache
