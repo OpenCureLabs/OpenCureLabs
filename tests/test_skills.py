@@ -37,6 +37,8 @@ class TestStructurePrediction:
         assert result.protein_id == "TEST_001"
         assert result.method_used == "esmfold"
         assert result.confidence_score > 0
+        # Regression: novel flag must reflect confidence threshold (0.7)
+        assert result.novel is (result.confidence_score > 0.7)
 
     @patch("agentiq_labclaw.skills.structure.requests.get")
     @patch("agentiq_labclaw.skills.structure.REPORTS_DIR")
@@ -69,6 +71,8 @@ class TestStructurePrediction:
         result = skill.run(inp)
 
         assert result.method_used == "alphafold"
+        # Regression (db603bb): AlphaFold must set novel based on confidence, not hardcode False
+        assert result.novel is (result.confidence_score > 0.7)
 
     def test_input_defaults(self):
         from agentiq_labclaw.skills.structure import StructureInput
