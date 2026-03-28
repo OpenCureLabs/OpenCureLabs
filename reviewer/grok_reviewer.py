@@ -9,6 +9,11 @@ import openai
 
 logger = logging.getLogger("labclaw.reviewer.grok")
 
+try:
+    from agentiq_labclaw.nat_specialists import _log_llm_usage
+except ImportError:
+    _log_llm_usage = None
+
 
 class GrokReviewer:
     """
@@ -103,6 +108,13 @@ class GrokReviewer:
             ],
         )
 
+        if _log_llm_usage and response.usage:
+            _log_llm_usage(
+                model=self.model,
+                usage={"prompt_tokens": response.usage.prompt_tokens, "completion_tokens": response.usage.completion_tokens},
+                agent_name="grok_critique",
+            )
+
         response_text = response.choices[0].message.content
 
         try:
@@ -151,6 +163,13 @@ class GrokReviewer:
                 {"role": "user", "content": user_content},
             ],
         )
+
+        if _log_llm_usage and response.usage:
+            _log_llm_usage(
+                model=self.model,
+                usage={"prompt_tokens": response.usage.prompt_tokens, "completion_tokens": response.usage.completion_tokens},
+                agent_name="grok_literature",
+            )
 
         response_text = response.choices[0].message.content
 
@@ -232,6 +251,13 @@ class GrokResearcher:
                 {"role": "user", "content": f"Search for new datasets and papers in: {domain}"},
             ],
         )
+
+        if _log_llm_usage and response.usage:
+            _log_llm_usage(
+                model=self.model,
+                usage={"prompt_tokens": response.usage.prompt_tokens, "completion_tokens": response.usage.completion_tokens},
+                agent_name="grok_researcher",
+            )
 
         response_text = response.choices[0].message.content
 

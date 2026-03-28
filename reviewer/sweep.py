@@ -37,6 +37,11 @@ logging.basicConfig(
 )
 logger = logging.getLogger("labclaw.reviewer.sweep")
 
+try:
+    from agentiq_labclaw.nat_specialists import _log_llm_usage
+except ImportError:
+    _log_llm_usage = None
+
 INGEST_URL = os.environ.get("INGEST_URL", "https://ingest.opencurelabs.ai")
 PUBLIC_URL = os.environ.get("PUBLIC_URL", "https://pub.opencurelabs.ai")
 ADMIN_KEY = os.environ.get("OPENCURELABS_ADMIN_KEY", "")
@@ -193,9 +198,17 @@ def run_grok_verification(skill: str, result_data: dict, local_critique: dict) -
 
         response_text = response.choices[0].message.content
 
+        # Log to llm_spend table
+        usage = getattr(response, "usage", None)
+        if _log_llm_usage and usage:
+            _log_llm_usage(
+                model=grok.model,
+                usage={"prompt_tokens": getattr(usage, "prompt_tokens", 0), "completion_tokens": getattr(usage, "completion_tokens", 0)},
+                agent_name="grok_sweep",
+            )
+
         # Extract cost from API response (cost_in_usd_ticks: 1 tick = 1e-10 USD)
         cost_usd = 0.0
-        usage = getattr(response, "usage", None)
         if usage:
             ticks = getattr(usage, "cost_in_usd_ticks", 0) or 0
             cost_usd = ticks * 1e-10
