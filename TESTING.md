@@ -183,7 +183,7 @@ pytest --cov=packages/agentiq_labclaw --cov-report=term-missing
 pytest -m "not gpu"
 ```
 
-**Current status:** 396 tests selected (409 collected, 13 deselected) — 382 passed, 13 skipped, 1 xfailed, 0 failures.
+**Current status:** 507 tests selected — 494 passed, 13 skipped, 1 xfailed, 0 failures.
 
 ---
 
@@ -204,6 +204,8 @@ pytest -m "not gpu"
 | `test_cli.py` | 14 | Unit | `.env` key read/write, compute mode, Vast.ai headers, CLI args |
 | `test_connectors.py` | 9 | Unit | TCGA, ChEMBL, ClinVar data connectors (mocked HTTP) |
 | `test_dashboard.py` | 15 | Integration | FastAPI endpoints, CORS, health check, query helpers |
+| `test_dashboard_queries.py` | 9 | Unit | Dashboard SQL query correctness, novel count, filter logic |
+| `test_data_flow.py` | 16 | Integration | Orchestrator → R2 → sweep pipeline, safety gates, novel propagation |
 | `test_db.py` | 12 | Unit | Agent runs, pipeline runs, critique log, experiment results, indexes |
 | `test_e2e.py` | 20 | End-to-end | Skill registry, NAT imports, guardrails, publishers, full pipeline |
 | `test_guardrails_edge.py` | 17 | Unit | Safety check edge cases, novelty filter, output validator |
@@ -217,6 +219,7 @@ pytest -m "not gpu"
 | `test_run_research.py` | 49 | Scenario | Shell function filtering, task catalog, dispatch loops, env vars |
 | `test_security.py` | 21 | Unit | Security scanner grades, findings, reports, baselines |
 | `test_skills.py` | 28 | Unit | Structure prediction, docking, QSAR, variant analysis, QC, PDF |
+| `test_skill_contracts.py` | 28 | Unit | Novel flag accuracy for all skills, output schema compliance |
 | `test_vast_dispatcher.py` | 21 | Unit | Vast.ai instance lifecycle, offers, dispatch, instance reuse |
 | `test_llm_validation.py` | 57 | Unit+Integration | LLM response parsing, prompt validation, pipeline flow, live API |
 
@@ -401,12 +404,66 @@ functions are detected automatically.
 
 | Class | Tests | What |
 |-------|-------|------|
-| `TestStructurePrediction` | 3 | ESMFold, AlphaFold lookup, input defaults |
+| `TestStructurePrediction` | 3 | ESMFold, AlphaFold lookup, input defaults (+ novel flag regression guards) |
 | `TestMolecularDocking` | 3 | Vina output parsing, input/output schemas |
 | `TestQSAR` | 4 | RDKit descriptors, invalid SMILES, train/predict |
 | `TestVariantPathogenicity` | 7 | Variant parsing, pathogenicity classification, full run |
 | `TestSequencingQC` | 2 | fastp QC run, input schema |
 | `TestReportGenerator` | 2 | PDF generation, input schema |
+
+### test_skill_contracts.py — Data Integrity: Skill Output Contracts
+
+Regression guards for novel flag accuracy. These tests were added after a
+production bug where AlphaFold hardcoded `novel=False` despite high confidence
+(commit db603bb), causing 421 results to be misclassified. Each skill's novel
+flag logic is tested at boundary values.
+
+| Class | Tests | What |
+|-------|-------|------|
+| `TestStructureNovelFlag` | 5 | ESMFold/AlphaFold novel at high/low/boundary confidence (0.7 threshold) |
+| `TestVariantNovelFlag` | 5 | Human: pathogenic+no ClinVar=novel, VUS=not novel. Vet: OMIA gating |
+| `TestQSARNovelFlag` | 3 | R² > 0.7 = novel, constant target = not novel, predict mode = never novel |
+| `TestDockingNovelFlag` | 3 | Affinity < -8.0 = novel, boundary = not novel (strict <) |
+| `TestNeoantigenNovelFlag` | 3 | Strong binders = novel, no candidates = not novel, empty output helper |
+| `TestOutputSchemaCompleteness` | 5 | All 5 skill outputs include `novel` and `critique_required` fields |
+
+**Key regressions guarded:**
+- AlphaFold `novel=False` hardcode (db603bb)
+- Safety threshold blocking all results (72de53f)
+- Skills producing `novel=True` for low-quality data
+
+### test_data_flow.py — Data Integrity: Pipeline Flow
+
+Verifies the data flow from skill output through the orchestrator to R2
+publishing and sweep verification. Catches bugs where results are silently
+dropped or published incorrectly.
+
+| Class | Tests | What |
+|-------|-------|------|
+| `TestOrchestratorR2Flow` | 5 | Novel+safe reaches R2, blocked never reaches R2, synthetic bypasses all |
+| `TestR2PublisherContract` | 4 | Payload structure, 401 re-register, disabled without URL, network failure |
+| `TestR2SummaryExtraction` | 2 | `_extract_summary` picks known fields, `_extract_species` defaults |
+| `TestSweepThresholds` | 4 | Threshold constants (7.0/5.0), novel filter params, replication auto-publish |
+| `TestNovelPropagation` | 2 | Novel flag preserved through pipeline, False never overridden to True |
+
+**Key scenarios tested:**
+- Safety-blocked result → R2 `publish_result()` never called
+- Synthetic result → no PDF, no R2, no Grok
+- Non-novel result → no Grok literature review
+- 401 from ingest Worker → auto-register contributor → retry
+- Network failure → returns None (result still in local DB)
+
+### test_dashboard_queries.py — Data Integrity: Dashboard Queries
+
+Verifies that dashboard SQL queries return correct counts and filter correctly.
+Uses mock cursors to test query logic without requiring a live PostgreSQL
+instance.
+
+| Class | Tests | What |
+|-------|-------|------|
+| `TestQueryStats` | 3 | Novel count matches DB, zero when none exist, missing tables = 0 |
+| `TestQueryFindings` | 4 | `novel_only=True` adds WHERE clause, False omits it, return structure |
+| `TestQueryCritiques` | 2 | Score extraction from nested dicts and JSON strings |
 
 ### test_vast_dispatcher.py — Cloud Compute
 
