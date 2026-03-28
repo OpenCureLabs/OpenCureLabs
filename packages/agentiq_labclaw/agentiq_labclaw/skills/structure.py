@@ -251,6 +251,6 @@ class StructurePredictionSkill(LabClawSkill):
             pdb_path=str(pdb_path),
             confidence_score=confidence,
             method_used="alphafold",
-            novel=False,
+            novel=confidence > 0.7,
             critique_required=True,
         )
