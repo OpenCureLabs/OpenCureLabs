@@ -99,6 +99,21 @@ if zellij list-sessions -s 2>&1 | grep -q "^${SESSION}$"; then
     exec zellij attach "$SESSION"
 fi
 
+# ── Clean up orphaned agent_runs ─────────────────────────────────────────────
+# Agent runs left in 'running' state from previous sessions (e.g. crash, kill,
+# or restart) show as phantom agents on the dashboard. Mark them completed so
+# the dashboard reflects reality.
+if pg_isready -p "$PG_PORT" -q 2>/dev/null; then
+    ORPHANS=$(psql -p "$PG_PORT" -d opencurelabs -t -A -c \
+        "SELECT COUNT(*) FROM agent_runs WHERE status = 'running'" 2>/dev/null || echo "0")
+    if [[ "$ORPHANS" -gt 0 ]]; then
+        psql -p "$PG_PORT" -d opencurelabs -c \
+            "UPDATE agent_runs SET status = 'completed', completed_at = NOW() WHERE status = 'running'" \
+            >/dev/null 2>&1
+        echo "[OpenCure Labs] Cleaned up $ORPHANS orphaned agent run(s) from previous session."
+    fi
+fi
+
 # ── Start web dashboard server (background) ──────────────────────────────────
 if ! curl -s http://127.0.0.1:8787 &>/dev/null; then
     echo "[OpenCure Labs] Starting web dashboard → http://localhost:8787"
