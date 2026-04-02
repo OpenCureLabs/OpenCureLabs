@@ -160,6 +160,10 @@ export default {
                 return handleTaskGenerate(request, env);
             }
 
+            if (request.method === "POST" && url.pathname === "/tasks/seed") {
+                return handleTaskSeed(request, env);
+            }
+
             if (request.method === "POST" && url.pathname === "/tasks/recycle") {
                 return handleTaskRecycle(request, env);
             }
@@ -174,10 +178,12 @@ export default {
 
     async scheduled(_event: ScheduledEvent, env: Env, _ctx: ExecutionContext): Promise<void> {
         // Weekly cron: populate new tasks (first 5000 — idempotent, catches new additions)
-        // + reclaim abandoned claims + recycle old completions
+        // + reclaim abandoned claims
         await populateTaskQueue(env, 0, 5000);
         await reclaimExpiredTasks(env);
-        await recycleCompletedTasks(env);
+        // NOTE: automatic recycling disabled — deterministic pipelines produce
+        // identical results on re-run.  Use POST /tasks/recycle manually after
+        // model or pipeline updates when re-running makes sense.
     },
 };
 
@@ -1215,6 +1221,74 @@ async function handleTaskGenerate(request: Request, env: Env): Promise<Response>
 
     const inserted = await populateTaskQueue(env, offset, limit);
     return json({ ok: true, inserted, offset, limit, message: `Generated ${inserted} new tasks (offset ${offset})` });
+}
+
+/**
+ * POST /tasks/seed  (admin-only)
+ * Accept arbitrary tasks from external sources (e.g. public database refresh).
+ * Deduplicates via input_hash UNIQUE constraint — safe to call repeatedly.
+ * Body: { "tasks": [{ skill, input_data, domain, species, label, priority? }] }
+ * Max 500 tasks per request (Worker CPU safety).
+ */
+async function handleTaskSeed(request: Request, env: Env): Promise<Response> {
+    const adminKey = request.headers.get("X-Admin-Key");
+    if (!env.ADMIN_KEY || adminKey !== env.ADMIN_KEY) {
+        return json({ error: "Unauthorized" }, 401);
+    }
+
+    let tasks: TaskInput[];
+    try {
+        const body = await request.json() as { tasks?: TaskInput[] };
+        if (!Array.isArray(body.tasks) || body.tasks.length === 0) {
+            return json({ error: "Body must contain a non-empty 'tasks' array" }, 400);
+        }
+        if (body.tasks.length > 500) {
+            return json({ error: "Max 500 tasks per request" }, 400);
+        }
+        tasks = body.tasks;
+    } catch {
+        return json({ error: "Invalid JSON body" }, 400);
+    }
+
+    // Validate required fields
+    for (let i = 0; i < tasks.length; i++) {
+        const t = tasks[i];
+        if (!t.skill || !t.input_data || !t.domain || !t.species || !t.label) {
+            return json({ error: `Task ${i}: missing required field (skill, input_data, domain, species, label)` }, 400);
+        }
+    }
+
+    let inserted = 0;
+    const createdAt = new Date().toISOString();
+    const batchSize = 50;
+
+    for (let i = 0; i < tasks.length; i += batchSize) {
+        const batch = tasks.slice(i, i + batchSize);
+        const stmts = [];
+
+        for (const task of batch) {
+            const hash = await inputHash(task.input_data);
+            const id = crypto.randomUUID();
+            stmts.push(
+                env.RESULTS_DB.prepare(
+                    `INSERT OR IGNORE INTO tasks
+                     (id, skill, input_hash, input_data, domain, species, label, priority, source, created_at)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'refresh', ?)`
+                ).bind(
+                    id, task.skill, hash, JSON.stringify(task.input_data),
+                    task.domain, task.species, task.label, task.priority ?? 5,
+                    createdAt
+                )
+            );
+        }
+
+        const results = await env.RESULTS_DB.batch(stmts);
+        for (const r of results) {
+            if (r.meta.changes > 0) inserted++;
+        }
+    }
+
+    return json({ ok: true, inserted, total: tasks.length, duplicates: tasks.length - inserted });
 }
 
 /**

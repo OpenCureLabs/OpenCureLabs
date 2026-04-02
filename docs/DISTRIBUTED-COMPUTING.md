@@ -212,6 +212,7 @@ All endpoints are on the ingest worker at `https://ingest.opencurelabs.ai`.
 | `/tasks/chain/:chainId` | GET | None | Single chain detail with all tasks |
 | `/leaderboard` | GET | None | Contributor rankings (top 50) |
 | `/tasks/generate` | POST | `X-Admin-Key` | Populate queue (admin only, idempotent) |
+| `/tasks/seed` | POST | `X-Admin-Key` | Seed tasks from external sources (max 500/req) |
 | `/tasks/recycle` | POST | `X-Admin-Key` | Reset old completions to available |
 
 See [API-REFERENCE.md](API-REFERENCE.md) for full request/response details.
@@ -227,6 +228,28 @@ The cron handler:
 2. Calls `populateTaskQueue()` — inserts any new tasks from parameter banks
 
 This ensures the queue is always populated and stale claims don't block work.
+
+### External Parameter Refresh
+
+**Trigger:** systemd timer `opencurelabs-refresh.timer` — every Sunday at 01:00 UTC
+(1 hour after the Worker cron)
+
+The script `scripts/refresh_param_banks.py` queries public databases for entries
+not in the hardcoded parameter banks and seeds new tasks via `POST /tasks/seed`:
+
+| Source | What it fetches | Tasks generated |
+|---|---|---|
+| **ClinVar** (NCBI) | Pathogenic cancer-gene variants | neoantigen + structure + variant |
+| **ChEMBL** (EBI) | Single-protein drug targets | QSAR (3 model types each) |
+| **IMGT/HLA** (GitHub) | New HLA-A alleles | neoantigen combos with top genes |
+
+Deduplication is server-side (`input_hash` UNIQUE constraint), so the script is
+fully idempotent. Run manually with `--dry-run` to preview:
+
+```bash
+python scripts/refresh_param_banks.py --dry-run
+python scripts/refresh_param_banks.py --sources clinvar,chembl
+```
 
 ---
 

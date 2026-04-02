@@ -499,7 +499,8 @@ Returns: `{ "ok": true, "inserted": 1330 }`
 #### `POST /tasks/recycle`
 
 Admin-only. Resets completed tasks older than N days back to `available` for
-re-execution with updated models/data.
+re-execution with updated models/data. **Not run automatically** — deterministic
+pipelines produce identical results, so recycling is manual (post-model-update).
 
 | Header | Required | Description |
 |---|---|---|
@@ -509,12 +510,42 @@ Body: `{ "days": 30 }` (default 30, use 0 to recycle all).
 
 Returns: `{ "ok": true, "recycled": 150, "cutoff_days": 30 }`
 
+#### `POST /tasks/seed`
+
+Admin-only. Accepts up to 500 tasks from external sources (e.g. the weekly
+parameter bank refresh script). Validates required fields and deduplicates via
+`input_hash` UNIQUE constraint (`INSERT OR IGNORE`).
+
+| Header | Required | Description |
+|---|---|---|
+| `X-Admin-Key` | Yes | Must match the `ADMIN_KEY` Cloudflare secret |
+
+Body:
+```json
+{
+  "tasks": [
+    {
+      "skill": "neoantigen_prediction",
+      "input_data": { "sample_id": "...", "vcf_path": "...", "hla_alleles": [...], "tumor_type": "...", "species": "human" },
+      "domain": "cancer",
+      "species": "human",
+      "label": "Neoantigen [human]: GENE in TUMOR",
+      "priority": 5
+    }
+  ]
+}
+```
+
+Returns: `{ "ok": true, "inserted": 450, "total": 500, "duplicates": 50 }`
+
 #### Cron: `0 0 * * SUN`
 
 Weekly scheduled trigger that:
 1. Reclaims tasks stuck in `claimed` status for >24 hours (resets to `available`)
 2. Calls `populateTaskQueue()` to insert any new tasks from parameter banks
-3. Recycles tasks completed more than 30 days ago
+
+**Note:** Automatic recycling of completed tasks is disabled. Use `POST /tasks/recycle`
+manually after model or pipeline updates.
 
 #### Dynamic Task Derivation
 
