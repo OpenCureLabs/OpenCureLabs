@@ -435,14 +435,21 @@ class TestGrokPromptContent:
 
         prompt = GrokReviewer.CRITIQUE_PROMPT
         assert "publish" in prompt.lower()
-        assert "overall_score >= 7" in prompt
+        assert "overall_score >= 8" in prompt
 
     def test_critique_prompt_defines_revise_criteria(self):
         from reviewer.grok_reviewer import GrokReviewer
 
         prompt = GrokReviewer.CRITIQUE_PROMPT
         assert "revise" in prompt.lower()
-        assert "4-7" in prompt
+        assert "6-7" in prompt
+
+    def test_critique_prompt_defines_archive_criteria(self):
+        from reviewer.grok_reviewer import GrokReviewer
+
+        prompt = GrokReviewer.CRITIQUE_PROMPT
+        assert "archive" in prompt.lower()
+        assert "4-5" in prompt
 
     def test_critique_prompt_defines_reject_criteria(self):
         from reviewer.grok_reviewer import GrokReviewer
@@ -769,7 +776,7 @@ class TestGrokLiveAPI:
             {"findings": "3 neoantigens predicted", "confidence_score": 0.8},
         )
         if "parse_error" not in result:
-            assert result["recommendation"] in ("publish", "revise", "reject")
+            assert result["recommendation"] in ("publish", "revise", "archive", "reject")
 
     def test_literature_review_returns_valid_schema(self):
         from reviewer.grok_reviewer import GrokReviewer

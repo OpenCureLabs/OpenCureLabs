@@ -157,7 +157,7 @@ def run_grok_verification(skill: str, result_data: dict, local_critique: dict) -
                 f"Result:\n```json\n{json.dumps(result_data, indent=2, default=str)}\n```\n\n"
                 f"Local Grok Review:\n```json\n{json.dumps(local_critique, indent=2, default=str)}\n```\n\n"
                 "Return JSON:\n"
-                '{"verification_score": 0-10, "recommendation": "publish"|"revise"|"reject", '
+                '{"verification_score": 0-10, "recommendation": "publish"|"revise"|"archive"|"reject", '
                 '"flags": ["list of concerns if any"], "summary": "brief assessment"}'
             )
             system_msg = (
@@ -174,7 +174,7 @@ def run_grok_verification(skill: str, result_data: dict, local_critique: dict) -
                 f"Evaluate whether the data is scientifically sound and suitable for publication.\n\n"
                 f"Result:\n```json\n{json.dumps(result_data, indent=2, default=str)}\n```\n\n"
                 "Return JSON:\n"
-                '{"verification_score": 0-10, "recommendation": "publish"|"revise"|"reject", '
+                '{"verification_score": 0-10, "recommendation": "publish"|"revise"|"archive"|"reject", '
                 '"flags": ["list of concerns if any"], "summary": "brief assessment"}'
             )
             system_msg = (
@@ -280,7 +280,7 @@ def sweep_once(limit: int = 50) -> dict:
         rec = verification.get("recommendation", "revise")
 
         # Decide action based on thresholds
-        if score >= PUBLISH_THRESHOLD and rec in ("publish", "revise"):
+        if score >= PUBLISH_THRESHOLD and rec in ("publish", "revise", "archive"):
             action = "published"
         elif score < REJECT_THRESHOLD or rec == "reject":
             action = "blocked"

@@ -22,20 +22,39 @@ class GrokReviewer:
     """
 
     CRITIQUE_PROMPT = (
-        "You are a scientific critic reviewing computational biology results.\n"
+        "You are a scientific critic reviewing computational biology results "
+        "produced by an autonomous research pipeline.\n"
         "Your role is to evaluate:\n"
         "1. Scientific logic — does the methodology match the question?\n"
         "2. Statistical validity — are the statistics appropriate and correctly applied?\n"
         "3. Interpretive accuracy — do the conclusions follow from the data?\n"
         "4. Reproducibility — could this result be independently verified?\n"
         "5. Novelty assessment — is this a genuine new finding or expected behavior?\n\n"
+        "IMPORTANT: Distinguish between BAD science and INCREMENTAL science.\n"
+        "A methodologically sound result that confirms known biology is NOT flawed — "
+        "it is confirmatory. A high-confidence AlphaFold prediction that matches "
+        "existing structures validates the pipeline and has archival value. "
+        "Reserve low scores (0-3) for results with genuine methodological problems, "
+        "not for results that merely lack novelty.\n\n"
+        "Scoring guide:\n"
+        "- 8-10: Novel, scientifically rigorous, immediately publishable.\n"
+        "- 6-7: Sound methodology with useful results; minor gaps to address.\n"
+        "- 4-5: Methodologically correct but confirmatory/incremental; "
+        "useful as validation data or building blocks for future work.\n"
+        "- 2-3: Significant methodological concerns or unusable output "
+        "(e.g., very low confidence predictions, missing controls).\n"
+        "- 0-1: Fundamentally flawed — wrong method, critical errors, or "
+        "uninterpretable output.\n\n"
         "Recommendation criteria:\n"
-        "- \"publish\": overall_score >= 7 AND no critical methodological flaws. "
-        "The result is scientifically sound and ready for dissemination.\n"
-        "- \"revise\": overall_score 4-7 OR minor issues that can be corrected. "
-        "The result has merit but needs improvements before publication.\n"
-        "- \"reject\": overall_score < 4 OR fundamental flaws in logic, statistics, "
-        "or interpretation that invalidate the conclusions.\n\n"
+        "- \"publish\": overall_score >= 8 AND no critical methodological flaws. "
+        "The result is novel, scientifically sound, and ready for dissemination.\n"
+        "- \"revise\": overall_score 6-7. Sound work that needs minor improvements "
+        "or additional analysis before publication.\n"
+        "- \"archive\": overall_score 4-5. Methodologically correct but confirmatory "
+        "or incremental. Valuable as reference data, pipeline validation, or input "
+        "for downstream analysis. Not flawed — just not novel enough to publish alone.\n"
+        "- \"reject\": overall_score < 4. Genuine methodological flaws, unreliable "
+        "output, or critical errors that make the result unusable.\n\n"
         "Always return your critique as a JSON object with this schema:\n"
         "{\n"
         '  "overall_score": 0-10,\n'
@@ -44,7 +63,7 @@ class GrokReviewer:
         '  "interpretive_accuracy": {"score": 0-10, "comments": "..."},\n'
         '  "reproducibility": {"score": 0-10, "comments": "..."},\n'
         '  "novelty_assessment": {"is_novel": true/false, "comments": "..."},\n'
-        '  "recommendation": "publish" | "revise" | "reject",\n'
+        '  "recommendation": "publish" | "revise" | "archive" | "reject",\n'
         '  "revision_notes": "..."\n'
         "}"
     )

@@ -18,6 +18,23 @@ reviewer:
     4. Reproducibility — could this result be independently verified?
     5. Novelty assessment — is this a genuine new finding or expected behavior?
 
+    IMPORTANT: Distinguish between BAD science and INCREMENTAL science.
+    A methodologically sound result that confirms known biology is NOT flawed —
+    it is confirmatory. Reserve low scores (0-3) for genuine methodological problems.
+
+    Scoring guide:
+    - 8-10: Novel, scientifically rigorous, immediately publishable.
+    - 6-7: Sound methodology with useful results; minor gaps to address.
+    - 4-5: Methodologically correct but confirmatory/incremental.
+    - 2-3: Significant methodological concerns or unusable output.
+    - 0-1: Fundamentally flawed.
+
+    Recommendation criteria:
+    - "publish": overall_score >= 8, no critical flaws.
+    - "revise": overall_score 6-7, sound work needing minor improvements.
+    - "archive": overall_score 4-5, methodologically correct but confirmatory.
+    - "reject": overall_score < 4, genuine methodological flaws.
+
     Always return your critique as a JSON object with this schema:
     {
       "overall_score": 0-10,
@@ -26,7 +43,7 @@ reviewer:
       "interpretive_accuracy": {"score": 0-10, "comments": "..."},
       "reproducibility": {"score": 0-10, "comments": "..."},
       "novelty_assessment": {"is_novel": true/false, "comments": "..."},
-      "recommendation": "publish" | "revise" | "reject",
+      "recommendation": "publish" | "revise" | "archive" | "reject",
       "revision_notes": "..."
     }
 

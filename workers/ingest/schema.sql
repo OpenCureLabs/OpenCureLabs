@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS critiques (
     result_id       TEXT NOT NULL REFERENCES results(id),
     reviewer        TEXT NOT NULL,           -- "claude_opus" | "grok_literature"
     overall_score   REAL,                    -- 0-10 aggregate
-    recommendation  TEXT,                    -- "publish" | "revise" | "reject"
+    recommendation  TEXT,                    -- "publish" | "revise" | "archive" | "reject"
     critique_data   TEXT NOT NULL,           -- JSON blob with dimensional scores
     r2_url          TEXT,                    -- public CDN URL to full critique
     created_at      TEXT NOT NULL            -- ISO 8601

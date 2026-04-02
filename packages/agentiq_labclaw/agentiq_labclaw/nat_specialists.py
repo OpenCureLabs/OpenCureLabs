@@ -174,6 +174,7 @@ async def specialist_agent(config: SpecialistAgentConfig, builder: Builder):
         model=llm_config.model_name,
         api_key=llm_config.api_key.get_secret_value() if llm_config.api_key else None,
         temperature=getattr(llm_config, "temperature", 0.0),
+        request_timeout=300,  # 5-min guard against hung Gemini connections
     )
 
     nat_functions = await builder.get_functions(config.tool_names)
@@ -323,6 +324,7 @@ async def hierarchical_coordinator(config: HierarchicalCoordinatorConfig, builde
         model=llm_config.model_name,
         api_key=llm_config.api_key.get_secret_value() if llm_config.api_key else None,
         temperature=getattr(llm_config, "temperature", 0.0),
+        request_timeout=300,  # 5-min guard against hung Gemini connections
     )
 
     all_tool_names = config.specialist_names + config.utility_tool_names

@@ -198,6 +198,7 @@ async def labclaw_react_workflow(config: LabClawReactConfig, builder: Builder):
         model=llm_config.model_name,
         api_key=llm_config.api_key.get_secret_value() if llm_config.api_key else None,
         temperature=getattr(llm_config, "temperature", 0.0),
+        request_timeout=300,  # 5-min guard against hung Gemini connections
     )
 
     # Build LangChain tools from NAT functions

@@ -56,6 +56,26 @@ export PROJECT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 CONFIG="coordinator/labclaw_workflow.yaml"
 LOG="logs/agent.log"
 
+# ── Task timeout (seconds) ────────────────────────────────────────────────────
+# Each `nat run` invocation is killed if it exceeds this limit.
+# Default: 600s (10 min).  Override via env: NAT_TASK_TIMEOUT=900
+NAT_TASK_TIMEOUT="${NAT_TASK_TIMEOUT:-600}"
+
+# Wrapper: run nat with a timeout + mark stale DB rows on timeout.
+_nat_run() {
+    # Usage: _nat_run [nat run args...]
+    # Returns nat's exit code, or 124 on timeout.
+    timeout --signal=TERM --kill-after=30 "$NAT_TASK_TIMEOUT" "$@"
+    local rc=$?
+    if [[ $rc -eq 124 ]]; then
+        echo "⏱ Task timed out after ${NAT_TASK_TIMEOUT}s — cleaning up stale DB rows..." >&2
+        PAGER=cat psql -p 5433 -d opencurelabs -c \
+            "UPDATE agent_runs SET status='failed', completed_at=NOW() WHERE status='running' AND started_at < NOW() - INTERVAL '${NAT_TASK_TIMEOUT} seconds';" \
+            2>/dev/null || true
+    fi
+    return $rc
+}
+
 cd "$PROJECT_DIR" || { echo "Cannot cd to $PROJECT_DIR"; read -r; exit 1; }
 source .venv/bin/activate 2>/dev/null || true
 
@@ -458,7 +478,7 @@ if [[ -n "$TASK" ]]; then
     echo -e "${CYAN}── Running Task ──${RESET}"
     echo -e "${DIM}$TASK${RESET}"
     echo
-    nat run --config_file "$CONFIG" --input "$TASK" 2>&1 | tee -a "$LOG"
+    _nat_run nat run --config_file "$CONFIG" --input "$TASK" 2>&1 | tee -a "$LOG"
     echo
     echo -e "${DIM}Press Enter to close${RESET}"
     read -r
@@ -1063,7 +1083,7 @@ if $HAS_GUM; then
                                 gum style --foreground 214 --bold \
                                     "  ▶ [R${ROUND} ${TASK_NUM}/$D1_COUNT] D1 → $D1_LABEL"
 
-                                if nat run --config_file "$CONFIG" --input "$GENESIS_TASK" \
+                                if _nat_run nat run --config_file "$CONFIG" --input "$GENESIS_TASK" \
                                     >>"$TASK_LOG" 2>&1; then
                                     ROUND_OK=$((ROUND_OK + 1))
                                     # Report completion back to D1
@@ -1116,7 +1136,7 @@ if $HAS_GUM; then
                         gum style --foreground 214 --bold \
                             "  ▶ [R${ROUND} ${TASK_NUM}/$TOTAL] $DOMAIN_NAME → $LABEL"
 
-                        if nat run --config_file "$CONFIG" --input "$GENESIS_TASK" \
+                        if _nat_run nat run --config_file "$CONFIG" --input "$GENESIS_TASK" \
                             >>"$TASK_LOG" 2>&1; then
                             ROUND_OK=$((ROUND_OK + 1))
                             gum style --foreground 46 "  ✅ [R${ROUND} ${TASK_NUM}/$TOTAL] $LABEL — complete"
@@ -1157,7 +1177,7 @@ if $HAS_GUM; then
                             gum style --foreground 214 --bold \
                                 "  ▶ [R${ROUND} ${TASK_NUM}/$TOTAL] $DOMAIN_NAME → $LABEL"
 
-                            ( nat run --config_file "$CONFIG" --input "$GENESIS_TASK" \
+                            ( _nat_run nat run --config_file "$CONFIG" --input "$GENESIS_TASK" \
                                 >>"$TASK_LOG" 2>&1 ) &
                             BATCH_PIDS+=($!)
                             BATCH_LABELS+=("$LABEL")
@@ -1636,7 +1656,7 @@ teardown_all_instances()
 
             TASK_LOG="$PROJECT_DIR/logs/runall-$(date +%Y%m%d-%H%M%S)-${TASK_NUM}.log"
 
-            if nat run --config_file "$CONFIG" --input "$CURRENT_TASK" \
+            if _nat_run nat run --config_file "$CONFIG" --input "$CURRENT_TASK" \
                 2>&1 | tee -a "$TASK_LOG"; then
                 ALL_OK=$((ALL_OK + 1))
                 gum style --foreground 46 "  ✅ [R${ROUND} ${TASK_NUM}/$TOTAL_ALL] $LABEL — complete" 2>/dev/null || true
@@ -1752,7 +1772,7 @@ teardown_all_instances()
         echo ""
 
         TASK=$(parameterize_task "$TASK")
-        if nat run --config_file "$CONFIG" --input "$TASK" 2>&1 | tee -a "$LOG"; then
+        if _nat_run nat run --config_file "$CONFIG" --input "$TASK" 2>&1 | tee -a "$LOG"; then
             _NAT_OK=true
         else
             _NAT_OK=false
@@ -2176,7 +2196,7 @@ select domain in "${DOMAINS[@]}"; do
 
                                 echo -e "${YELLOW}  ▶ [R${ROUND} ${TASK_NUM}/$TOTAL] $DOMAIN_NAME → $LABEL${RESET}"
 
-                                if nat run --config_file "$CONFIG" --input "$GENESIS_TASK" \
+                                if _nat_run nat run --config_file "$CONFIG" --input "$GENESIS_TASK" \
                                     >>"$TASK_LOG" 2>&1; then
                                     ROUND_OK=$((ROUND_OK + 1))
                                     echo -e "${GREEN}  ✅ [R${ROUND} ${TASK_NUM}/$TOTAL] $LABEL — complete${RESET}"
@@ -2204,7 +2224,7 @@ select domain in "${DOMAINS[@]}"; do
                                     TASK_LOG="$GENESIS_LOG_DIR/task-${TASK_NUM}-$(echo "$LABEL" | tr ' ' '_').log"
 
                                     echo -e "${YELLOW}  ▶ [R${ROUND} ${TASK_NUM}/$TOTAL] $DOMAIN_NAME → $LABEL${RESET}"
-                                    ( nat run --config_file "$CONFIG" --input "$GENESIS_TASK" >>"$TASK_LOG" 2>&1 ) &
+                                    ( _nat_run nat run --config_file "$CONFIG" --input "$GENESIS_TASK" >>"$TASK_LOG" 2>&1 ) &
                                     BATCH_PIDS+=($!)
                                     BATCH_LABELS+=("$LABEL")
                                     BATCH_LOGS+=("$TASK_LOG")
@@ -2450,7 +2470,7 @@ while true; do
     echo ""
 
     TASK=$(parameterize_task "$TASK")
-    nat run --config_file "$CONFIG" --input "$TASK" 2>&1 | tee -a "$LOG"
+    _nat_run nat run --config_file "$CONFIG" --input "$TASK" 2>&1 | tee -a "$LOG"
 
     echo ""
     echo -e "${GREEN}✅ Run #$RUN_COUNT complete.${RESET}"
