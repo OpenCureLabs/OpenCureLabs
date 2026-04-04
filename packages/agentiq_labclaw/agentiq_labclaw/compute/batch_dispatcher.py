@@ -58,7 +58,7 @@ def _install_signal_handlers():
     signal.signal(signal.SIGTERM, _handler)
 
 
-def _launch_workers(pool, queue, batch_id, idle_timeout=0):
+def _launch_workers(pool, queue, batch_id, idle_timeout=0, burst_mode=False):
     """Launch one worker thread per ready instance. Returns (workers, threads)."""
     from agentiq_labclaw.compute.worker import Worker
 
@@ -74,6 +74,7 @@ def _launch_workers(pool, queue, batch_id, idle_timeout=0):
             pool_manager=pool,
             batch_id=batch_id,
             idle_timeout=idle_timeout,
+            burst_mode=burst_mode,
         )
         workers.append(w)
         t = threading.Thread(
@@ -85,6 +86,33 @@ def _launch_workers(pool, queue, batch_id, idle_timeout=0):
         t.start()
 
     _log("Launched %d worker threads", len(threads))
+    return workers, threads
+
+
+def _launch_local_workers(count, queue, batch_id, idle_timeout=0):
+    """Launch N local GPU worker threads. Returns (workers, threads)."""
+    from agentiq_labclaw.compute.local_worker import LocalWorker
+
+    workers: list[LocalWorker] = []
+    threads: list[threading.Thread] = []
+
+    for i in range(count):
+        w = LocalWorker(
+            worker_id=i,
+            queue=queue,
+            batch_id=batch_id,
+            idle_timeout=idle_timeout,
+        )
+        workers.append(w)
+        t = threading.Thread(
+            target=w.run,
+            name=f"local-worker-{i}",
+            daemon=True,
+        )
+        threads.append(t)
+        t.start()
+
+    _log("Launched %d local worker threads", count)
     return workers, threads
 
 
@@ -131,14 +159,17 @@ def run_batch(
     seed: int | None = None,
     image: str | None = None,
     progress_callback=None,
+    local_workers: int = 0,
+    generate_only: bool = False,
+    drain_queue: bool = False,
 ) -> dict:
     """Run a full batch dispatch cycle.
 
-    1. Generate tasks
+    1. Generate tasks (or drain existing queue)
     2. Submit to queue
-    3. Provision instance pool
+    3. Provision instance pool (if pool_size > 0)
     4. Wait for instances to be ready
-    5. Launch workers (one thread per instance)
+    5. Launch workers (remote + local)
     6. Monitor progress
     7. Teardown pool
     8. Return summary
@@ -152,12 +183,14 @@ def run_batch(
         seed:              Random seed for task generation reproducibility.
         image:             Docker image for Vast.ai instances (default: labclaw-gpu).
         progress_callback: Optional callable(status_dict) called every 10s for live updates.
+        local_workers:     Number of local GPU worker threads (0 = none).
+        generate_only:     If True, generate tasks and submit to queue, then exit.
+        drain_queue:       If True, skip task generation and drain existing pending jobs.
 
     Returns:
         Summary dict with counts, timing, and cost.
     """
     from agentiq_labclaw.compute.batch_queue import BatchQueue
-    from agentiq_labclaw.compute.pool_manager import PoolManager
     from agentiq_labclaw.task_generator import generate_batch
 
     start_time = time.monotonic()
@@ -165,52 +198,102 @@ def run_batch(
     genesis_run_id = _get_genesis_run_id()
     _log("Genesis run ID: %s", genesis_run_id)
 
-    # ── 1. Generate tasks ────────────────────────────────────────────────
-    _log("Generating %d tasks (domain=%s)...", count, domain or "all")
-    tasks = generate_batch(
-        count=count,
-        domain=domain,
-        config_path=config_path,
-        seed=seed,
-    )
-    _log("Generated %d tasks across %d skill types", len(tasks), len(set(t.skill_name for t in tasks)))
-
-    # ── 2. Submit to queue ───────────────────────────────────────────────
+    # ── 0. Cleanup orphan jobs from previous runs ────────────────────────
     queue = BatchQueue()
-    batch_id = queue.submit_batch(tasks, genesis_run_id=genesis_run_id)
-    _log("Submitted batch %s with %d jobs", batch_id, len(tasks))
+    abandoned = queue.abandon_old_jobs(cutoff_hours=24)
+    if abandoned:
+        _log("Cleaned up %d orphan pending jobs from previous runs", abandoned)
 
-    # ── 3. Provision instance pool ───────────────────────────────────────
-    _log("Provisioning %d Vast.ai instances (max $%.2f/hr each)...", pool_size, max_cost_hr)
-    pool = PoolManager(
-        target_size=pool_size,
-        gpu_required=True,
-        max_cost_hr=max_cost_hr,
-        image=image,
-    )
+    # ── 1. Generate tasks or drain existing queue ────────────────────────
+    if drain_queue:
+        # Skip generation — drain existing pending jobs
+        pending = queue.pending_count()
+        if pending == 0:
+            _log("No pending jobs in queue — nothing to drain")
+            _update_agent_run(run_id, "completed", {"drained": 0})
+            return {"batch_id": None, "jobs": {"pending": 0}, "elapsed_seconds": 0}
+        batch_id = None  # Workers will claim any pending job
+        _log("Drain mode: %d pending jobs in queue", pending)
+    else:
+        _log("Generating %d tasks (domain=%s)...", count, domain or "all")
+        tasks = generate_batch(
+            count=count,
+            domain=domain,
+            config_path=config_path,
+            seed=seed,
+        )
+        _log("Generated %d tasks across %d skill types", len(tasks), len(set(t.skill_name for t in tasks)))
 
-    try:
-        pool.scale_up()
-    except RuntimeError as e:
-        _log("Pool provisioning failed: %s — aborting batch", e)
-        _update_agent_run(run_id, "failed", {"error": str(e)})
-        return _make_summary(batch_id, queue, pool, start_time, error=str(e))
+        # ── 2. Submit to queue ───────────────────────────────────────
+        batch_id = queue.submit_batch(tasks, genesis_run_id=genesis_run_id)
+        _log("Submitted batch %s with %d jobs", batch_id, len(tasks))
+
+    # ── Generate-only: exit after submitting ─────────────────────────────
+    if generate_only:
+        pending = queue.pending_count(batch_id)
+        _log("Generate-only: %d jobs queued (batch %s) — exiting", pending, batch_id)
+        _update_agent_run(run_id, "completed", {"batch_id": batch_id, "queued": pending})
+        return {"batch_id": batch_id, "jobs": {"pending": pending}, "elapsed_seconds": 0}
+
+    # ── 3. Provision instance pool (if pool_size > 0) ────────────────────
+    pool = None
+    if pool_size > 0:
+        from agentiq_labclaw.compute.pool_manager import PoolManager
+
+        _log("Provisioning %d Vast.ai instances (max $%.2f/hr each)...", pool_size, max_cost_hr)
+        pool = PoolManager(
+            target_size=pool_size,
+            gpu_required=True,
+            max_cost_hr=max_cost_hr,
+            image=image,
+        )
+
+    if pool:
+        try:
+            pool.scale_up()
+        except RuntimeError as e:
+            if local_workers == 0:
+                _log("Pool provisioning failed: %s — aborting batch", e)
+                _update_agent_run(run_id, "failed", {"error": str(e)})
+                return _make_summary(batch_id, queue, pool, start_time, error=str(e))
+            _log("Pool provisioning failed: %s — continuing with local workers only", e)
+            pool = None
 
     # ── 4. Wait for at least 1 instance to be ready ──────────────────────
-    _log("Waiting for instances to be ready (setup + pip install)...")
-    try:
-        pool.wait_for_ready(min_ready=1, timeout=1800, progress_fn=_log)
-    except TimeoutError as e:
-        _log("No instances became ready: %s — aborting", e)
-        pool.teardown()
-        _update_agent_run(run_id, "failed", {"error": str(e)})
-        return _make_summary(batch_id, queue, pool, start_time, error=str(e))
+    if pool:
+        _log("Waiting for instances to be ready (setup + pip install)...")
+        try:
+            pool.wait_for_ready(min_ready=1, timeout=1800, progress_fn=_log)
+        except TimeoutError as e:
+            if local_workers == 0:
+                _log("No instances became ready: %s — aborting", e)
+                pool.teardown()
+                _update_agent_run(run_id, "failed", {"error": str(e)})
+                return _make_summary(batch_id, queue, pool, start_time, error=str(e))
+            _log("No instances became ready: %s — continuing with local workers only", e)
+            pool.teardown()
+            pool = None
 
-    ready = pool.get_ready_instances()
-    _log("%d/%d instances ready — launching workers", len(ready), pool.active_count)
+    if pool:
+        ready = pool.get_ready_instances()
+        _log("%d/%d instances ready — launching workers", len(ready), pool.active_count)
 
-    # ── 5. Launch worker threads ─────────────────────────────────────────
-    workers, threads = _launch_workers(pool, queue, batch_id)
+    # ── 5. Launch worker threads (remote + local) ────────────────────────
+    workers = []
+    threads = []
+    if pool:
+        remote_workers, remote_threads = _launch_workers(pool, queue, batch_id)
+        workers.extend(remote_workers)
+        threads.extend(remote_threads)
+    if local_workers > 0:
+        local_w, local_t = _launch_local_workers(local_workers, queue, batch_id)
+        workers.extend(local_w)
+        threads.extend(local_t)
+
+    if not workers:
+        _log("No workers available (pool_size=0, local_workers=0) — aborting")
+        _update_agent_run(run_id, "failed", {"error": "No workers"})
+        return {"batch_id": batch_id, "jobs": {"pending": count}, "error": "No workers"}
 
     # ── 6–8. Monitor, reclaim, teardown — wrapped in try-finally to
     #         guarantee instance cleanup if the orchestrator crashes ───────
@@ -233,8 +316,9 @@ def run_batch(
 
     finally:
         # ── 8. Teardown pool — always runs even on crash ─────────────
-        _log("Tearing down instance pool...")
-        pool.teardown()
+        if pool:
+            _log("Tearing down instance pool...")
+            pool.teardown()
 
     # ── 9. Summary ───────────────────────────────────────────────────────
     summary = _make_summary(batch_id, queue, pool, start_time)
@@ -260,7 +344,7 @@ def _monitor_loop(batch_id, queue, pool, workers, threads, callback=None, idle_t
         failed = status.get("failed", 0)
         total = status.get("total", 0)
 
-        pool_summary = pool.summary()
+        pool_summary = pool.summary() if pool else {}
 
         progress = {
             "batch_id": batch_id,
@@ -300,66 +384,71 @@ def _monitor_loop(batch_id, queue, pool, workers, threads, callback=None, idle_t
         if not alive and (pending > 0 or running > 0):
             _log("All workers stopped but %d jobs remain — attempting recovery", pending + running)
             queue.reclaim_stale_jobs(stale_minutes=1)
-            # Relaunch workers on still-ready instances instead of giving up
-            workers, threads = _launch_workers(pool, queue, batch_id, idle_timeout=idle_timeout)
-            if not threads:
-                _log("No ready instances — cannot recover")
+            if pool is not None:
+                # Relaunch workers on still-ready instances instead of giving up
+                workers, threads = _launch_workers(pool, queue, batch_id, idle_timeout=idle_timeout)
+                if not threads:
+                    _log("No ready instances — cannot recover")
+                    break
+                _log("Relaunched %d workers — continuing", len(threads))
+            else:
+                _log("No pool available — cannot recover")
                 break
-            _log("Relaunched %d workers — continuing", len(threads))
 
-        # Auto-scale pool based on queue depth + budget floor guard
-        from agentiq_labclaw.compute.vast_dispatcher import get_account_balance
-        balance = get_account_balance()
-        budget_floor = float(os.environ.get("LABCLAW_BUDGET_FLOOR", "5.0"))
-        if balance > 0 and balance < budget_floor:
-            _log(
-                "BUDGET FLOOR: Vast.ai balance $%.2f < $%.2f floor — tearing down pool",
-                balance, budget_floor,
-            )
-            _shutdown.set()
-            break
-        pool.auto_scale(pending, balance)
+        # Auto-scale pool based on queue depth + budget floor guard (remote only)
+        if pool is not None:
+            from agentiq_labclaw.compute.vast_dispatcher import get_account_balance
+            balance = get_account_balance()
+            budget_floor = float(os.environ.get("LABCLAW_BUDGET_FLOOR", "5.0"))
+            if balance > 0 and balance < budget_floor:
+                _log(
+                    "BUDGET FLOOR: Vast.ai balance $%.2f < $%.2f floor — tearing down pool",
+                    balance, budget_floor,
+                )
+                _shutdown.set()
+                break
+            pool.auto_scale(pending, balance)
 
-        # Poll provisioning/setup instances for readiness transitions
-        pool.poll_readiness()
+            # Poll provisioning/setup instances for readiness transitions
+            pool.poll_readiness()
 
-        # Stop workers whose instances have been destroyed
-        destroyed_ids = {
-            iid for iid, inst in pool.instances.items()
-            if inst.status in ("destroyed", "failed")
-        }
-        for w in workers:
-            if w.instance_id in destroyed_ids and not w._stop.is_set():
-                _log("Stopping worker for destroyed instance %d", w.instance_id)
-                w.stop()
+            # Stop workers whose instances have been destroyed
+            destroyed_ids = {
+                iid for iid, inst in pool.instances.items()
+                if inst.status in ("destroyed", "failed")
+            }
+            for w in workers:
+                if w.instance_id in destroyed_ids and not w._stop.is_set():
+                    _log("Stopping worker for destroyed instance %d", w.instance_id)
+                    w.stop()
 
-        # Check for newly ready instances and start workers for them
-        # Only exclude instances that have a live (non-stopped) worker
-        active_instance_ids = {w.instance_id for w in workers if not w._stop.is_set()}
-        new_ready = [
-            i for i in pool.get_ready_instances()
-            if i.instance_id not in active_instance_ids
-        ]
-        for inst in new_ready:
-            from agentiq_labclaw.compute.worker import Worker
-            w = Worker(
-                instance_id=inst.instance_id,
-                ssh_host=inst.ssh_host,
-                ssh_port=inst.ssh_port,
-                queue=queue,
-                pool_manager=pool,
-                batch_id=batch_id,
-                idle_timeout=idle_timeout,
-            )
-            workers.append(w)
-            t = threading.Thread(
-                target=w.run,
-                name=f"worker-{inst.instance_id}",
-                daemon=True,
-            )
-            threads.append(t)
-            t.start()
-            _log("Started new worker for instance %d", inst.instance_id)
+            # Check for newly ready instances and start workers for them
+            # Only exclude instances that have a live (non-stopped) worker
+            active_instance_ids = {w.instance_id for w in workers if not w._stop.is_set()}
+            new_ready = [
+                i for i in pool.get_ready_instances()
+                if i.instance_id not in active_instance_ids
+            ]
+            for inst in new_ready:
+                from agentiq_labclaw.compute.worker import Worker
+                w = Worker(
+                    instance_id=inst.instance_id,
+                    ssh_host=inst.ssh_host,
+                    ssh_port=inst.ssh_port,
+                    queue=queue,
+                    pool_manager=pool,
+                    batch_id=batch_id,
+                    idle_timeout=idle_timeout,
+                )
+                workers.append(w)
+                t = threading.Thread(
+                    target=w.run,
+                    name=f"worker-{inst.instance_id}",
+                    daemon=True,
+                )
+                threads.append(t)
+                t.start()
+                _log("Started new worker for instance %d", inst.instance_id)
 
         # Stall detection — if no progress for 2 minutes, run health check
         if done == last_done:
@@ -384,25 +473,27 @@ def _monitor_loop(batch_id, queue, pool, workers, threads, callback=None, idle_t
                 queue.reclaim_stale_jobs(stale_minutes=1)
                 break
 
-            replaced = pool.health_check(progress_fn=_log)
-            if replaced:
-                _log("Health check replaced %d instances mid-cycle — restarting workers", replaced)
-                for w in workers:
-                    w.stop()
-                for t in threads:
-                    t.join(timeout=10)
-                workers, threads = _launch_workers(pool, queue, batch_id, idle_timeout=idle_timeout)
-            elif pending > 0 and running == 0:
-                # Jobs waiting but nobody running them — relaunch workers on alive instances
-                _log("Orphaned jobs detected (pending=%d, running=0) — relaunching workers", pending)
-                queue.reclaim_stale_jobs(stale_minutes=1)
-                for w in workers:
-                    w.stop()
-                for t in threads:
-                    t.join(timeout=10)
-                workers, threads = _launch_workers(pool, queue, batch_id, idle_timeout=idle_timeout)
+            if pool is not None:
+                replaced = pool.health_check(progress_fn=_log)
+                if replaced:
+                    _log("Health check replaced %d instances mid-cycle — restarting workers", replaced)
+                    for w in workers:
+                        w.stop()
+                    for t in threads:
+                        t.join(timeout=10)
+                    workers, threads = _launch_workers(pool, queue, batch_id, idle_timeout=idle_timeout)
+                elif pending > 0 and running == 0:
+                    _log("Orphaned jobs detected (pending=%d, running=0) — relaunching workers", pending)
+                    queue.reclaim_stale_jobs(stale_minutes=1)
+                    for w in workers:
+                        w.stop()
+                    for t in threads:
+                        t.join(timeout=10)
+                    workers, threads = _launch_workers(pool, queue, batch_id, idle_timeout=idle_timeout)
+                else:
+                    queue.reclaim_stale_jobs(stale_minutes=1)
             else:
-                # Reclaim any jobs stuck on dead instances
+                # Local-only: just reclaim stale jobs
                 queue.reclaim_stale_jobs(stale_minutes=1)
             stall_count = 0
 
@@ -412,8 +503,8 @@ def _monitor_loop(batch_id, queue, pool, workers, threads, callback=None, idle_t
 def _make_summary(batch_id, queue, pool, start_time, error=None):
     """Build a summary dict for the batch run."""
     elapsed = time.monotonic() - start_time
-    status = queue.batch_status(batch_id)
-    pool_info = pool.summary()
+    status = queue.batch_status(batch_id) if batch_id else {"pending": 0, "done": 0, "total": 0}
+    pool_info = pool.summary() if pool else {}
 
     summary = {
         "batch_id": batch_id,
@@ -441,10 +532,12 @@ def run_continuous(
     cycles: int | None = None,
     cooldown: int = 5,
     progress_callback=None,
+    local_workers: int = 0,
+    burst_threshold: int = 0,
 ) -> list[dict]:
     """Run Genesis Mode continuously — batch after batch on a persistent pool.
 
-    Provisions Vast.ai instances once, then loops:
+    Provisions Vast.ai instances once (or on demand with burst_threshold), then loops:
       1. Check budget headroom
       2. Generate + submit a batch
       3. Workers pick up jobs (idle-polling between cycles)
@@ -465,6 +558,8 @@ def run_continuous(
         cycles:            Max number of cycles (None = unlimited).
         cooldown:          Seconds to pause between cycles.
         progress_callback: Optional callable(status_dict).
+        local_workers:     Number of local GPU worker threads (0 = none).
+        burst_threshold:   Pending job count before Vast.ai provisioning triggers (0 = always).
 
     Returns:
         List of per-cycle summary dicts.
@@ -486,38 +581,82 @@ def run_continuous(
     genesis_run_id = _get_genesis_run_id()
     _log("Genesis run ID: %s", genesis_run_id)
 
-    # ── Provision pool once ──────────────────────────────────────────────
-    _log("=== CONTINUOUS MODE ===")
-    _log("Provisioning %d instances (max $%.2f/hr each)...", pool_size, max_cost_hr)
-
-    pool = PoolManager(
-        target_size=pool_size,
-        gpu_required=True,
-        max_cost_hr=max_cost_hr,
-        image=image,
-    )
-
-    try:
-        pool.scale_up()
-    except RuntimeError as e:
-        _log("Pool provisioning failed: %s", e)
-        return summaries
-
-    _log("Waiting for instances to be ready...")
-    try:
-        pool.wait_for_ready(min_ready=1, timeout=1800, progress_fn=_log)
-    except TimeoutError as e:
-        _log("No instances became ready: %s", e)
-        pool.teardown()
-        return summaries
-
-    ready_count = len(pool.get_ready_instances())
-    _log("%d instances ready — entering continuous loop", ready_count)
+    # ── Cleanup orphan jobs from previous runs ───────────────────────────
+    _cleanup_queue = BatchQueue()
+    abandoned = _cleanup_queue.abandon_old_jobs(cutoff_hours=24)
+    if abandoned:
+        _log("Cleaned up %d orphan pending jobs from previous runs", abandoned)
+    del _cleanup_queue
 
     queue = BatchQueue()
 
-    # Launch workers with idle_timeout so they persist between cycles
-    workers, threads = _launch_workers(pool, queue, batch_id=None, idle_timeout=120)
+    # ── Burst vs always-on mode ──────────────────────────────────────────
+    # burst_threshold > 0 : start local-only, provision Vast.ai on demand
+    # burst_threshold == 0: provision Vast.ai immediately (legacy behaviour)
+    use_burst = burst_threshold > 0
+
+    pool: PoolManager | None = None
+    remote_workers: list = []
+    remote_threads: list = []
+    local_worker_objs: list = []
+    local_threads: list = []
+
+    _log("=== CONTINUOUS MODE ===")
+
+    if use_burst:
+        _log(
+            "Burst mode: local_workers=%d, burst_threshold=%d "
+            "(Vast.ai deferred until queue depth >= %d)",
+            local_workers, burst_threshold, burst_threshold,
+        )
+    else:
+        _log("Always-on mode: provisioning %d instances (max $%.2f/hr each)...",
+             pool_size, max_cost_hr)
+
+    # ── Launch local workers (if requested) ──────────────────────────────
+    if local_workers > 0:
+        local_worker_objs, local_threads = _launch_local_workers(
+            local_workers, queue, batch_id=None, idle_timeout=180,
+        )
+        _log("Started %d local GPU workers", local_workers)
+
+    # ── Provision Vast.ai pool immediately (non-burst mode) ──────────────
+    if not use_burst:
+        pool = PoolManager(
+            target_size=pool_size,
+            gpu_required=True,
+            max_cost_hr=max_cost_hr,
+            image=image,
+        )
+        try:
+            pool.scale_up()
+        except RuntimeError as e:
+            _log("Pool provisioning failed: %s", e)
+            if not local_worker_objs:
+                return summaries
+            _log("Continuing with local workers only")
+            pool = None
+
+        if pool is not None:
+            _log("Waiting for instances to be ready...")
+            try:
+                pool.wait_for_ready(min_ready=1, timeout=1800, progress_fn=_log)
+            except TimeoutError as e:
+                _log("No instances became ready: %s", e)
+                pool.teardown()
+                if not local_worker_objs:
+                    return summaries
+                _log("Continuing with local workers only")
+                pool = None
+
+        if pool is not None:
+            ready_count = len(pool.get_ready_instances())
+            _log("%d instances ready", ready_count)
+            remote_workers, remote_threads = _launch_workers(
+                pool, queue, batch_id=None, idle_timeout=120,
+            )
+
+    _log("Entering continuous loop")
 
     try:
         while not _shutdown.is_set():
@@ -536,28 +675,44 @@ def run_continuous(
 
             _log("── Cycle %d (budget: $%.2f remaining) ──", cycle, remaining)
 
-            # ── Health check — replace dead instances ────────────
-            replaced = pool.health_check(progress_fn=_log)
-            if replaced:
-                _log("Replaced %d dead instances — pool now has %d ready", replaced, pool.ready_count)
-                # Re-launch workers for new instances
-                for w in workers:
-                    w.stop()
-                for t in threads:
-                    t.join(timeout=10)
-                workers, threads = _launch_workers(pool, queue, batch_id=None, idle_timeout=120)
+            # ── Relaunch dead local worker threads ───────────────────
+            if local_worker_objs:
+                dead_local = [t for t in local_threads if not t.is_alive()]
+                if dead_local:
+                    _log("Relaunching %d/%d local workers", len(dead_local), len(local_threads))
+                    for w in local_worker_objs:
+                        w.stop()
+                    for t in local_threads:
+                        t.join(timeout=10)
+                    local_worker_objs, local_threads = _launch_local_workers(
+                        local_workers, queue, batch_id=None, idle_timeout=180,
+                    )
 
-            # ── Relaunch dead worker threads ─────────────────────
-            # Workers exit after idle_timeout expires between cycles.
-            # Instances are still running — only the threads are dead.
-            dead = [t for t in threads if not t.is_alive()]
-            if dead and not replaced:  # skip if health_check already relaunched
-                _log("Relaunching %d/%d workers (idle timeout expired)", len(dead), len(threads))
-                for w in workers:
-                    w.stop()
-                for t in threads:
-                    t.join(timeout=10)
-                workers, threads = _launch_workers(pool, queue, batch_id=None, idle_timeout=120)
+            # ── Remote pool health (non-burst or active burst) ───────
+            if pool is not None:
+                replaced = pool.health_check(progress_fn=_log)
+                if replaced:
+                    _log("Replaced %d dead instances — pool now has %d ready",
+                         replaced, pool.ready_count)
+                    for w in remote_workers:
+                        w.stop()
+                    for t in remote_threads:
+                        t.join(timeout=10)
+                    remote_workers, remote_threads = _launch_workers(
+                        pool, queue, batch_id=None, idle_timeout=120,
+                    )
+
+                # Relaunch dead remote worker threads
+                dead_remote = [t for t in remote_threads if not t.is_alive()]
+                if dead_remote and not replaced:
+                    _log("Relaunching %d/%d remote workers", len(dead_remote), len(remote_threads))
+                    for w in remote_workers:
+                        w.stop()
+                    for t in remote_threads:
+                        t.join(timeout=10)
+                    remote_workers, remote_threads = _launch_workers(
+                        pool, queue, batch_id=None, idle_timeout=120,
+                    )
 
             cycle_run_id = _record_agent_run(f"batch_cycle_{cycle}", "running")
 
@@ -574,12 +729,62 @@ def run_continuous(
             batch_id = queue.submit_batch(tasks, genesis_run_id=genesis_run_id)
             _log("Submitted batch %s with %d jobs", batch_id, len(tasks))
 
-            # Update workers to pick up new batch_id
-            for w in workers:
+            # Update all workers to pick up new batch_id
+            for w in remote_workers:
+                w.batch_id = batch_id
+            for w in local_worker_objs:
                 w.batch_id = batch_id
 
+            # ── Burst: provision Vast.ai when queue overflows ────────
+            if use_burst and pool is None:
+                pending = queue.pending_count(batch_id)
+                if pending >= burst_threshold:
+                    _log(
+                        "Queue depth %d >= burst threshold %d — provisioning Vast.ai",
+                        pending, burst_threshold,
+                    )
+                    pool = PoolManager(
+                        target_size=pool_size,
+                        gpu_required=True,
+                        max_cost_hr=max_cost_hr,
+                        image=image,
+                    )
+                    try:
+                        pool.scale_up()
+                        pool.wait_for_ready(min_ready=1, timeout=1800, progress_fn=_log)
+                        ready_count = len(pool.get_ready_instances())
+                        _log("Burst: %d Vast.ai instances ready", ready_count)
+                        remote_workers, remote_threads = _launch_workers(
+                            pool, queue, batch_id=batch_id, idle_timeout=120,
+                            burst_mode=True,
+                        )
+                    except (RuntimeError, TimeoutError) as e:
+                        _log("Burst provisioning failed: %s — continuing local-only", e)
+                        pool.teardown()
+                        pool = None
+
             # ── Monitor ──────────────────────────────────────────────
-            _monitor_loop(batch_id, queue, pool, workers, threads, progress_callback, idle_timeout=120)
+            all_workers = remote_workers + local_worker_objs
+            all_threads = remote_threads + local_threads
+            _monitor_loop(batch_id, queue, pool, all_workers, all_threads,
+                          progress_callback, idle_timeout=120)
+
+            # ── Burst: tear down cloud when queue drains ─────────────
+            if use_burst and pool is not None:
+                pending = queue.pending_count(batch_id)
+                tear_line = max(1, burst_threshold // 4)
+                if pending < tear_line:
+                    _log(
+                        "Queue depth %d < tear-down line %d — releasing Vast.ai",
+                        pending, tear_line,
+                    )
+                    for w in remote_workers:
+                        w.stop()
+                    for t in remote_threads:
+                        t.join(timeout=10)
+                    pool.teardown()
+                    pool = None
+                    remote_workers, remote_threads = [], []
 
             # ── Reclaim stale ────────────────────────────────────────
             reclaimed = queue.reclaim_stale_jobs(stale_minutes=2)
@@ -610,13 +815,14 @@ def run_continuous(
         signal.signal(signal.SIGTERM, signal.SIG_IGN)
 
         _log("Stopping workers...")
-        for w in workers:
+        for w in remote_workers + local_worker_objs:
             w.stop()
-        for t in threads:
+        for t in remote_threads + local_threads:
             t.join(timeout=10)
 
-        _log("Tearing down instance pool...")
-        pool.teardown()
+        if pool is not None:
+            _log("Tearing down instance pool...")
+            pool.teardown()
 
         # Mark all running agent_runs from this session as cancelled
         try:
@@ -890,11 +1096,22 @@ def main():
     parser.add_argument("--image", help="Docker image for Vast.ai instances (default: labclaw-gpu)")
     parser.add_argument("--seed", type=int, help="Random seed for task generation")
     parser.add_argument("--dry-run", action="store_true", help="Generate tasks only, don't dispatch")
+    # Queue management
+    parser.add_argument("--cleanup", action="store_true",
+                        help="Clean up orphan pending jobs (>24h old) and exit")
+    parser.add_argument("--generate-only", action="store_true",
+                        help="Generate tasks and submit to queue without provisioning instances")
+    parser.add_argument("--drain-queue", action="store_true",
+                        help="Drain existing pending jobs from queue (skip task generation)")
+    parser.add_argument("--local-workers", type=int, default=0,
+                        help="Number of local GPU worker threads (default: 0)")
     # Continuous mode flags
     parser.add_argument("--continuous", action="store_true", help="Run in continuous mode (loop batches)")
     parser.add_argument("--budget", type=float, help="Total $ budget for continuous mode")
     parser.add_argument("--cycles", type=int, help="Max number of cycles (default: unlimited)")
     parser.add_argument("--cooldown", type=int, default=5, help="Seconds between cycles (default: 5)")
+    parser.add_argument("--burst-threshold", type=int, default=0,
+                        help="Pending job count that triggers Vast.ai burst (0 = always-on, default: 0)")
     # Contribute mode — pull tasks from central queue instead of local generation
     parser.add_argument(
         "--mode", choices=["local", "contribute"], default="local",
@@ -910,6 +1127,13 @@ def main():
         level=logging.INFO,
         format="%(asctime)s %(name)s %(levelname)s: %(message)s",
     )
+
+    if args.cleanup:
+        from agentiq_labclaw.compute.batch_queue import BatchQueue
+        queue = BatchQueue()
+        abandoned = queue.abandon_old_jobs(cutoff_hours=24)
+        print(f"Cleaned up {abandoned} orphan pending jobs")
+        return
 
     if args.dry_run:
         from agentiq_labclaw.task_generator import generate_batch
@@ -958,6 +1182,8 @@ def main():
             budget=args.budget,
             cycles=args.cycles,
             cooldown=args.cooldown,
+            local_workers=args.local_workers,
+            burst_threshold=args.burst_threshold,
         )
 
         # Print final continuous summary
@@ -982,20 +1208,34 @@ def main():
             config_path=args.config,
             seed=args.seed,
             image=args.image,
+            local_workers=args.local_workers,
+            generate_only=args.generate_only,
+            drain_queue=args.drain_queue,
         )
 
         # Print final summary
         print("\n" + "=" * 50)
-        print("  BATCH DISPATCH COMPLETE")
+        if args.generate_only:
+            print("  QUEUE PRE-FILLED")
+        elif args.drain_queue:
+            print("  QUEUE DRAIN COMPLETE")
+        else:
+            print("  BATCH DISPATCH COMPLETE")
         print("=" * 50)
         jobs = result.get("jobs", {})
-        print(f"  Batch ID:  {result['batch_id']}")
+        if result.get("batch_id"):
+            print(f"  Batch ID:  {result['batch_id']}")
+        print(f"  Pending:   {jobs.get('pending', 0)}")
         print(f"  Done:      {jobs.get('done', 0)}")
         print(f"  Failed:    {jobs.get('failed', 0)}")
-        print(f"  Time:      {result['elapsed_human']}")
-        pool = result.get("pool", {})
-        print(f"  Instances: {pool.get('active', 0)} used")
-        print(f"  Jobs/inst: {pool.get('total_jobs_completed', 0)}")
+        if result.get("elapsed_human"):
+            print(f"  Time:      {result['elapsed_human']}")
+        pool_info = result.get("pool", {})
+        if pool_info:
+            print(f"  Instances: {pool_info.get('active', 0)} used")
+            print(f"  Jobs/inst: {pool_info.get('total_jobs_completed', 0)}")
+        if args.local_workers:
+            print(f"  Local:     {args.local_workers} worker(s)")
         if result.get("error"):
             print(f"  Error:     {result['error']}")
         print("=" * 50)

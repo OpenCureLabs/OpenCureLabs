@@ -364,6 +364,53 @@ class BatchQueue:
         finally:
             conn.close()
 
+    def abandon_old_jobs(self, cutoff_hours: int = 24) -> int:
+        """Mark old pending jobs as abandoned to prevent queue pollution.
+
+        Jobs older than cutoff_hours that are still 'pending' are assumed to be
+        orphans from aborted runs. Returns count of abandoned jobs.
+        """
+        conn = _get_conn()
+        try:
+            cur = conn.cursor()
+            cur.execute(
+                """
+                UPDATE batch_jobs
+                SET status = 'abandoned'
+                WHERE status = 'pending'
+                  AND created_at < NOW() - INTERVAL '1 hour' * %s
+                RETURNING id
+                """,
+                (cutoff_hours,),
+            )
+            abandoned = cur.fetchall()
+            conn.commit()
+            cur.close()
+            count = len(abandoned)
+            if count:
+                logger.warning("Abandoned %d old pending jobs (cutoff=%dh)", count, cutoff_hours)
+            return count
+        finally:
+            conn.close()
+
+    def pending_count(self, batch_id: str | None = None) -> int:
+        """Return the number of pending jobs, optionally filtered by batch_id."""
+        conn = _get_conn()
+        try:
+            cur = conn.cursor()
+            if batch_id:
+                cur.execute(
+                    "SELECT COUNT(*) FROM batch_jobs WHERE status = 'pending' AND batch_id = %s",
+                    (batch_id,),
+                )
+            else:
+                cur.execute("SELECT COUNT(*) FROM batch_jobs WHERE status = 'pending'")
+            count = cur.fetchone()[0]
+            cur.close()
+            return count
+        finally:
+            conn.close()
+
     def active_batches(self) -> list[dict]:
         """List batches that still have pending or running jobs."""
         conn = _get_conn()

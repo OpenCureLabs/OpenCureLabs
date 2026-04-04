@@ -112,6 +112,39 @@ python -m agentiq_labclaw.compute.batch_dispatcher \
   --cycles 10              # Max cycles (continuous, default: unlimited)
   --cooldown 5             # Seconds between cycles (default: 5)
   --dry-run                # Generate tasks only, don't dispatch
+  --cleanup                # Clean up orphan pending jobs (>24h old) and exit
+  --generate-only          # Submit tasks to queue without provisioning instances
+  --drain-queue            # Drain existing pending jobs (skip task generation)
+  --local-workers 2        # Run N local GPU worker threads (default: 0)
+  --burst-threshold 50     # Defer Vast.ai until queue depth >= N (0 = always-on)
+```
+
+#### Queue-First Workflow
+
+The `--generate-only` and `--drain-queue` flags decouple task generation from
+execution, enabling a two-phase workflow:
+
+```bash
+# Phase 1: Fill the queue (no GPU spend)
+python -m agentiq_labclaw.compute.batch_dispatcher --generate-only --count 200
+
+# Phase 2: Drain locally (no cloud spend)
+python -m agentiq_labclaw.compute.batch_dispatcher --drain-queue --local-workers 2
+
+# Phase 2 (alt): Drain on Vast.ai
+python -m agentiq_labclaw.compute.batch_dispatcher --drain-queue --pool-size 5
+```
+
+#### Burst Mode (Continuous)
+
+With `--burst-threshold`, continuous mode starts with local workers only and
+provisions Vast.ai instances on demand when the pending job count exceeds the
+threshold. Cloud instances are torn down when the queue drains below
+`threshold / 4`:
+
+```bash
+python -m agentiq_labclaw.compute.batch_dispatcher \
+  --continuous --local-workers 2 --burst-threshold 50 --budget 10.00
 ```
 
 Or via the dashboard TUI:

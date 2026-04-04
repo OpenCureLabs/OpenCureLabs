@@ -41,6 +41,7 @@ class Worker:
         pool_manager=None,
         batch_id: str | None = None,
         idle_timeout: int = 0,
+        burst_mode: bool = False,
     ):
         self.instance_id = instance_id
         self.ssh_host = ssh_host
@@ -49,9 +50,11 @@ class Worker:
         self._pool = pool_manager
         self.batch_id = batch_id
         self.idle_timeout = idle_timeout
+        self.burst_mode = burst_mode
         self.jobs_completed = 0
         self.jobs_failed = 0
         self._stop = threading.Event()
+        self.teardown_requested = threading.Event()
 
     def stop(self):
         """Signal the worker to stop after the current job."""
@@ -72,8 +75,25 @@ class Worker:
         while not self._stop.is_set():
             job = queue.claim_job(self.instance_id, batch_id=self.batch_id)
             if job is None:
+                # In burst mode, signal teardown after 3 min idle
+                if self.burst_mode:
+                    waited = 0
+                    burst_idle_limit = 180  # 3 min
+                    while waited < burst_idle_limit and not self._stop.is_set():
+                        time.sleep(5)
+                        waited += 5
+                        job = queue.claim_job(self.instance_id, batch_id=self.batch_id)
+                        if job is not None:
+                            break
+                    if job is None:
+                        logger.info(
+                            "Worker %d: burst mode — idle %ds, requesting teardown",
+                            self.instance_id, waited,
+                        )
+                        self.teardown_requested.set()
+                        break
                 # In continuous mode, idle-poll for new jobs instead of stopping
-                if self.idle_timeout > 0:
+                elif self.idle_timeout > 0:
                     waited = 0
                     while waited < self.idle_timeout and not self._stop.is_set():
                         time.sleep(5)
