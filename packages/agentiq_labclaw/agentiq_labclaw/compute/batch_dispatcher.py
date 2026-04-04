@@ -214,6 +214,9 @@ def run_batch(
             return {"batch_id": None, "jobs": {"pending": 0}, "elapsed_seconds": 0}
         batch_id = None  # Workers will claim any pending job
         _log("Drain mode: %d pending jobs in queue", pending)
+        # When draining with local workers, skip cloud provisioning
+        if local_workers > 0:
+            pool_size = 0
     else:
         _log("Generating %d tasks (domain=%s)...", count, domain or "all")
         tasks = generate_batch(

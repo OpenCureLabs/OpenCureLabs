@@ -343,19 +343,28 @@ class BatchQueue:
         finally:
             conn.close()
 
-    def batch_status(self, batch_id: str) -> dict:
-        """Get counts by status for a batch."""
+    def batch_status(self, batch_id: str | None) -> dict:
+        """Get counts by status for a batch (or all jobs if batch_id is None)."""
         conn = _get_conn()
         try:
             cur = conn.cursor()
-            cur.execute(
-                """
-                SELECT status, COUNT(*) FROM batch_jobs
-                WHERE batch_id = %s
-                GROUP BY status
-                """,
-                (batch_id,),
-            )
+            if batch_id:
+                cur.execute(
+                    """
+                    SELECT status, COUNT(*) FROM batch_jobs
+                    WHERE batch_id = %s
+                    GROUP BY status
+                    """,
+                    (batch_id,),
+                )
+            else:
+                cur.execute(
+                    """
+                    SELECT status, COUNT(*) FROM batch_jobs
+                    WHERE status IN ('pending', 'running', 'done', 'failed')
+                    GROUP BY status
+                    """
+                )
             rows = cur.fetchall()
             cur.close()
             counts = {row[0]: row[1] for row in rows}
