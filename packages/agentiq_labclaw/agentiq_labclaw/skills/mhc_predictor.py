@@ -254,7 +254,10 @@ class _FallbackHumanPredictor(MHCPredictor):
         return self._mhcflurry.is_available()
 
     def supported_alleles(self) -> set[str]:
-        return self._mhcflurry.supported_alleles()
+        # Return empty set = "accept all" — we map non-human alleles to HLA
+        # in predict(), so pre-validation against MHCflurry's list would
+        # incorrectly reject DLA/FLA alleles.
+        return set()
 
     def predict(self, alleles: list[str], peptides: list[str]) -> list[float]:
         # Map non-human alleles to closest human homolog

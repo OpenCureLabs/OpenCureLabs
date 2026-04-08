@@ -499,7 +499,7 @@ class NeoantigenSkill(LabClawSkill):
         variants = _parse_vcf_variants(vcf_path)
         if not variants:
             logger.info("No somatic variants found in VCF")
-            return self._empty_output(input_data.sample_id)
+            return self._empty_output(input_data.sample_id, input_data.species)
 
         # Normalize MHC alleles using species-aware normalizer
         alleles = [_normalize_allele(a, species_config) for a in input_data.hla_alleles]
@@ -518,7 +518,7 @@ class NeoantigenSkill(LabClawSkill):
                     "No supported MHC alleles found for species=%s alleles=%s",
                     species_config.name, alleles,
                 )
-                return self._empty_output(input_data.sample_id)
+                return self._empty_output(input_data.sample_id, input_data.species)
         else:
             valid_alleles = alleles
 
@@ -555,7 +555,7 @@ class NeoantigenSkill(LabClawSkill):
 
         if not peptide_entries:
             logger.info("No missense peptide windows generated")
-            return self._empty_output(input_data.sample_id)
+            return self._empty_output(input_data.sample_id, input_data.species)
 
         # 4. Batch-predict binding for all unique peptides × all alleles
         entries = list(peptide_entries.values())
@@ -616,7 +616,7 @@ class NeoantigenSkill(LabClawSkill):
         )
 
         if not binders:
-            return self._empty_output(input_data.sample_id)
+            return self._empty_output(input_data.sample_id, input_data.species)
 
         top = binders[0]
 
@@ -637,7 +637,7 @@ class NeoantigenSkill(LabClawSkill):
         )
 
     @staticmethod
-    def _empty_output(sample_id: str) -> NeoantigenOutput:
+    def _empty_output(sample_id: str, species: str = "human") -> NeoantigenOutput:
         return NeoantigenOutput(
             sample_id=sample_id,
             candidates=[],
@@ -645,4 +645,5 @@ class NeoantigenSkill(LabClawSkill):
             confidence_score=0.0,
             novel=False,
             critique_required=False,
+            species=species,
         )
