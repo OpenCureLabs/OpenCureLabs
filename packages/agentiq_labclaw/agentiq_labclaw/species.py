@@ -14,7 +14,10 @@ Usage:
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass, field
+
+_log = logging.getLogger(__name__)
 
 # ---------------------------------------------------------------------------
 # Register corrected pyensembl species for dog (canis_lupus_familiaris).
@@ -30,8 +33,8 @@ try:
         synonyms=["domestic_dog"],
         reference_assemblies={"ROS_Cfam_1.0": (104, 200)},
     )
-except Exception:  # pyensembl not installed or API changed
-    pass
+except Exception:
+    _log.debug("pyensembl species registration skipped", exc_info=True)
 
 
 @dataclass(frozen=True)
