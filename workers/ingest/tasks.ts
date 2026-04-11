@@ -717,6 +717,62 @@ export const RARE_DISEASE_VARIANTS = [
     { variant_id: "chr16:68771195:G>A", gene: "CDH1", hgvs: "p.Arg598Ter", disease: "Hereditary diffuse gastric cancer" },
     { variant_id: "chr19:1219400:G>A", gene: "STK11", hgvs: "p.Gly163Asp", disease: "Peutz-Jeghers syndrome" },
     { variant_id: "chr2:215674110:G>A", gene: "BARD1", hgvs: "p.Arg658Cys", disease: "Breast cancer risk (BARD1)" },
+    // ── Autoimmune / inflammatory ───────────────────────────────────────────
+    { variant_id: "chr6:138197824:G>A", gene: "TNFAIP3", hgvs: "p.Ala125Val", disease: "Autoimmune lymphoproliferative" },
+    { variant_id: "chr2:163136568:G>A", gene: "IFIH1", hgvs: "p.Ala946Thr", disease: "Singleton-Merten syndrome" },
+    { variant_id: "chr1:154426970:G>A", gene: "IL6R", hgvs: "p.Asp358Ala", disease: "Inflammatory susceptibility" },
+    { variant_id: "chr16:50745926:G>A", gene: "NOD2", hgvs: "p.Arg702Trp", disease: "Crohn disease (NOD2)" },
+    { variant_id: "chr16:50756540:G>A", gene: "NOD2", hgvs: "p.Gly908Arg", disease: "Crohn disease variant 2" },
+    { variant_id: "chr12:40432727:G>A", gene: "NLRP3", hgvs: "p.Arg260Trp", disease: "CAPS / Muckle-Wells" },
+    { variant_id: "chr16:3299586:G>A", gene: "MEFV", hgvs: "p.Met694Val", disease: "FMF" },
+    { variant_id: "chr16:3299468:G>A", gene: "MEFV", hgvs: "p.Met680Ile", disease: "FMF variant 2" },
+    { variant_id: "chr19:10463118:G>A", gene: "MVK", hgvs: "p.Val377Ile", disease: "Hyper-IgD syndrome" },
+    { variant_id: "chr1:154426264:G>A", gene: "TNFRSF1A", hgvs: "p.Thr50Met", disease: "TRAPS" },
+    // ── Amino acid / organic acid ───────────────────────────────────────────
+    { variant_id: "chr16:89920116:G>A", gene: "BCKDHA", hgvs: "p.Tyr393Asn", disease: "Maple syrup urine disease" },
+    { variant_id: "chr1:100672060:G>A", gene: "DBT", hgvs: "p.Arg183Cys", disease: "MSUD type II" },
+    { variant_id: "chr3:155139147:G>A", gene: "IVD", hgvs: "p.Ala282Val", disease: "Isovaleric acidemia" },
+    { variant_id: "chr15:76233100:G>A", gene: "ETFDH", hgvs: "p.Ala84Thr", disease: "Glutaric aciduria IIC" },
+    { variant_id: "chr19:13054568:G>A", gene: "GCDH", hgvs: "p.Arg402Trp", disease: "Glutaric aciduria I" },
+    { variant_id: "chr15:80473888:G>A", gene: "MMACHC", hgvs: "p.Arg161Ter", disease: "Cobalamin C disease" },
+    // ── Bone marrow failure / telomere ──────────────────────────────────────
+    { variant_id: "chr14:20811565:G>A", gene: "TERT", hgvs: "p.Arg865His", disease: "Dyskeratosis congenita" },
+    { variant_id: "chr16:84175260:G>A", gene: "FANCA", hgvs: "IVS27+5G>A", disease: "Fanconi anemia A" },
+    { variant_id: "chrX:14862998:G>A", gene: "FANCB", hgvs: "p.Arg87Cys", disease: "Fanconi anemia B" },
+    { variant_id: "chr9:97877803:G>A", gene: "FANCC", hgvs: "IVS4+4A>T", disease: "Fanconi anemia C" },
+    { variant_id: "chr3:128491178:G>A", gene: "GATA2", hgvs: "p.Thr354Met", disease: "GATA2 deficiency" },
+    // ── Hepatic / cholestatic ───────────────────────────────────────────────
+    { variant_id: "chr18:57584439:G>A", gene: "ATP8B1", hgvs: "p.Ile661Thr", disease: "PFIC type 1" },
+    { variant_id: "chr2:169756449:G>A", gene: "ABCB11", hgvs: "p.Asp482Gly", disease: "PFIC type 2" },
+    { variant_id: "chr7:87171347:G>A", gene: "ABCB4", hgvs: "p.Arg549Cys", disease: "PFIC type 3" },
+    { variant_id: "chr14:94850748:G>A", gene: "SERPINA1", hgvs: "p.Glu342Lys", disease: "Alpha-1 antitrypsin (Z)" },
+    { variant_id: "chr14:94847262:G>A", gene: "SERPINA1", hgvs: "p.Gly148Arg", disease: "Alpha-1 antitrypsin (S)" },
+    { variant_id: "chr13:52536311:G>A", gene: "ATP7B", hgvs: "p.His1069Gln", disease: "Wilson disease" },
+    { variant_id: "chr13:52534413:G>A", gene: "ATP7B", hgvs: "p.Arg778Leu", disease: "Wilson disease (Asian)" },
+    // ── Periodic fever / autoinflammatory ───────────────────────────────────
+    { variant_id: "chr12:56733005:G>A", gene: "NLRC4", hgvs: "p.Val341Ala", disease: "NLRC4-MAS" },
+    { variant_id: "chr1:247422093:G>A", gene: "NLRP1", hgvs: "p.Met1184Val", disease: "NLRP1-autoinflammatory" },
+    { variant_id: "chr19:2389572:G>A", gene: "DNASE2", hgvs: "p.Arg347Gln", disease: "DNASE2 deficiency" },
+    // ── Urea cycle / hyperammonemia ─────────────────────────────────────────
+    { variant_id: "chr6:131898820:G>A", gene: "ASL", hgvs: "p.Arg386Cys", disease: "Argininosuccinic aciduria" },
+    { variant_id: "chr6:131563624:G>A", gene: "ARG1", hgvs: "p.Arg21Ter", disease: "Arginase deficiency" },
+    { variant_id: "chr10:97379516:G>A", gene: "CPS1", hgvs: "p.Thr1406Asn", disease: "CPS1 deficiency" },
+    { variant_id: "chr17:8895398:G>A", gene: "NAGS", hgvs: "p.Arg410Trp", disease: "NAGS deficiency" },
+    // ── Ciliopathies ────────────────────────────────────────────────────────
+    { variant_id: "chr12:88476630:G>A", gene: "CEP290", hgvs: "p.Arg2106Ter", disease: "Joubert syndrome" },
+    { variant_id: "chr16:53665504:G>A", gene: "RPGRIP1L", hgvs: "p.Asp1163Asn", disease: "Meckel syndrome" },
+    { variant_id: "chr11:66278218:G>A", gene: "BBS1", hgvs: "p.Met390Arg", disease: "Bardet-Biedl syndrome 1" },
+    { variant_id: "chr16:56520508:G>A", gene: "BBS2", hgvs: "p.Arg632Pro", disease: "Bardet-Biedl syndrome 2" },
+    // ── Glycogen storage / fatty acid oxidation ─────────────────────────────
+    { variant_id: "chr1:100217755:G>A", gene: "ACADM", hgvs: "p.Lys329Glu", disease: "MCAD deficiency" },
+    { variant_id: "chr17:62066688:G>A", gene: "ACADVL", hgvs: "p.Val283Ala", disease: "VLCAD deficiency" },
+    { variant_id: "chr4:159170724:G>A", gene: "CPT2", hgvs: "p.Ser113Leu", disease: "CPT II deficiency" },
+    { variant_id: "chr3:128863824:G>A", gene: "GAA", hgvs: "p.Glu888Lys", disease: "Late-onset Pompe" },
+    // ── Coagulation / thrombotic ────────────────────────────────────────────
+    { variant_id: "chr1:169519049:G>A", gene: "F13A1", hgvs: "p.Val34Leu", disease: "Factor XIII deficiency" },
+    { variant_id: "chr4:155505952:G>A", gene: "FGA", hgvs: "p.Arg35His", disease: "Dysfibrinogenemia" },
+    { variant_id: "chr3:46899361:G>A", gene: "ADAMTS13", hgvs: "p.Arg1060Trp", disease: "Congenital TTP" },
+    { variant_id: "chr5:177421430:G>A", gene: "F12", hgvs: "p.Thr309Arg", disease: "Factor XII deficiency" },
 ];
 
 export const CANINE_CANCER_GENES: [string, string, string, string][] = [
@@ -820,6 +876,19 @@ export const CANINE_VARIANTS = [
     { variant_id: "chr22:33400890:G>A", gene: "RB1", disease: "Osteosarcoma", species: "dog" },
     { variant_id: "chr13:44500120:G>A", gene: "MYC", disease: "Lymphoma", species: "dog" },
     { variant_id: "chr1:55600789:G>A", gene: "BCL2", disease: "Lymphoma", species: "dog" },
+    // Expanded canine panel – additional genes
+    { variant_id: "chr3:52100345:G>A", gene: "APC", disease: "Colorectal adenoma", species: "dog" },
+    { variant_id: "chr7:31200456:G>A", gene: "RAS", disease: "Bladder carcinoma", species: "dog" },
+    { variant_id: "chr38:15600789:G>A", gene: "PTCH1", disease: "Basal cell tumor", species: "dog" },
+    { variant_id: "chr2:42300123:G>A", gene: "STK11", disease: "GI stromal tumor", species: "dog" },
+    { variant_id: "chr12:88700456:G>A", gene: "JAK2", disease: "Polycythemia", species: "dog" },
+    { variant_id: "chr26:11100789:G>A", gene: "VHL", disease: "Renal carcinoma", species: "dog" },
+    { variant_id: "chr5:67800123:G>A", gene: "TSC2", disease: "Renal angiomyolipoma", species: "dog" },
+    { variant_id: "chr20:22900456:G>A", gene: "CDK4", disease: "Melanoma", species: "dog" },
+    { variant_id: "chr14:55100789:G>A", gene: "ERBB2", disease: "Mammary carcinoma", species: "dog" },
+    { variant_id: "chr30:33200123:G>A", gene: "SMAD4", disease: "Anal gland adenocarcinoma", species: "dog" },
+    { variant_id: "chr15:44300456:G>A", gene: "FBXW7", disease: "Lymphoma", species: "dog" },
+    { variant_id: "chr19:55400789:G>A", gene: "IDH1", disease: "Glioma", species: "dog" },
 ];
 
 export const FELINE_VARIANTS = [
@@ -835,7 +904,34 @@ export const FELINE_VARIANTS = [
     { variant_id: "chrC2:44300567:G>A", gene: "KRAS", disease: "SCC", species: "cat" },
     { variant_id: "chrB4:55400123:G>A", gene: "PTEN", disease: "Vaccine-site sarcoma", species: "cat" },
     { variant_id: "chrA2:66500234:G>A", gene: "APC", disease: "Intestinal adenocarcinoma", species: "cat" },
+    // Expanded feline panel – additional genes
+    { variant_id: "chrA3:77100123:G>A", gene: "MYC", disease: "Lymphoma", species: "cat" },
+    { variant_id: "chrB2:88200456:G>A", gene: "FLT3", disease: "Leukemia", species: "cat" },
+    { variant_id: "chrC1:99300789:G>A", gene: "CDKN2A", disease: "SCC", species: "cat" },
+    { variant_id: "chrD2:11400123:G>A", gene: "RB1", disease: "Osteosarcoma", species: "cat" },
+    { variant_id: "chrE3:22500456:G>A", gene: "MDM2", disease: "Vaccine-site sarcoma", species: "cat" },
+    { variant_id: "chrF1:33600789:G>A", gene: "JAK2", disease: "Myeloproliferative disease", species: "cat" },
+    { variant_id: "chrA1:44700123:G>A", gene: "EGFR", disease: "Nasal carcinoma", species: "cat" },
+    { variant_id: "chrB3:55800456:G>A", gene: "MET", disease: "Hepatic carcinoma", species: "cat" },
+    { variant_id: "chrC3:66900789:G>A", gene: "SMO", disease: "Basal cell tumor", species: "cat" },
 ];
+
+// ── Combinatorial Dimensions for Task Multiplication ────────────────────────
+
+/** Variant analysis modes — each generates a distinct task for the same variant. */
+export const VARIANT_ANALYSIS_MODES = ["acmg_classify", "splicing_impact", "conservation", "protein_impact"];
+
+/** Structure prediction methods — each gets its own task. */
+export const STRUCTURE_METHODS = ["esmfold", "alphafold2", "rosettafold"];
+
+/** Docking receptor flexibility modes. */
+export const DOCKING_POSE_MODES = ["rigid", "flexible"];
+
+/** Expanded QSAR model types. */
+export const QSAR_MODEL_TYPES = ["random_forest", "xgboost", "gnn", "lightgbm", "svm"];
+
+/** Molecular fingerprint types for QSAR featurization. */
+export const QSAR_FINGERPRINTS = ["morgan", "rdkit", "maccs"];
 
 // ── Task Interface ──────────────────────────────────────────────────────────
 
@@ -910,53 +1006,76 @@ function neoantigenTasks(species: string = "human"): TaskInput[] {
     return tasks;
 }
 
-function structureTasks(domain: string): TaskInput[] {
+function structureTasks(domain: string, species: string = "human"): TaskInput[] {
     const tasks: TaskInput[] = [];
-    if (domain === "cancer") {
+
+    if (species === "dog" || species === "cat") {
+        const genes = species === "dog"
+            ? CANINE_CANCER_GENES.map(g => g[0])
+            : FELINE_CANCER_GENES.map(g => g[0]);
+        for (const gene of genes) {
+            for (const method of STRUCTURE_METHODS) {
+                tasks.push({
+                    skill: "structure_prediction",
+                    input_data: { protein_id: gene, sequence: "AUTO_RESOLVE", method, species },
+                    domain: "cancer",
+                    species,
+                    label: `Structure [${species}]: ${gene} (${method})`,
+                    priority: 4,
+                });
+            }
+        }
+    } else if (domain === "cancer") {
         for (const [gene] of CANCER_GENES) {
-            tasks.push({
-                skill: "structure_prediction",
-                input_data: { protein_id: gene, sequence: "AUTO_RESOLVE", method: "esmfold" },
-                domain: "cancer",
-                species: "human",
-                label: `Structure: ${gene} (cancer)`,
-                priority: 4,
-            });
+            for (const method of STRUCTURE_METHODS) {
+                tasks.push({
+                    skill: "structure_prediction",
+                    input_data: { protein_id: gene, sequence: "AUTO_RESOLVE", method },
+                    domain: "cancer",
+                    species: "human",
+                    label: `Structure: ${gene} (cancer, ${method})`,
+                    priority: 4,
+                });
+            }
         }
     } else {
         for (const target of DRUG_TARGETS) {
-            tasks.push({
-                skill: "structure_prediction",
-                input_data: { protein_id: target.protein_id, sequence: "AUTO_RESOLVE", method: "esmfold" },
-                domain: "drug_discovery",
-                species: "human",
-                label: `Structure: ${(target as { name?: string }).name ?? target.protein_id} (drug target)`,
-                priority: 4,
-            });
+            for (const method of STRUCTURE_METHODS) {
+                tasks.push({
+                    skill: "structure_prediction",
+                    input_data: { protein_id: target.protein_id, sequence: "AUTO_RESOLVE", method },
+                    domain: "drug_discovery",
+                    species: "human",
+                    label: `Structure: ${(target as { name?: string }).name ?? target.protein_id} (drug target, ${method})`,
+                    priority: 4,
+                });
+            }
         }
     }
     return tasks;
 }
 
 function qsarTasks(): TaskInput[] {
-    const modelTypes = ["random_forest", "xgboost", "gnn"];
     const tasks: TaskInput[] = [];
     for (const ds of CHEMBL_DATASETS) {
-        for (const model of modelTypes) {
-            tasks.push({
-                skill: "qsar",
-                input_data: {
-                    dataset_path: `data/chembl/${ds.target}.csv`,
-                    target_column: ds.target_col,
-                    smiles_column: "smiles",
-                    model_type: model,
-                    mode: "train",
-                },
-                domain: "drug_discovery",
-                species: "human",
-                label: `QSAR: ${ds.name} (${model})`,
-                priority: 5,
-            });
+        for (const model of QSAR_MODEL_TYPES) {
+            for (const fp of QSAR_FINGERPRINTS) {
+                tasks.push({
+                    skill: "qsar",
+                    input_data: {
+                        dataset_path: `data/chembl/${ds.target}.csv`,
+                        target_column: ds.target_col,
+                        smiles_column: "smiles",
+                        model_type: model,
+                        fingerprint: fp,
+                        mode: "train",
+                    },
+                    domain: "drug_discovery",
+                    species: "human",
+                    label: `QSAR: ${ds.name} (${model}/${fp})`,
+                    priority: 5,
+                });
+            }
         }
     }
     return tasks;
@@ -967,23 +1086,26 @@ function dockingTasks(): TaskInput[] {
     const tasks: TaskInput[] = [];
     for (const target of DRUG_TARGETS) {
         for (const method of methods) {
-            tasks.push({
-                skill: "molecular_docking",
-                input_data: {
-                    ligand_smiles: target.smiles,
-                    receptor_pdb: `data/pdb/${target.pdb}.pdb`,
-                    center_x: 0.0,
-                    center_y: 0.0,
-                    center_z: 0.0,
-                    box_size: 25.0,
-                    exhaustiveness: 16,
-                    method,
-                },
-                domain: "drug_discovery",
-                species: "human",
-                label: `Docking: ${target.ligand} → ${(target as { name?: string }).name ?? target.protein_id} (${method})`,
-                priority: 4,
-            });
+            for (const poseMode of DOCKING_POSE_MODES) {
+                tasks.push({
+                    skill: "molecular_docking",
+                    input_data: {
+                        ligand_smiles: target.smiles,
+                        receptor_pdb: `data/pdb/${target.pdb}.pdb`,
+                        center_x: 0.0,
+                        center_y: 0.0,
+                        center_z: 0.0,
+                        box_size: 25.0,
+                        exhaustiveness: 16,
+                        method,
+                        pose_mode: poseMode,
+                    },
+                    domain: "drug_discovery",
+                    species: "human",
+                    label: `Docking: ${target.ligand} → ${(target as { name?: string }).name ?? target.protein_id} (${method}/${poseMode})`,
+                    priority: 4,
+                });
+            }
         }
     }
     return tasks;
@@ -1001,19 +1123,22 @@ function variantTasks(species: string = "human"): TaskInput[] {
 
     const tasks: TaskInput[] = [];
     for (const v of variants) {
-        tasks.push({
-            skill: "variant_pathogenicity",
-            input_data: {
-                variant_id: v.variant_id,
-                gene: v.gene,
-                hgvs: (v as { hgvs?: string | null }).hgvs ?? null,
+        for (const mode of VARIANT_ANALYSIS_MODES) {
+            tasks.push({
+                skill: "variant_pathogenicity",
+                input_data: {
+                    variant_id: v.variant_id,
+                    gene: v.gene,
+                    hgvs: (v as { hgvs?: string | null }).hgvs ?? null,
+                    species: v.species ?? species,
+                    analysis_mode: mode,
+                },
+                domain: species === "human" ? "rare_disease" : "cancer",
                 species: v.species ?? species,
-            },
-            domain: species === "human" ? "rare_disease" : "cancer",
-            species: v.species ?? species,
-            label: `Variant [${species}]: ${v.gene} (${v.disease})`,
-            priority: 3,
-        });
+                label: `Variant [${species}]: ${v.gene} ${mode} (${v.disease})`,
+                priority: 3,
+            });
+        }
     }
     return tasks;
 }
@@ -1035,10 +1160,12 @@ export function generateAllTasks(): TaskInput[] {
 
     // Canine
     tasks = tasks.concat(neoantigenTasks("dog"));
+    tasks = tasks.concat(structureTasks("cancer", "dog"));
     tasks = tasks.concat(variantTasks("dog"));
 
     // Feline
     tasks = tasks.concat(neoantigenTasks("cat"));
+    tasks = tasks.concat(structureTasks("cancer", "cat"));
     tasks = tasks.concat(variantTasks("cat"));
 
     return tasks;

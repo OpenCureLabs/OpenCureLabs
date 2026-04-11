@@ -32,38 +32,171 @@
             min-height: 100vh;
         }
 
+        /* ── Header / Nav ─────────────────────────────────────── */
         header {
             border-bottom: 1px solid var(--border);
-            padding: 1.5rem 2rem;
+            padding: 1rem 2rem;
             display: flex;
             align-items: center;
             gap: 1rem;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: var(--bg);
         }
 
         header img {
-            height: 36px;
+            height: 32px;
         }
 
         header h1 {
-            font-size: 1.25rem;
+            font-size: 1.15rem;
             font-weight: 600;
             color: var(--text);
         }
 
-        header span {
+        .nav-links {
+            display: flex;
+            gap: 1.25rem;
+            margin-left: 2rem;
+            align-items: center;
+        }
+
+        .nav-links a {
             color: var(--muted);
-            font-size: 0.875rem;
+            text-decoration: none;
+            font-size: 0.88rem;
+            font-weight: 500;
+            transition: color 0.15s;
+            white-space: nowrap;
+        }
+
+        .nav-links a:hover,
+        .nav-links a.active {
+            color: var(--accent);
+        }
+
+        .gh-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.3rem 0.7rem;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background: var(--tag-bg);
+            color: var(--text);
+            font-size: 0.78rem;
+            font-weight: 500;
+            text-decoration: none;
+            transition: all 0.15s;
+            margin-left: auto;
+            flex-shrink: 0;
+        }
+
+        .gh-badge:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+        }
+
+        .gh-badge svg {
+            width: 16px;
+            height: 16px;
+            fill: currentColor;
+        }
+
+        .header-updated {
+            color: var(--muted);
+            font-size: 0.75rem;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .hamburger {
+            display: none;
+            background: none;
+            border: none;
+            color: var(--text);
+            font-size: 1.5rem;
+            cursor: pointer;
+            padding: 0.25rem;
             margin-left: auto;
         }
 
+        @media (max-width: 768px) {
+            .nav-links {
+                display: none;
+                position: absolute;
+                top: 100%;
+                left: 0;
+                right: 0;
+                flex-direction: column;
+                background: var(--surface);
+                border-bottom: 1px solid var(--border);
+                padding: 1rem 2rem;
+                gap: 1rem;
+                margin-left: 0;
+            }
+
+            .nav-links.open {
+                display: flex;
+            }
+
+            .hamburger {
+                display: block;
+            }
+
+            .gh-badge,
+            .header-updated {
+                display: none;
+            }
+
+            .nav-links .gh-badge-mobile {
+                display: inline-flex;
+            }
+
+            .hero h2 {
+                font-size: 1.5rem;
+            }
+
+            .hero-ctas {
+                flex-direction: column;
+                align-items: center;
+            }
+
+            .stats-bar {
+                gap: 1rem;
+                flex-wrap: wrap;
+            }
+
+            .filters {
+                padding: 0.75rem 1rem;
+            }
+        }
+
+        .gh-badge-mobile {
+            display: none;
+            align-items: center;
+            gap: 0.4rem;
+            padding: 0.3rem 0.7rem;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background: var(--tag-bg);
+            color: var(--text);
+            font-size: 0.78rem;
+            font-weight: 500;
+            text-decoration: none;
+            width: fit-content;
+        }
+
+        /* ── Hero ─────────────────────────────────────────────── */
         .hero {
             text-align: center;
-            padding: 3rem 1rem 2rem;
+            padding: 3rem 1.5rem 2.5rem;
             border-bottom: 1px solid var(--border);
         }
 
         .hero h2 {
-            font-size: 2rem;
+            font-size: 2.25rem;
             font-weight: 700;
             background: linear-gradient(135deg, var(--accent), var(--accent2));
             -webkit-background-clip: text;
@@ -73,10 +206,56 @@
 
         .hero p {
             color: var(--muted);
-            margin-top: 0.5rem;
+            margin-top: 0.75rem;
             font-size: 0.95rem;
+            max-width: 640px;
+            margin-left: auto;
+            margin-right: auto;
+            line-height: 1.6;
         }
 
+        .hero-ctas {
+            display: flex;
+            gap: 0.75rem;
+            justify-content: center;
+            margin-top: 1.5rem;
+        }
+
+        .btn-primary {
+            padding: 0.6rem 1.5rem;
+            border-radius: 9999px;
+            border: none;
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            color: #0a0e1a;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            transition: opacity 0.15s;
+        }
+
+        .btn-primary:hover {
+            opacity: 0.9;
+        }
+
+        .btn-secondary {
+            padding: 0.6rem 1.5rem;
+            border-radius: 9999px;
+            border: 1px solid var(--border);
+            background: var(--surface);
+            color: var(--accent);
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            text-decoration: none;
+            transition: all 0.15s;
+        }
+
+        .btn-secondary:hover {
+            border-color: var(--accent);
+        }
+
+        /* ── Stats bar ────────────────────────────────────────── */
         .stats-bar {
             display: flex;
             gap: 2rem;
@@ -116,6 +295,7 @@
             margin-top: 0.2rem;
         }
 
+        /* ── Filters ──────────────────────────────────────────── */
         .filters {
             display: flex;
             gap: 0.5rem;
@@ -142,6 +322,56 @@
             background: rgba(34, 211, 238, 0.08);
         }
 
+        .filter-btn.vet-active {
+            border-color: #f59e0b;
+            color: #f59e0b;
+            background: rgba(245, 158, 11, 0.08);
+        }
+
+        .species-filters {
+            border-top: 1px solid var(--border);
+            background: rgba(17, 24, 39, 0.6);
+        }
+
+        /* ── Search bar ───────────────────────────────────────── */
+        .search-wrap {
+            position: relative;
+            flex: 1;
+            max-width: 320px;
+        }
+
+        .search-wrap input {
+            width: 100%;
+            padding: 0.45rem 0.75rem 0.45rem 2rem;
+            border-radius: 9999px;
+            border: 1px solid var(--border);
+            background: var(--tag-bg);
+            color: var(--text);
+            font-size: 0.82rem;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            outline: none;
+            transition: border-color 0.15s;
+        }
+
+        .search-wrap input::placeholder {
+            color: var(--muted);
+        }
+
+        .search-wrap input:focus {
+            border-color: var(--accent);
+        }
+
+        .search-wrap .search-icon {
+            position: absolute;
+            left: 0.65rem;
+            top: 50%;
+            transform: translateY(-50%);
+            font-size: 0.8rem;
+            color: var(--muted);
+            pointer-events: none;
+        }
+
+        /* ── Feed / Cards ─────────────────────────────────────── */
         .feed {
             max-width: 900px;
             margin: 0 auto;
@@ -160,6 +390,7 @@
             transition: border-color 0.15s;
             text-decoration: none;
             color: inherit;
+            cursor: pointer;
         }
 
         .result-card:hover {
@@ -243,52 +474,6 @@
             font-family: 'JetBrains Mono', 'Fira Code', monospace;
         }
 
-        .loading {
-            text-align: center;
-            padding: 3rem;
-            color: var(--muted);
-        }
-
-        .pulse {
-            animation: pulse 1.5s infinite;
-        }
-
-        @keyframes pulse {
-
-            0%,
-            100% {
-                opacity: 1
-            }
-
-            50% {
-                opacity: 0.4
-            }
-        }
-
-        footer {
-            text-align: center;
-            padding: 2rem;
-            color: var(--muted);
-            font-size: 0.8rem;
-            border-top: 1px solid var(--border);
-        }
-
-        footer a {
-            color: var(--accent);
-            text-decoration: none;
-        }
-
-        .species-filters {
-            border-top: 1px solid var(--border);
-            background: rgba(17, 24, 39, 0.6);
-        }
-
-        .filter-btn.vet-active {
-            border-color: #f59e0b;
-            color: #f59e0b;
-            background: rgba(245, 158, 11, 0.08);
-        }
-
         .species-badge {
             font-size: 0.7rem;
             padding: 0.2rem 0.55rem;
@@ -304,39 +489,6 @@
         .species-badge.cat {
             background: rgba(168, 85, 247, 0.12);
             color: #a855f7;
-        }
-
-        .empty-vet {
-            text-align: center;
-            padding: 3rem 1rem;
-            color: var(--muted);
-        }
-
-        .empty-vet .empty-icon {
-            font-size: 3rem;
-            margin-bottom: 0.75rem;
-        }
-
-        .empty-vet h3 {
-            font-size: 1rem;
-            font-weight: 600;
-            color: var(--text);
-            margin-bottom: 0.4rem;
-        }
-
-        .empty-vet p {
-            font-size: 0.85rem;
-            max-width: 380px;
-            margin: 0 auto;
-            line-height: 1.6;
-        }
-
-        .empty-vet code {
-            background: var(--tag-bg);
-            padding: 0.1rem 0.4rem;
-            border-radius: 4px;
-            font-size: 0.8rem;
-            color: var(--accent);
         }
 
         .critique-badges {
@@ -373,7 +525,6 @@
             color: #64748b;
         }
 
-        /* Review score column */
         .card-score {
             display: flex;
             flex-direction: column;
@@ -414,7 +565,7 @@
             color: var(--muted);
         }
 
-        /* View toggle */
+        /* ── View toggle ──────────────────────────────────────── */
         .view-toggle {
             margin-left: auto;
             display: flex;
@@ -446,7 +597,7 @@
             background: rgba(34, 211, 238, 0.08);
         }
 
-        /* Table view */
+        /* ── Table view ───────────────────────────────────────── */
         .feed-table {
             width: 100%;
             border-collapse: collapse;
@@ -477,6 +628,7 @@
 
         .feed-table tr:hover td {
             background: rgba(34, 211, 238, 0.04);
+            cursor: pointer;
         }
 
         .feed-table a {
@@ -491,6 +643,237 @@
         .feed-table .td-muted {
             color: var(--muted);
         }
+
+        /* ── Empty states ─────────────────────────────────────── */
+        .loading {
+            text-align: center;
+            padding: 3rem;
+            color: var(--muted);
+        }
+
+        .pulse {
+            animation: pulse 1.5s infinite;
+        }
+
+        @keyframes pulse {
+
+            0%,
+            100% {
+                opacity: 1
+            }
+
+            50% {
+                opacity: 0.4
+            }
+        }
+
+        .empty-vet {
+            text-align: center;
+            padding: 3rem 1rem;
+            color: var(--muted);
+        }
+
+        .empty-vet .empty-icon {
+            font-size: 3rem;
+            margin-bottom: 0.75rem;
+        }
+
+        .empty-vet h3 {
+            font-size: 1rem;
+            font-weight: 600;
+            color: var(--text);
+            margin-bottom: 0.4rem;
+        }
+
+        .empty-vet p {
+            font-size: 0.85rem;
+            max-width: 380px;
+            margin: 0 auto;
+            line-height: 1.6;
+        }
+
+        .empty-vet code {
+            background: var(--tag-bg);
+            padding: 0.1rem 0.4rem;
+            border-radius: 4px;
+            font-size: 0.8rem;
+            color: var(--accent);
+        }
+
+        /* ── Detail Modal ─────────────────────────────────────── */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.7);
+            z-index: 200;
+            justify-content: center;
+            align-items: center;
+            padding: 1rem;
+        }
+
+        .modal-overlay.open {
+            display: flex;
+        }
+
+        .modal {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            width: 100%;
+            max-width: 640px;
+            max-height: 85vh;
+            overflow-y: auto;
+            padding: 2rem;
+            position: relative;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: none;
+            border: none;
+            color: var(--muted);
+            font-size: 1.5rem;
+            cursor: pointer;
+            line-height: 1;
+        }
+
+        .modal-close:hover {
+            color: var(--text);
+        }
+
+        .modal h3 {
+            font-size: 1.15rem;
+            font-weight: 700;
+            margin-bottom: 1.25rem;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            color: var(--accent);
+        }
+
+        .modal-meta {
+            display: grid;
+            grid-template-columns: auto 1fr;
+            gap: 0.5rem 1rem;
+            font-size: 0.85rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .modal-meta dt {
+            color: var(--muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.72rem;
+            letter-spacing: 0.04em;
+            padding-top: 0.1rem;
+        }
+
+        .modal-meta dd {
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            font-size: 0.82rem;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 0.75rem;
+            flex-wrap: wrap;
+            margin-top: 1.25rem;
+        }
+
+        .modal-actions a,
+        .modal-actions button {
+            padding: 0.5rem 1.2rem;
+            border-radius: 6px;
+            font-size: 0.82rem;
+            font-weight: 600;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.15s;
+        }
+
+        .modal-btn-primary {
+            background: linear-gradient(135deg, var(--accent), var(--accent2));
+            color: #0a0e1a;
+            border: none;
+        }
+
+        .modal-btn-secondary {
+            background: var(--tag-bg);
+            color: var(--accent);
+            border: 1px solid var(--border);
+        }
+
+        .modal-btn-secondary:hover {
+            border-color: var(--accent);
+        }
+
+        .modal-reproduce {
+            margin-top: 0.5rem;
+            background: var(--tag-bg);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            padding: 0.75rem 1rem;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            font-size: 0.78rem;
+            color: var(--accent);
+            overflow-x: auto;
+            white-space: pre;
+            line-height: 1.6;
+        }
+
+        .modal-reproduce-label {
+            font-size: 0.7rem;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.04em;
+            font-weight: 600;
+            margin-top: 1.25rem;
+            margin-bottom: 0.35rem;
+        }
+
+        /* ── Footer ───────────────────────────────────────────── */
+        footer {
+            text-align: center;
+            padding: 2rem;
+            color: var(--muted);
+            font-size: 0.8rem;
+            border-top: 1px solid var(--border);
+        }
+
+        footer .footer-inner {
+            max-width: 900px;
+            margin: 0 auto;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            align-items: center;
+        }
+
+        footer .footer-links {
+            display: flex;
+            gap: 1.25rem;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        footer .footer-links a {
+            color: var(--muted);
+            text-decoration: none;
+            font-size: 0.82rem;
+            transition: color 0.15s;
+        }
+
+        footer .footer-links a:hover {
+            color: var(--accent);
+        }
+
+        footer .footer-disclaimer {
+            font-size: 0.75rem;
+            max-width: 600px;
+            line-height: 1.5;
+            color: var(--muted);
+        }
     </style>
 </head>
 
@@ -501,14 +884,31 @@
             <img src="https://pub.opencurelabs.ai/assets/logo-symbol.svg" alt="OpenCure Labs" />
             <h1>OpenCure Labs</h1>
         </a>
-        <nav style="display:flex;gap:1.25rem;margin-left:2rem">
-            <a href="/" style="color:var(--accent);text-decoration:none;font-size:0.9rem;font-weight:500">Feed</a>
-            <a href="/data" style="color:var(--muted);text-decoration:none;font-size:0.9rem;font-weight:500">Data</a>
-            <a href="/contribute"
-                style="color:var(--muted);text-decoration:none;font-size:0.9rem;font-weight:500">Contribute</a>
-            <a href="/about" style="color:var(--muted);text-decoration:none;font-size:0.9rem;font-weight:500">About</a>
+        <nav class="nav-links" id="nav-links">
+            <a href="/" class="active">Feed</a>
+            <a href="/data">Data</a>
+            <a href="/contribute">Contribute</a>
+            <a href="/about">About</a>
+            <a class="gh-badge-mobile" href="https://github.com/OpenCureLabs/OpenCureLabs" target="_blank"
+                rel="noopener">
+                <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor">
+                    <path
+                        d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
+                </svg>
+                GitHub
+            </a>
         </nav>
-        <span id="last-updated">Fetching latest results…</span>
+        <a class="gh-badge" href="https://github.com/OpenCureLabs/OpenCureLabs" target="_blank" rel="noopener"
+            title="Star us on GitHub">
+            <svg viewBox="0 0 16 16">
+                <path
+                    d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
+            </svg>
+            GitHub
+        </a>
+        <span class="header-updated" id="last-updated">Fetching latest results…</span>
+        <button class="hamburger" onclick="document.getElementById('nav-links').classList.toggle('open')"
+            aria-label="Toggle menu">☰</button>
     </header>
 
     <div class="hero">
@@ -516,6 +916,12 @@
         <p>Download AI-generated research artifacts with metadata, integrity signatures, and explicit validation
             warnings. Outputs are open for inspection and reuse, but should be independently validated before scientific
             or clinical use.</p>
+        <div class="hero-ctas">
+            <a class="btn-primary" href="#feed"
+                onclick="document.getElementById('feed').scrollIntoView({behavior:'smooth'});return false;">Browse All
+                Data</a>
+            <a class="btn-secondary" href="/contribute">Contribute Your GPU</a>
+        </div>
     </div>
 
     <div class="stats-bar">
@@ -538,7 +944,13 @@
     </div>
 
     <div class="filters">
-        <span style="font-size:0.8rem;color:var(--muted);margin-right:0.5rem">Skill:</span>
+        <span style="font-size:0.8rem;color:var(--muted);margin-right:0.5rem">Search:</span>
+        <div class="search-wrap">
+            <span class="search-icon">🔍</span>
+            <input type="text" id="gene-search" placeholder="Search by gene name…" oninput="onSearchInput(this.value)"
+                autocomplete="off" />
+        </div>
+        <span style="font-size:0.8rem;color:var(--muted);margin-right:0.5rem;margin-left:1rem">Skill:</span>
         <button class="filter-btn active" data-skill="all" onclick="setSkillFilter(this,'all')">All</button>
         <button class="filter-btn" data-skill="neoantigen_prediction"
             onclick="setSkillFilter(this,'neoantigen_prediction')">Neoantigen</button>
@@ -582,316 +994,316 @@
         <div id="load-more-spinner" class="loading pulse" style="display:none">Loading more results…</div>
     </div>
 
+    <!-- Detail Modal -->
+    <div class="modal-overlay" id="modal-overlay" onclick="if(event.target===this)closeModal()">
+        <div class="modal" id="modal">
+            <button class="modal-close" onclick="closeModal()">&times;</button>
+            <h3 id="modal-title"></h3>
+            <dl class="modal-meta" id="modal-meta"></dl>
+            <div id="modal-critiques"></div>
+            <div class="modal-reproduce-label">Reproduce this artifact locally</div>
+            <div class="modal-reproduce" id="modal-reproduce"></div>
+            <div class="modal-actions" id="modal-actions"></div>
+        </div>
+    </div>
+
     <footer>
-        Downloadable artifacts with provenance metadata at <a
-            href="https://pub.opencurelabs.ai/latest.json">pub.opencurelabs.ai</a> &middot;
-        <a href="https://github.com/OpenCureLabs/OpenCureLabs">GitHub</a> &middot;
-        All outputs are AI-generated and carry validation warnings — verify independently before scientific or clinical
-        use.
+        <div class="footer-inner">
+            <div class="footer-links">
+                <a href="https://github.com/OpenCureLabs/OpenCureLabs" target="_blank" rel="noopener">GitHub</a>
+                <a href="https://x.com/shoneanstey" target="_blank" rel="noopener">𝕏 @shoneanstey</a>
+                <a href="/data">Data API</a>
+                <a href="/contribute">Contribute</a>
+                <a href="/about">About</a>
+            </div>
+            <div class="footer-disclaimer">
+                All artifacts are AI-generated and should be independently validated.
+                Each includes Ed25519 signatures and provenance metadata for inspection.
+            </div>
+            <div style="font-size:0.72rem;color:var(--muted)">
+                © 2026 OpenCure Labs · Open source under MIT License · Made with 🔬 in Vancouver 🇨🇦
+            </div>
+        </div>
     </footer>
 
     <script>
         const INGEST_URL = 'https://ingest.opencurelabs.ai';
         const SKILL_ICONS = {
-            neoantigen_prediction: '🎯',
-            variant_pathogenicity: '🧬',
-            molecular_docking: '⚗️',
-            qsar: '📊',
-            structure_prediction: '🔬',
-            sequencing_qc: '📋',
-            grok_research: '📚',
-            report_generator: '📄',
+            neoantigen_prediction: '🎯', variant_pathogenicity: '🧬',
+            molecular_docking: '⚗️', qsar: '📊', structure_prediction: '🔬',
+            sequencing_qc: '📋', grok_research: '📚', report_generator: '📄',
         };
         const SKILL_LABELS = {
-            neoantigen_prediction: 'Neoantigen Prediction',
-            variant_pathogenicity: 'Variant Pathogenicity',
-            molecular_docking: 'Molecular Docking',
-            qsar: 'QSAR Model',
-            structure_prediction: 'Structure Prediction',
-            sequencing_qc: 'Sequencing QC',
-            grok_research: 'Literature Review',
-            report_generator: 'Report',
+            neoantigen_prediction: 'Neoantigen Prediction', variant_pathogenicity: 'Variant Pathogenicity',
+            molecular_docking: 'Molecular Docking', qsar: 'QSAR Model',
+            structure_prediction: 'Structure Prediction', sequencing_qc: 'Sequencing QC',
+            grok_research: 'Literature Review', report_generator: 'Report',
         };
-
         const SPECIES_EMPTY = {
-            dog: {
-                icon: '🐕',
-                title: 'No canine results yet',
-                msg: 'Canine (DLA-88) neoantigen and variant pipelines are ready. Start a run with <code>./dashboard/lab.sh</code> and select Dog as the species — results will appear here automatically.',
-            },
-            cat: {
-                icon: '🐈',
-                title: 'No feline results yet',
-                msg: 'Feline (FLA) neoantigen and variant pipelines are ready. Start a run with <code>./dashboard/lab.sh</code> and select Cat as the species — results will appear here automatically.',
-            },
+            dog: { icon: '🐕', title: 'No canine results yet', msg: 'Canine (DLA-88) neoantigen and variant pipelines are ready. Start a run with <code>./dashboard/lab.sh</code> and select Dog.' },
+            cat: { icon: '🐈', title: 'No feline results yet', msg: 'Feline (FLA) neoantigen and variant pipelines are ready. Start a run with <code>./dashboard/lab.sh</code> and select Cat.' },
         };
 
-        let allResults = [];
-        let allCritiques = {};  // keyed by result_id
-        let activeSkill = 'all';
-        let activeSpecies = 'all';
-        let activeStatFilter = 'all';  // 'all' | 'novel' | 'today'
-        let activeView = 'cards';  // 'cards' | 'table'
-        let nextCursor = null;
-        let hasMore = false;
-        let isLoadingMore = false;
+        let allResults = [], allCritiques = {};
+        let activeSkill = 'all', activeSpecies = 'all', activeStatFilter = 'all', activeView = 'cards';
+        let searchQuery = '', searchTimeout = null;
+        let nextCursor = null, hasMore = false, isLoadingMore = false;
+        let currentResults = [];  // tracks the last fetched/filtered result set
+
+        // ── Unified filter URL builder ───────────────────────────
+        function buildFilterUrl(limitOverride) {
+            const limit = limitOverride || 200;
+            let url = INGEST_URL + '/results?limit=' + limit;
+            if (activeSkill !== 'all') url += '&skill=' + encodeURIComponent(activeSkill);
+            if (activeSpecies !== 'all') url += '&species=' + encodeURIComponent(activeSpecies);
+            if (activeStatFilter === 'novel') url += '&novel=true';
+            if (activeStatFilter === 'today') url += '&date=' + new Date().toISOString().slice(0, 10);
+            if (searchQuery && searchQuery.length >= 2) url += '&gene=' + encodeURIComponent(searchQuery);
+            return url;
+        }
+
+        async function applyFilters() {
+            const feed = document.getElementById('feed');
+            feed.innerHTML = '<div class="loading">Loading…</div>';
+            try {
+                const url = buildFilterUrl(200);
+                const data = await (await fetch(url)).json();
+                currentResults = data.results || [];
+                hasMore = data.has_more || false;
+                nextCursor = data.next_cursor || null;
+                renderFeed(currentResults);
+                updateLoadMoreButton();
+            } catch { feed.innerHTML = '<div class="loading">Failed to load results.</div>'; }
+        }
 
         async function setStatFilter(filter) {
-            // Toggle off if clicking the same filter
-            if (activeStatFilter === filter && filter !== 'all') {
-                activeStatFilter = 'all';
-            } else {
-                activeStatFilter = filter;
-            }
+            if (activeStatFilter === filter && filter !== 'all') activeStatFilter = 'all';
+            else activeStatFilter = filter;
             document.querySelectorAll('.stats-bar .stat').forEach(s => s.classList.remove('active'));
             if (activeStatFilter !== 'all') {
                 const idx = activeStatFilter === 'novel' ? 1 : 3;
                 document.querySelectorAll('.stats-bar .stat')[idx].classList.add('active');
             }
-
-            if (activeStatFilter === 'all') {
-                // Reset to normal unfiltered feed
-                renderFeed(allResults);
-            } else {
-                // Fetch filtered results from server (client array is only first 100)
-                const feed = document.getElementById('feed');
-                feed.innerHTML = '<div class="loading">Loading…</div>';
-                try {
-                    let url = `${INGEST_URL}/results?limit=200`;
-                    if (activeStatFilter === 'novel') url += '&novel=true';
-                    if (activeStatFilter === 'today') url += `&date=${new Date().toISOString().slice(0, 10)}`;
-                    const resp = await fetch(url);
-                    const data = await resp.json();
-                    renderFeed(data.results || []);
-                } catch (e) {
-                    console.error('Failed to load filtered results', e);
-                    feed.innerHTML = '<div class="loading">Failed to load results.</div>';
-                }
-            }
+            await applyFilters();
             document.getElementById('feed').scrollIntoView({ behavior: 'smooth' });
+        }
+
+        function clearStatFilter() {
+            activeStatFilter = 'all';
+            document.querySelectorAll('.stats-bar .stat').forEach(s => s.classList.remove('active'));
         }
 
         function setSkillFilter(btn, skill) {
             document.querySelectorAll('[data-skill]').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            activeSkill = skill;
-            renderFeed(allResults);
+            btn.classList.add('active'); activeSkill = skill;
+            clearStatFilter();
+            applyFilters();
         }
 
         function setSpeciesFilter(btn, species) {
-            document.querySelectorAll('[data-species]').forEach(b => {
-                b.classList.remove('active', 'vet-active');
-            });
-            if (species === 'dog' || species === 'cat') {
-                btn.classList.add('vet-active');
-            } else {
-                btn.classList.add('active');
-            }
+            document.querySelectorAll('[data-species]').forEach(b => b.classList.remove('active', 'vet-active'));
+            btn.classList.add(species === 'dog' || species === 'cat' ? 'vet-active' : 'active');
             activeSpecies = species;
-            renderFeed(allResults);
+            clearStatFilter();
+            applyFilters();
+        }
+
+        function onSearchInput(value) {
+            clearTimeout(searchTimeout);
+            searchQuery = value.trim().toLowerCase();
+            searchTimeout = setTimeout(() => {
+                applyFilters();
+            }, 300);
         }
 
         function timeAgo(iso) {
             const diff = Date.now() - new Date(iso).getTime();
             const m = Math.floor(diff / 60000);
             if (m < 1) return 'just now';
-            if (m < 60) return `${m}m ago`;
+            if (m < 60) return m + 'm ago';
             const h = Math.floor(m / 60);
-            if (h < 24) return `${h}h ago`;
-            return `${Math.floor(h / 24)}d ago`;
+            if (h < 24) return h + 'h ago';
+            return Math.floor(h / 24) + 'd ago';
         }
 
-        function speciesBadge(species) {
-            if (!species || species === 'human') return '';
-            const label = species === 'dog' ? '🐕 Canine' : species === 'cat' ? '🐈 Feline' : species;
-            return `<span class="species-badge ${species}">${label}</span>`;
+        function speciesBadge(sp) {
+            if (!sp || sp === 'human') return '';
+            const l = sp === 'dog' ? '🐕 Canine' : sp === 'cat' ? '🐈 Feline' : sp;
+            return '<span class="species-badge ' + sp + '">' + l + '</span>';
         }
 
-        function critiqueBadges(resultId) {
-            const crits = allCritiques[resultId];
-            if (!crits || !crits.length) {
-                return '<div class="critique-badges"><span class="critique-badge awaiting">⏳ Awaiting review</span></div>';
-            }
+        function critiqueBadges(id) {
+            const crits = allCritiques[id];
+            if (!crits || !crits.length) return '<div class="critique-badges"><span class="critique-badge awaiting">⏳ Awaiting review</span></div>';
             return '<div class="critique-badges">' + crits.map(c => {
                 const rec = c.recommendation || 'revise';
-                const score = c.overall_score != null ? `${c.overall_score}/10` : '';
+                const score = c.overall_score != null ? c.overall_score + '/10' : '';
                 const label = c.reviewer === 'claude_opus' ? 'Opus' : c.reviewer === 'grok_literature' ? 'Grok' : c.reviewer;
                 const icon = rec === 'publish' ? '✓' : rec === 'reject' ? '✗' : '↻';
-                return `<span class="critique-badge ${rec}">${label}: ${score} ${icon} ${rec}</span>`;
+                return '<span class="critique-badge ' + rec + '">' + label + ': ' + score + ' ' + icon + ' ' + rec + '</span>';
             }).join('') + '</div>';
         }
 
-        function getReviewScore(resultId) {
-            const crits = allCritiques[resultId];
+        function getReviewScore(id) {
+            const crits = allCritiques[id];
             if (!crits || !crits.length) return null;
-            // Use highest-priority reviewer score (grok_literature > claude_opus > first)
-            const grok = crits.find(c => c.reviewer === 'grok_literature');
-            const opus = crits.find(c => c.reviewer === 'claude_opus');
-            const best = grok || opus || crits[0];
+            const best = crits.find(c => c.reviewer === 'grok_literature') || crits.find(c => c.reviewer === 'claude_opus') || crits[0];
             return best.overall_score != null ? best.overall_score : null;
         }
 
-        function scoreHtml(resultId) {
-            const score = getReviewScore(resultId);
-            if (score == null) return '<div class="card-score"><span class="score-value score-none">—</span><span class="score-label">review</span></div>';
-            const cls = score >= 7 ? 'score-high' : score >= 4 ? 'score-mid' : 'score-low';
-            return `<div class="card-score"><span class="score-value ${cls}">${score.toFixed(1)}</span><span class="score-label">/ 10</span></div>`;
+        function scoreHtml(id) {
+            const s = getReviewScore(id);
+            if (s == null) return '<div class="card-score"><span class="score-value score-none">—</span><span class="score-label">review</span></div>';
+            const c = s >= 7 ? 'score-high' : s >= 4 ? 'score-mid' : 'score-low';
+            return '<div class="card-score"><span class="score-value ' + c + '">' + s.toFixed(1) + '</span><span class="score-label">/ 10</span></div>';
         }
 
-        function scoreClass(score) {
-            if (score == null) return 'score-none';
-            return score >= 7 ? 'score-high' : score >= 4 ? 'score-mid' : 'score-low';
-        }
+        function scoreClass(s) { return s == null ? 'score-none' : s >= 7 ? 'score-high' : s >= 4 ? 'score-mid' : 'score-low'; }
 
-        function setView(view, btn) {
-            activeView = view;
+        function setView(v, btn) {
+            activeView = v;
             document.querySelectorAll('.view-btn').forEach(b => b.classList.remove('active'));
-            btn.classList.add('active');
-            renderFeed(allResults);
+            btn.classList.add('active'); renderFeed(currentResults);
         }
 
+        // ── Detail Modal ─────────────────────────────────────────
+        function openModal(r) {
+            document.getElementById('modal-title').textContent =
+                r.gene ? (SKILL_LABELS[r.skill] || r.skill) + ' — ' + r.gene : (SKILL_LABELS[r.skill] || r.skill);
+
+            let m = '';
+            if (r.gene) m += '<dt>Gene</dt><dd>' + r.gene + '</dd>';
+            m += '<dt>Skill</dt><dd>' + (SKILL_LABELS[r.skill] || r.skill) + '</dd>';
+            m += '<dt>Species</dt><dd>' + (r.species || 'human') + '</dd>';
+            m += '<dt>Date</dt><dd>' + r.date + '</dd>';
+            m += '<dt>Status</dt><dd>' + r.status + '</dd>';
+            if (r.confidence_score != null) m += '<dt>Confidence</dt><dd>' + (r.confidence_score * 100).toFixed(1) + '%</dd>';
+            m += '<dt>Novel</dt><dd>' + (r.novel ? '✨ Yes' : 'No') + '</dd>';
+            m += '<dt>Result ID</dt><dd style="font-size:0.75rem;word-break:break-all">' + r.id + '</dd>';
+            const sc = getReviewScore(r.id);
+            if (sc != null) m += '<dt>Review Score</dt><dd class="' + scoreClass(sc) + '">' + sc.toFixed(1) + ' / 10</dd>';
+            document.getElementById('modal-meta').innerHTML = m;
+
+            document.getElementById('modal-critiques').innerHTML = critiqueBadges(r.id);
+
+            const ga = r.gene ? ' --gene ' + r.gene : '';
+            const sa = (r.species && r.species !== 'human') ? ' --species ' + r.species : '';
+            document.getElementById('modal-reproduce').textContent =
+                'git clone https://github.com/OpenCureLabs/OpenCureLabs.git && cd OpenCureLabs\n' +
+                'bash scripts/setup.sh --skip-models && source .venv/bin/activate\n' +
+                'bash dashboard/lab.sh  # select: ' + r.skill + ga + sa;
+
+            document.getElementById('modal-actions').innerHTML =
+                '<a class="modal-btn-primary" href="' + r.r2_url + '" target="_blank" rel="noopener">Download Artifact (JSON)</a>' +
+                '<button class="modal-btn-secondary" onclick="navigator.clipboard.writeText(\'' + r.r2_url.replace(/'/g, "\\'") + '\');this.textContent=\'Copied!\'">Copy URL</button>';
+
+            document.getElementById('modal-overlay').classList.add('open');
+            document.body.style.overflow = 'hidden';
+        }
+
+        function closeModal() {
+            document.getElementById('modal-overlay').classList.remove('open');
+            document.body.style.overflow = '';
+        }
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+        // ── Render feed ──────────────────────────────────────────
         function renderFeed(results) {
             const feed = document.getElementById('feed');
             let filtered = results;
-            if (activeSkill !== 'all') filtered = filtered.filter(r => r.skill === activeSkill);
-            if (activeSpecies !== 'all') filtered = filtered.filter(r => (r.species || 'human') === activeSpecies);
-
             if (!filtered.length) {
-                const vetEmpty = SPECIES_EMPTY[activeSpecies];
-                if (vetEmpty) {
-                    feed.innerHTML = `<div class="empty-vet">
-                        <div class="empty-icon">${vetEmpty.icon}</div>
-                        <h3>${vetEmpty.title}</h3>
-                        <p>${vetEmpty.msg}</p>
-                    </div>`;
-                } else {
-                    feed.innerHTML = '<div class="loading">No results yet for this filter.</div>';
-                }
+                const ve = SPECIES_EMPTY[activeSpecies];
+                if (ve) feed.innerHTML = '<div class="empty-vet"><div class="empty-icon">' + ve.icon + '</div><h3>' + ve.title + '</h3><p>' + ve.msg + '</p></div>';
+                else feed.innerHTML = '<div class="loading">No results yet for this filter.</div>';
                 return;
             }
+            window.filteredResults = filtered;
+            if (activeView === 'table') { renderTable(filtered); return; }
 
-            if (activeView === 'table') {
-                renderTable(filtered);
-                return;
-            }
-
-            feed.innerHTML = filtered.map(r => `
-    <a class="result-card" href="${r.r2_url}" target="_blank" rel="noopener">
-      <div class="skill-icon">${SKILL_ICONS[r.skill] || '🔬'}</div>
-      <div class="card-body">
-        <div class="card-top">
-          <span class="skill-tag">${SKILL_LABELS[r.skill] || r.skill}</span>
-          ${r.novel ? '<span class="novel-badge">✨ Novel</span>' : ''}
-          ${speciesBadge(r.species)}
-        </div>
-        <div class="card-title">${r.gene ? `Gene: <strong>${r.gene}</strong>` : r.skill.replace(/_/g, ' ')}</div>
-        <div class="card-meta">
-          ${r.confidence_score != null ? `<span class="meta-item">Confidence: <span>${(r.confidence_score * 100).toFixed(0)}%</span></span>` : ''}
-          <span class="meta-item">Date: <span>${r.date}</span></span>
-          <span class="meta-item">Status: <span>${r.status}</span></span>
-        </div>
-        ${critiqueBadges(r.id)}
-      </div>
-      ${scoreHtml(r.id)}
-      <div class="card-time">${timeAgo(r.created_at)}</div>
-    </a>
-  `).join('');
+            feed.innerHTML = filtered.map((r, i) =>
+                '<div class="result-card" onclick="openModal(filteredResults[' + i + '])">' +
+                '<div class="skill-icon">' + (SKILL_ICONS[r.skill] || '🔬') + '</div>' +
+                '<div class="card-body">' +
+                '<div class="card-top">' +
+                '<span class="skill-tag">' + (SKILL_LABELS[r.skill] || r.skill) + '</span>' +
+                (r.novel ? '<span class="novel-badge">✨ Novel</span>' : '') +
+                speciesBadge(r.species) +
+                '</div>' +
+                '<div class="card-title">' + (r.gene ? 'Gene: <strong>' + r.gene + '</strong>' : r.skill.replace(/_/g, ' ')) + '</div>' +
+                '<div class="card-meta">' +
+                (r.confidence_score != null ? '<span class="meta-item">Confidence: <span>' + (r.confidence_score * 100).toFixed(0) + '%</span></span>' : '') +
+                '<span class="meta-item">Date: <span>' + r.date + '</span></span>' +
+                '<span class="meta-item">Status: <span>' + r.status + '</span></span>' +
+                '</div>' +
+                critiqueBadges(r.id) +
+                '</div>' +
+                scoreHtml(r.id) +
+                '<div class="card-time">' + timeAgo(r.created_at) + '</div>' +
+                '</div>'
+            ).join('');
         }
 
         function renderTable(results) {
-            const feed = document.getElementById('feed');
-            const rows = results.map(r => {
-                const score = getReviewScore(r.id);
-                const cls = scoreClass(score);
-                const scoreText = score != null ? score.toFixed(1) : '—';
-                const gene = r.gene || '—';
-                const novel = r.novel ? '✨' : '';
-                const species = (!r.species || r.species === 'human') ? '' : r.species === 'dog' ? '🐕' : '🐈';
-                return `<tr><td><a href="${r.r2_url}" target="_blank" rel="noopener">${gene}</a></td><td>${SKILL_LABELS[r.skill] || r.skill}</td><td>${species}</td><td class="${cls}">${scoreText}</td><td>${novel}</td><td class="td-muted">${r.date}</td><td class="td-muted">${r.status}</td><td class="td-muted">${timeAgo(r.created_at)}</td></tr>`;
+            window.filteredResults = results;
+            const rows = results.map((r, i) => {
+                const s = getReviewScore(r.id), c = scoreClass(s);
+                const st = s != null ? s.toFixed(1) : '—';
+                const sp = (!r.species || r.species === 'human') ? '' : r.species === 'dog' ? '🐕' : '🐈';
+                return '<tr onclick="openModal(filteredResults[' + i + '])" style="cursor:pointer"><td>' + (r.gene || '—') + '</td><td>' + (SKILL_LABELS[r.skill] || r.skill) + '</td><td>' + sp + '</td><td class="' + c + '">' + st + '</td><td>' + (r.novel ? '✨' : '') + '</td><td class="td-muted">' + r.date + '</td><td class="td-muted">' + r.status + '</td><td class="td-muted">' + timeAgo(r.created_at) + '</td></tr>';
             }).join('');
-            feed.innerHTML = `<table class="feed-table"><thead><tr><th>Gene</th><th>Skill</th><th>Sp.</th><th>Score</th><th>Novel</th><th>Date</th><th>Status</th><th>Age</th></tr></thead><tbody>${rows}</tbody></table>`;
+            document.getElementById('feed').innerHTML = '<table class="feed-table"><thead><tr><th>Gene</th><th>Skill</th><th>Sp.</th><th>Score</th><th>Novel</th><th>Date</th><th>Status</th><th>Age</th></tr></thead><tbody>' + rows + '</tbody></table>';
         }
 
-        function updateStats(counts) {
-            document.getElementById('stat-total').textContent = counts.total.toLocaleString();
-            document.getElementById('stat-novel').textContent = counts.novel.toLocaleString();
-            document.getElementById('stat-skills').textContent = counts.skills;
-            document.getElementById('stat-today').textContent = counts.today.toLocaleString();
+        function updateStats(c) {
+            document.getElementById('stat-total').textContent = c.total.toLocaleString();
+            document.getElementById('stat-novel').textContent = c.novel.toLocaleString();
+            document.getElementById('stat-skills').textContent = c.skills;
+            document.getElementById('stat-today').textContent = c.today.toLocaleString();
         }
 
         function updateLoadMoreButton() {
-            const btn = document.getElementById('load-more');
-            btn.style.display = hasMore ? 'inline-block' : 'none';
+            document.getElementById('load-more').style.display = hasMore ? 'inline-block' : 'none';
         }
 
         async function loadMore() {
             if (isLoadingMore || !hasMore || !nextCursor) return;
             isLoadingMore = true;
-            const btn = document.getElementById('load-more');
-            const spinner = document.getElementById('load-more-spinner');
-            btn.style.display = 'none';
-            spinner.style.display = 'block';
-
+            document.getElementById('load-more').style.display = 'none';
+            document.getElementById('load-more-spinner').style.display = 'block';
             try {
-                const resp = await fetch(`${INGEST_URL}/results?limit=100&after=${encodeURIComponent(nextCursor)}`);
-                const data = await resp.json();
-                const newResults = data.results || [];
-                allResults = allResults.concat(newResults);
+                const url = buildFilterUrl(100) + '&after=' + encodeURIComponent(nextCursor);
+                const data = await (await fetch(url)).json();
+                currentResults = currentResults.concat(data.results || []);
+                allResults = allResults.concat(data.results || []);
                 hasMore = data.has_more || false;
                 nextCursor = data.next_cursor || null;
-                renderFeed(allResults);
-                updateLoadMoreButton();
-            } catch (e) {
-                console.error('Failed to load more results', e);
-            } finally {
-                isLoadingMore = false;
-                spinner.style.display = 'none';
-            }
+                renderFeed(currentResults); updateLoadMoreButton();
+            } catch (e) { console.error('Failed to load more', e); }
+            finally { isLoadingMore = false; document.getElementById('load-more-spinner').style.display = 'none'; }
         }
 
         async function loadResults() {
             try {
-                const [resultsResp, countResp, critiquesResp] = await Promise.all([
-                    fetch(`${INGEST_URL}/results?limit=100`),
-                    fetch(`${INGEST_URL}/results/count`),
-                    fetch(`${INGEST_URL}/critiques?limit=200`),
+                const [rr, cr, crit] = await Promise.all([
+                    fetch(INGEST_URL + '/results?limit=100'),
+                    fetch(INGEST_URL + '/results/count'),
+                    fetch(INGEST_URL + '/critiques?limit=200'),
                 ]);
-                const resultsData = await resultsResp.json();
-                allResults = resultsData.results || [];
-                hasMore = resultsData.has_more || false;
-                nextCursor = resultsData.next_cursor || null;
-
-                // Use real counts from count endpoint
-                try {
-                    const countData = await countResp.json();
-                    updateStats(countData);
-                } catch {
-                    // Fallback to local count
-                    updateStats({ total: allResults.length, novel: allResults.filter(r => r.novel).length, skills: new Set(allResults.map(r => r.skill)).size, today: 0 });
-                }
-
-                // Index critiques by result_id
+                const rd = await rr.json();
+                allResults = rd.results || []; currentResults = allResults; hasMore = rd.has_more || false; nextCursor = rd.next_cursor || null;
+                try { updateStats(await cr.json()); }
+                catch { updateStats({ total: allResults.length, novel: allResults.filter(r => r.novel).length, skills: new Set(allResults.map(r => r.skill)).size, today: 0 }); }
                 allCritiques = {};
-                try {
-                    const critiquesData = await critiquesResp.json();
-                    for (const c of (critiquesData.critiques || [])) {
-                        if (!allCritiques[c.result_id]) allCritiques[c.result_id] = [];
-                        allCritiques[c.result_id].push(c);
-                    }
-                } catch { /* critiques are optional */ }
-
-                renderFeed(allResults);
-                updateLoadMoreButton();
-                document.getElementById('last-updated').textContent =
-                    `Updated ${new Date().toLocaleTimeString()}`;
-            } catch (e) {
-                document.getElementById('feed').innerHTML =
-                    '<div class="loading">Could not load results — please try again shortly.</div>';
-            }
+                try { for (const c of ((await crit.json()).critiques || [])) { if (!allCritiques[c.result_id]) allCritiques[c.result_id] = []; allCritiques[c.result_id].push(c); } } catch { }
+                // If filters are active, re-fetch with those filters; otherwise show allResults
+                const hasActiveFilter = activeSkill !== 'all' || activeSpecies !== 'all' || activeStatFilter !== 'all' || (searchQuery && searchQuery.length >= 2);
+                if (hasActiveFilter) { await applyFilters(); }
+                else { currentResults = allResults; renderFeed(currentResults); updateLoadMoreButton(); }
+                document.getElementById('last-updated').textContent = 'Updated ' + new Date().toLocaleTimeString();
+            } catch { document.getElementById('feed').innerHTML = '<div class="loading">Could not load results — please try again shortly.</div>'; }
         }
 
         loadResults();
-        // Auto-refresh every 60 seconds
         setInterval(loadResults, 60000);
     </script>
 </body>

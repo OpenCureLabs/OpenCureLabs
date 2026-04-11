@@ -8,718 +8,388 @@
     <link rel="icon" href="https://pub.opencurelabs.ai/assets/favicon.ico" type="image/x-icon" />
     <style>
         :root {
-            --bg: #0a0e1a;
-            --surface: #111827;
-            --border: #1f2937;
-            --accent: #22d3ee;
-            --accent2: #818cf8;
-            --text: #e2e8f0;
-            --muted: #64748b;
-            --novel: #34d399;
-            --tag-bg: #1e293b;
-            --warn: #f59e0b;
-            --danger: #ef4444;
+            --bg: #0a0e1a; --surface: #111827; --border: #1f2937;
+            --accent: #22d3ee; --accent2: #818cf8; --text: #e2e8f0;
+            --muted: #64748b; --novel: #34d399; --tag-bg: #1e293b;
+            --warn: #f59e0b; --danger: #ef4444;
         }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; min-height: 100vh; }
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
+        header { border-bottom: 1px solid var(--border); padding: 1rem 2rem; display: flex; align-items: center; gap: 1rem; position: sticky; top: 0; z-index: 100; background: var(--bg); }
+        header img { height: 32px; }
+        header h1 { font-size: 1.15rem; font-weight: 600; }
+        .nav-links { display: flex; gap: 1.25rem; margin-left: 2rem; align-items: center; }
+        .nav-links a { color: var(--muted); text-decoration: none; font-size: 0.88rem; font-weight: 500; transition: color 0.15s; white-space: nowrap; }
+        .nav-links a:hover, .nav-links a.active { color: var(--accent); }
+        .gh-badge { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.3rem 0.7rem; border-radius: 6px; border: 1px solid var(--border); background: var(--tag-bg); color: var(--text); font-size: 0.78rem; font-weight: 500; text-decoration: none; transition: all 0.15s; margin-left: auto; flex-shrink: 0; }
+        .gh-badge:hover { border-color: var(--accent); color: var(--accent); }
+        .gh-badge svg { width: 16px; height: 16px; fill: currentColor; }
+        .hamburger { display: none; background: none; border: none; color: var(--text); font-size: 1.5rem; cursor: pointer; padding: 0.25rem; margin-left: auto; }
+        @media (max-width: 768px) {
+            .nav-links { display: none; position: absolute; top: 100%; left: 0; right: 0; flex-direction: column; background: var(--surface); border-bottom: 1px solid var(--border); padding: 1rem 2rem; gap: 1rem; margin-left: 0; }
+            .nav-links.open { display: flex; }
+            .hamburger { display: block; }
+            .gh-badge { display: none; }
+            .nav-links .gh-badge-mobile { display: inline-flex; }
         }
+        .gh-badge-mobile { display: none; align-items: center; gap: 0.4rem; padding: 0.3rem 0.7rem; border-radius: 6px; border: 1px solid var(--border); background: var(--tag-bg); color: var(--text); font-size: 0.78rem; font-weight: 500; text-decoration: none; width: fit-content; }
 
-        body {
-            background: var(--bg);
-            color: var(--text);
-            font-family: 'Inter', system-ui, sans-serif;
-            min-height: 100vh;
-        }
+        .hero { text-align: center; padding: 3rem 1rem 2rem; border-bottom: 1px solid var(--border); }
+        .hero h2 { font-size: 2rem; font-weight: 700; background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+        .hero p { color: var(--muted); margin-top: 0.5rem; font-size: 0.95rem; max-width: 620px; margin-left: auto; margin-right: auto; line-height: 1.6; }
 
-        header {
-            border-bottom: 1px solid var(--border);
-            padding: 1.5rem 2rem;
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
+        .container { max-width: 1100px; margin: 0 auto; padding: 2rem; }
+        h3 { font-size: 1.15rem; margin: 2.5rem 0 1rem; color: var(--accent); }
+        p.subtitle { color: var(--muted); margin-bottom: 2rem; font-size: 0.95rem; }
 
-        header img {
-            height: 36px;
-        }
+        .why-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin: 1rem 0 2rem; }
+        .why-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1.25rem; }
+        .why-card .why-icon { font-size: 1.75rem; margin-bottom: 0.5rem; }
+        .why-card h4 { font-size: 0.95rem; font-weight: 600; margin-bottom: 0.4rem; }
+        .why-card p { color: var(--muted); font-size: 0.85rem; line-height: 1.5; margin: 0; }
 
-        header h1 {
-            font-size: 1.25rem;
-            font-weight: 600;
-            color: var(--text);
-        }
+        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
+        .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; text-align: center; }
+        .stat-card .value { font-size: 2rem; font-weight: 700; color: var(--accent); line-height: 1.2; }
+        .stat-card .value.warn { color: var(--warn); }
+        .stat-card .value.danger { color: var(--danger); }
+        .stat-card .value.success { color: var(--novel); }
+        .stat-card .value.accent2 { color: var(--accent2); }
+        .stat-card .label { font-size: 0.8rem; color: var(--muted); margin-top: 0.25rem; text-transform: uppercase; letter-spacing: 0.05em; }
 
-        nav {
-            display: flex;
-            gap: 1.25rem;
-            margin-left: 2rem;
-        }
+        .skill-table { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+        .skill-table th, .skill-table td { padding: 0.75rem 1rem; text-align: left; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
+        .skill-table th { background: var(--tag-bg); color: var(--muted); font-weight: 600; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em; }
+        .skill-table td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nums; }
+        .skill-table th:not(:first-child) { text-align: right; }
+        .skill-table tr:last-child td { border-bottom: none; }
+        .bar-cell { position: relative; }
+        .bar-bg { position: absolute; left: 0; top: 0; bottom: 0; background: rgba(34, 211, 238, 0.08); border-radius: 4px; }
 
-        nav a {
-            color: var(--muted);
-            text-decoration: none;
-            font-size: 0.9rem;
-            font-weight: 500;
-        }
+        .rank { color: var(--accent); font-weight: 600; }
+        .rank-gold { color: #fbbf24; }
+        .rank-silver { color: #94a3b8; }
+        .rank-bronze { color: #d97706; }
 
-        nav a.active {
-            color: var(--accent);
-        }
+        .chain-list { display: flex; flex-direction: column; gap: 1rem; }
+        .chain-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; }
+        .chain-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; }
+        .chain-id { font-family: monospace; font-size: 0.8rem; color: var(--muted); }
+        .chain-progress { font-size: 0.85rem; color: var(--accent); font-weight: 600; }
+        .pipeline-steps { display: flex; align-items: center; gap: 0; overflow-x: auto; padding: 0.5rem 0; }
+        .pipeline-step { display: flex; flex-direction: column; align-items: center; min-width: 120px; padding: 0.5rem; }
+        .step-dot { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; margin-bottom: 0.4rem; }
+        .step-dot.completed { background: rgba(16,185,129,0.2); color: #10b981; border: 2px solid #10b981; }
+        .step-dot.claimed { background: rgba(251,191,36,0.2); color: #fbbf24; border: 2px solid #fbbf24; }
+        .step-dot.available { background: rgba(34,211,238,0.15); color: var(--accent); border: 2px solid var(--accent); }
+        .step-dot.failed { background: rgba(239,68,68,0.2); color: #ef4444; border: 2px solid #ef4444; }
+        .step-skill { font-size: 0.75rem; color: var(--text); text-align: center; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+        .step-status { font-size: 0.65rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
+        .pipeline-arrow { color: var(--muted); font-size: 1.2rem; margin: 0 0.25rem; flex-shrink: 0; }
+        .no-chains { color: var(--muted); font-style: italic; text-align: center; padding: 2rem; }
 
-        .container {
-            max-width: 1100px;
-            margin: 0 auto;
-            padding: 2rem;
-        }
+        .mode-tabs { display: flex; gap: 0; margin: 1rem 0 0; border-bottom: 2px solid var(--border); }
+        .mode-tab { padding: 0.75rem 1.5rem; cursor: pointer; color: var(--muted); font-size: 0.9rem; font-weight: 500; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.15s; background: none; border-top: none; border-left: none; border-right: none; }
+        .mode-tab:hover { color: var(--text); }
+        .mode-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+        .mode-content { display: none; padding: 1.5rem 0; }
+        .mode-content.active { display: block; }
 
-        h2 {
-            font-size: 1.75rem;
-            margin-bottom: 0.5rem;
-        }
+        .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; margin-bottom: 1rem; }
+        .card h4 { color: var(--accent2); margin-bottom: 0.5rem; }
+        pre { background: var(--tag-bg); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; overflow-x: auto; font-size: 0.85rem; line-height: 1.6; color: var(--text); }
+        code { color: var(--accent); font-family: 'JetBrains Mono', 'Fira Code', monospace; background: var(--tag-bg); padding: 0.15rem 0.4rem; border-radius: 4px; font-size: 0.82rem; }
+        pre code { background: none; padding: 0; }
+        .loading { color: var(--muted); font-style: italic; }
 
-        h3 {
-            font-size: 1.15rem;
-            margin: 2rem 0 1rem;
-            color: var(--accent);
-        }
-
-        p.subtitle {
-            color: var(--muted);
-            margin-bottom: 2rem;
-            font-size: 0.95rem;
-        }
-
-        /* ── Stats Grid ─────────────────────────────────────────── */
-        .stats-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-            gap: 1rem;
-            margin-bottom: 2rem;
-        }
-
-        .stat-card {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 1.25rem;
-            text-align: center;
-        }
-
-        .stat-card .value {
-            font-size: 2rem;
-            font-weight: 700;
-            color: var(--accent);
-            line-height: 1.2;
-        }
-
-        .stat-card .value.warn {
-            color: var(--warn);
-        }
-
-        .stat-card .value.danger {
-            color: var(--danger);
-        }
-
-        .stat-card .value.success {
-            color: var(--novel);
-        }
-
-        .stat-card .value.accent2 {
-            color: var(--accent2);
-        }
-
-        .stat-card .label {
-            font-size: 0.8rem;
-            color: var(--muted);
-            margin-top: 0.25rem;
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-
-        /* ── Skill Breakdown ────────────────────────────────────── */
-        .skill-table {
-            width: 100%;
-            border-collapse: collapse;
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            overflow: hidden;
-        }
-
-        .skill-table th,
-        .skill-table td {
-            padding: 0.75rem 1rem;
-            text-align: left;
-            border-bottom: 1px solid var(--border);
-            font-size: 0.9rem;
-        }
-
-        .skill-table th {
-            background: var(--tag-bg);
-            color: var(--muted);
-            font-weight: 600;
-            text-transform: uppercase;
-            font-size: 0.75rem;
-            letter-spacing: 0.05em;
-        }
-
-        .skill-table td:not(:first-child) {
-            text-align: right;
-            font-variant-numeric: tabular-nums;
-        }
-
-        .skill-table th:not(:first-child) {
-            text-align: right;
-        }
-
-        .skill-table tr:last-child td {
-            border-bottom: none;
-        }
-
-        .bar-cell {
-            position: relative;
-        }
-
-        .bar-bg {
-            position: absolute;
-            left: 0;
-            top: 0;
-            bottom: 0;
-            background: rgba(34, 211, 238, 0.08);
-            border-radius: 4px;
-        }
-
-        /* ── Leaderboard ────────────────────────────────────────── */
-        .rank {
-            color: var(--accent);
-            font-weight: 600;
-        }
-
-        .rank-gold {
-            color: #fbbf24;
-        }
-
-        .rank-silver {
-            color: #94a3b8;
-        }
-
-        .rank-bronze {
-            color: #d97706;
-        }
-
-        /* ── Pipeline Chains ─────────────────────────────────────── */
-        .chain-list {
-            display: flex;
-            flex-direction: column;
-            gap: 1rem;
-        }
-
-        .chain-card {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 1.25rem;
-        }
-
-        .chain-header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 0.75rem;
-        }
-
-        .chain-id {
-            font-family: monospace;
-            font-size: 0.8rem;
-            color: var(--muted);
-        }
-
-        .chain-progress {
-            font-size: 0.85rem;
-            color: var(--accent);
-            font-weight: 600;
-        }
-
-        .pipeline-steps {
-            display: flex;
-            align-items: center;
-            gap: 0;
-            overflow-x: auto;
-            padding: 0.5rem 0;
-        }
-
-        .pipeline-step {
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            min-width: 120px;
-            padding: 0.5rem;
-        }
-
-        .step-dot {
-            width: 32px;
-            height: 32px;
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 0.75rem;
-            font-weight: 700;
-            margin-bottom: 0.4rem;
-        }
-
-        .step-dot.completed {
-            background: rgba(16, 185, 129, 0.2);
-            color: #10b981;
-            border: 2px solid #10b981;
-        }
-
-        .step-dot.claimed {
-            background: rgba(251, 191, 36, 0.2);
-            color: #fbbf24;
-            border: 2px solid #fbbf24;
-        }
-
-        .step-dot.available {
-            background: rgba(34, 211, 238, 0.15);
-            color: var(--accent);
-            border: 2px solid var(--accent);
-        }
-
-        .step-dot.failed {
-            background: rgba(239, 68, 68, 0.2);
-            color: #ef4444;
-            border: 2px solid #ef4444;
-        }
-
-        .step-skill {
-            font-size: 0.75rem;
-            color: var(--text);
-            text-align: center;
-            max-width: 120px;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }
-
-        .step-status {
-            font-size: 0.65rem;
-            color: var(--muted);
-            text-transform: uppercase;
-            letter-spacing: 0.05em;
-        }
-
-        .pipeline-arrow {
-            color: var(--muted);
-            font-size: 1.2rem;
-            margin: 0 0.25rem;
-            flex-shrink: 0;
-        }
-
-        .no-chains {
-            color: var(--muted);
-            font-style: italic;
-            text-align: center;
-            padding: 2rem;
-        }
-
-        /* ── Getting Started ────────────────────────────────────── */
-        .card {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 1.5rem;
-            margin-bottom: 1rem;
-        }
-
-        .card h4 {
-            color: var(--accent2);
-            margin-bottom: 0.5rem;
-        }
-
-        pre {
-            background: var(--tag-bg);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            padding: 1rem;
-            overflow-x: auto;
-            font-size: 0.85rem;
-            line-height: 1.6;
-            color: var(--text);
-        }
-
-        code {
-            color: var(--accent);
-        }
-
-        .loading {
-            color: var(--muted);
-            font-style: italic;
-        }
-
-        footer {
-            text-align: center;
-            padding: 2rem;
-            color: var(--muted);
-            font-size: 0.85rem;
-            border-top: 1px solid var(--border);
-            margin-top: 3rem;
-        }
-
-        footer a {
-            color: var(--accent);
-            text-decoration: none;
-        }
+        footer { text-align: center; padding: 2rem; color: var(--muted); font-size: 0.8rem; border-top: 1px solid var(--border); margin-top: 3rem; }
+        footer .footer-inner { max-width: 900px; margin: 0 auto; display: flex; flex-direction: column; gap: 0.75rem; align-items: center; }
+        footer .footer-links { display: flex; gap: 1.25rem; flex-wrap: wrap; justify-content: center; }
+        footer .footer-links a { color: var(--muted); text-decoration: none; font-size: 0.82rem; transition: color 0.15s; }
+        footer .footer-links a:hover { color: var(--accent); }
+        footer .footer-disclaimer { font-size: 0.75rem; max-width: 600px; line-height: 1.5; color: var(--muted); }
     </style>
 </head>
 
 <body>
+
     <header>
         <a href="/" style="display:flex;align-items:center;gap:.75rem;text-decoration:none;color:inherit">
             <img src="https://pub.opencurelabs.ai/assets/logo-symbol.svg" alt="OpenCure Labs" />
             <h1>OpenCure Labs</h1>
         </a>
-        <nav>
+        <nav class="nav-links" id="nav-links">
             <a href="/">Feed</a>
             <a href="/data">Data</a>
             <a href="/contribute" class="active">Contribute</a>
             <a href="/about">About</a>
+            <a class="gh-badge-mobile" href="https://github.com/OpenCureLabs/OpenCureLabs" target="_blank" rel="noopener">
+                <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+                GitHub
+            </a>
         </nav>
+        <a class="gh-badge" href="https://github.com/OpenCureLabs/OpenCureLabs" target="_blank" rel="noopener" title="Star us on GitHub">
+            <svg viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+            GitHub
+        </a>
+        <button class="hamburger" onclick="document.getElementById('nav-links').classList.toggle('open')" aria-label="Toggle menu">☰</button>
     </header>
 
+    <div class="hero">
+        <h2>Contribute to OpenCure Labs</h2>
+        <p>Donate spare GPU cycles to run computational biology research tasks. Every completed task advances open cancer, rare-disease, and drug-discovery research.</p>
+    </div>
+
     <div class="container">
-        <h2>Contribute GPU Time</h2>
-        <p class="subtitle">Donate spare GPU cycles to run computational biology research tasks.
-            Every completed task advances open cancer, rare disease, and drug discovery research.</p>
 
-        <!-- ── Live Task Queue Stats ──────────────────────────────── -->
-        <h3>Task Queue — Live Stats</h3>
-        <div class="stats-grid" id="stats-grid">
-            <div class="stat-card">
-                <div class="value loading" id="stat-available">—</div>
-                <div class="label">Available</div>
+        <!-- ── Why Contribute ──────────────────────────────────── -->
+        <h3>Why Contribute?</h3>
+        <div class="why-grid">
+            <div class="why-card">
+                <div class="why-icon">🧬</div>
+                <h4>25,000+ Published Artifacts</h4>
+                <p>Your GPU time generates signed, peer-reviewable computational biology results shared openly with the research community.</p>
             </div>
-            <div class="stat-card">
-                <div class="value warn loading" id="stat-claimed">—</div>
-                <div class="label">In Progress</div>
+            <div class="why-card">
+                <div class="why-icon">🔬</div>
+                <h4>Two-Tier Grok Review</h4>
+                <p>Every result passes independent scientific critique — automated validation plus Grok-powered methodology review — before publication.</p>
             </div>
-            <div class="stat-card">
-                <div class="value success loading" id="stat-completed">—</div>
-                <div class="label">Completed</div>
-            </div>
-            <div class="stat-card">
-                <div class="value danger loading" id="stat-failed">—</div>
-                <div class="label">Failed</div>
-            </div>
-            <div class="stat-card">
-                <div class="value loading" id="stat-total">—</div>
-                <div class="label">Total Tasks</div>
-            </div>
-            <div class="stat-card">
-                <div class="value accent2 loading" id="stat-derived">—</div>
-                <div class="label">Derived from Results</div>
-            </div>
-            <div class="stat-card">
-                <div class="value accent2 loading" id="stat-discovery">—</div>
-                <div class="label">From Discoveries</div>
+            <div class="why-card">
+                <div class="why-icon">🔐</div>
+                <h4>Ed25519 Signed Results</h4>
+                <p>All artifacts carry cryptographic integrity signatures with full provenance metadata for auditable, verifiable science.</p>
             </div>
         </div>
 
-        <h3>Tasks by Skill</h3>
-        <table class="skill-table" id="skill-table">
-            <thead>
-                <tr>
-                    <th>Skill</th>
-                    <th>Available</th>
-                    <th>In Progress</th>
-                    <th>Completed</th>
-                    <th>Failed</th>
-                </tr>
-            </thead>
-            <tbody id="skill-tbody">
-                <tr>
-                    <td colspan="5" class="loading">Loading task breakdown…</td>
-                </tr>
-            </tbody>
-        </table>
-
-        <!-- ── Pipeline Chains ─────────────────────────────────────── -->
-        <h3>Active Pipeline Chains</h3>
-        <p style="color:var(--muted);font-size:0.9rem;margin-bottom:1rem;">When a result exceeds confidence thresholds,
-            follow-up tasks are auto-spawned in a chain (e.g. neoantigen &rarr; structure &rarr; docking &rarr; QSAR).
-        </p>
-        <div class="chain-list" id="chain-list">
-            <div class="no-chains">Loading pipeline chains…</div>
-        </div>
-
-        <!-- ── Leaderboard ────────────────────────────────────────── -->
-        <h3>Contributor Leaderboard</h3>
-        <table class="skill-table" id="leaderboard-table">
-            <thead>
-                <tr>
-                    <th>#</th>
-                    <th>Contributor</th>
-                    <th>Results Published</th>
-                    <th>Tasks Completed</th>
-                    <th>Skills</th>
-                    <th>Latest</th>
-                </tr>
-            </thead>
-            <tbody id="leaderboard-tbody">
-                <tr>
-                    <td colspan="6" class="loading">Loading leaderboard…</td>
-                </tr>
-            </tbody>
-        </table>
-
-        <!-- ── Getting Started ────────────────────────────────────── -->
+        <!-- ── Getting Started (Tabs) ──────────────────────────── -->
         <h3>Getting Started</h3>
+        <div class="mode-tabs">
+            <button class="mode-tab active" onclick="switchTab('solo')">Run Solo</button>
+            <button class="mode-tab" onclick="switchTab('distributed')">Join the Queue</button>
+        </div>
 
-        <div class="card">
-            <h4>1. Clone &amp; Install</h4>
-            <pre>git clone https://github.com/OpenCureLabs/OpenCureLabs.git
+        <div class="mode-content active" id="tab-solo">
+            <div class="card">
+                <h4>1. Clone &amp; Install</h4>
+                <pre><code>git clone https://github.com/OpenCureLabs/OpenCureLabs.git
+cd OpenCureLabs
+bash scripts/setup.sh
+source .venv/bin/activate</code></pre>
+            </div>
+            <div class="card">
+                <h4>2. Configure API Keys</h4>
+                <pre><code># Add to .env:
+GEMINI_API_KEY=your-gemini-key     # Coordinator LLM
+XAI_API_KEY=your-xai-key           # Grok reviewer
+VAST_AI_KEY=your-vast-ai-key       # GPU burst compute</code></pre>
+            </div>
+            <div class="card">
+                <h4>3. Launch the Lab</h4>
+                <pre><code># Run the full autonomous research loop locally:
+bash dashboard/lab.sh
+
+# This starts:
+#   - Task dispatcher (claims & executes research tasks)
+#   - Grok reviewer (two-tier scientific critique)
+#   - Result ingest (publishes signed artifacts)</code></pre>
+            </div>
+            <div class="card">
+                <h4>4. Monitor Progress</h4>
+                <pre><code># Live dashboard:
+python dashboard/dashboard.py
+
+# Check findings:
+python dashboard/findings.py</code></pre>
+            </div>
+        </div>
+
+        <div class="mode-content" id="tab-distributed">
+            <div class="card">
+                <h4>1. Clone &amp; Install</h4>
+                <pre><code>git clone https://github.com/OpenCureLabs/OpenCureLabs.git
 cd OpenCureLabs
 bash scripts/setup.sh --skip-models
 source .venv/bin/activate
-pip install -e packages/agentiq_labclaw</pre>
-        </div>
-
-        <div class="card">
-            <h4>2. Set API Keys</h4>
-            <pre># Add to .env:
+pip install -e packages/agentiq_labclaw</code></pre>
+            </div>
+            <div class="card">
+                <h4>2. Set API Keys</h4>
+                <pre><code># Add to .env:
 VAST_AI_KEY=your-vast-ai-key       # For GPU burst compute
-XAI_API_KEY=your-xai-key           # Optional: enables local Grok review</pre>
-        </div>
-
-        <div class="card">
-            <h4>3. Run Contribute Mode</h4>
-            <pre># Claim tasks from central queue and execute on Vast.ai GPU
+XAI_API_KEY=your-xai-key           # Optional: enables local Grok review</code></pre>
+            </div>
+            <div class="card">
+                <h4>3. Run in Contribute Mode</h4>
+                <pre><code># Claim tasks from the central queue and execute on Vast.ai GPU
 python -m agentiq_labclaw.compute.batch_dispatcher \
     --mode contribute --count 10 --max-cost 1.00
 
 # First run auto-generates your Ed25519 signing key
-# and registers you as a contributor.</pre>
+# and registers you as a contributor.</code></pre>
+            </div>
+            <div class="card">
+                <h4>How It Works</h4>
+                <p style="color:var(--muted);line-height:1.7;margin:0">
+                    Your machine claims research tasks from the central queue, dispatches them to a Vast.ai GPU,
+                    and reports results back — signed with your Ed25519 key. Results go through Grok's two-tier
+                    scientific review before publication. You can contribute to any skill: neoantigen prediction,
+                    protein structure, molecular docking, QSAR modeling, or variant analysis.
+                </p>
+            </div>
         </div>
 
-        <div class="card">
-            <h4>How It Works</h4>
-            <p style="color:var(--muted);line-height:1.7">
-                Your machine claims research tasks from the central queue, dispatches them to a Vast.ai GPU,
-                and reports results back — signed with your Ed25519 key. Results go through Grok's two-tier
-                scientific review before publication. You can contribute to any skill: neoantigen prediction,
-                protein structure, molecular docking, QSAR modeling, or variant analysis.
-            </p>
+        <!-- ── Live Task Queue Stats ──────────────────────────────── -->
+        <h3>Task Queue — Live Stats</h3>
+        <div class="stats-grid" id="stats-grid">
+            <div class="stat-card"><div class="value loading" id="stat-available">—</div><div class="label">Available</div></div>
+            <div class="stat-card"><div class="value warn loading" id="stat-claimed">—</div><div class="label">In Progress</div></div>
+            <div class="stat-card"><div class="value success loading" id="stat-completed">—</div><div class="label">Completed</div></div>
+            <div class="stat-card"><div class="value danger loading" id="stat-failed">—</div><div class="label">Failed</div></div>
+            <div class="stat-card"><div class="value loading" id="stat-total">—</div><div class="label">Total Tasks</div></div>
+            <div class="stat-card"><div class="value accent2 loading" id="stat-derived">—</div><div class="label">Derived from Results</div></div>
+            <div class="stat-card"><div class="value accent2 loading" id="stat-discovery">—</div><div class="label">From Discoveries</div></div>
         </div>
+
+        <h3>Tasks by Skill</h3>
+        <table class="skill-table" id="skill-table">
+            <thead><tr><th>Skill</th><th>Available</th><th>In Progress</th><th>Completed</th><th>Failed</th></tr></thead>
+            <tbody id="skill-tbody"><tr><td colspan="5" class="loading">Loading task breakdown…</td></tr></tbody>
+        </table>
+
+        <!-- ── Pipeline Chains ─────────────────────────────────────── -->
+        <h3>Active Pipeline Chains</h3>
+        <p style="color:var(--muted);font-size:0.9rem;margin-bottom:1rem;">When a result exceeds confidence thresholds, follow-up tasks are auto-spawned in a chain (e.g. neoantigen → structure → docking → QSAR).</p>
+        <div class="chain-list" id="chain-list"><div class="no-chains">Loading pipeline chains…</div></div>
+
+        <!-- ── Leaderboard ────────────────────────────────────────── -->
+        <h3>Contributor Leaderboard</h3>
+        <table class="skill-table" id="leaderboard-table">
+            <thead><tr><th>#</th><th>Contributor</th><th>Results Published</th><th>Tasks Completed</th><th>Skills</th><th>Latest</th></tr></thead>
+            <tbody id="leaderboard-tbody"><tr><td colspan="6" class="loading">Loading leaderboard…</td></tr></tbody>
+        </table>
+
     </div>
 
     <footer>
-        <a href="/">Feed</a> &middot;
-        <a href="https://github.com/OpenCureLabs/OpenCureLabs">GitHub</a> &middot;
-        <a href="/about">About</a>
+        <div class="footer-inner">
+            <div class="footer-links">
+                <a href="https://github.com/OpenCureLabs/OpenCureLabs" target="_blank" rel="noopener">GitHub</a>
+                <a href="https://x.com/shoneanstey" target="_blank" rel="noopener">𝕏 @shoneanstey</a>
+                <a href="/data">Data API</a>
+                <a href="/about">About</a>
+                <a href="/">Feed</a>
+            </div>
+            <div class="footer-disclaimer">All artifacts are AI-generated and should be independently validated.</div>
+            <div style="font-size:0.72rem;color:var(--muted)">© 2026 OpenCure Labs · Open source under MIT License</div>
+        </div>
     </footer>
 
     <script>
         const API = "https://ingest.opencurelabs.ai";
+
+        /* ── Tab switching ────────────────────────────────────── */
+        function switchTab(tab) {
+            document.querySelectorAll('.mode-tab').forEach(t => t.classList.remove('active'));
+            document.querySelectorAll('.mode-content').forEach(c => c.classList.remove('active'));
+            document.getElementById('tab-' + tab).classList.add('active');
+            event.target.classList.add('active');
+        }
 
         function formatNumber(n) {
             if (n >= 1000000) return (n / 1000000).toFixed(1) + "M";
             if (n >= 1000) return (n / 1000).toFixed(1) + "K";
             return String(n);
         }
-
-        function skillLabel(skill) {
-            return skill.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
-        }
-
-        function rankClass(i) {
-            if (i === 0) return "rank rank-gold";
-            if (i === 1) return "rank rank-silver";
-            if (i === 2) return "rank rank-bronze";
-            return "rank";
-        }
-
+        function skillLabel(s) { return s.replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase()); }
+        function rankClass(i) { if (i === 0) return "rank rank-gold"; if (i === 1) return "rank rank-silver"; if (i === 2) return "rank rank-bronze"; return "rank"; }
         function relativeTime(iso) {
             if (!iso) return "—";
             const diff = Date.now() - new Date(iso).getTime();
             const mins = Math.floor(diff / 60000);
-            if (mins < 60) return `${mins}m ago`;
+            if (mins < 60) return mins + "m ago";
             const hrs = Math.floor(mins / 60);
-            if (hrs < 24) return `${hrs}h ago`;
-            const days = Math.floor(hrs / 24);
-            return `${days}d ago`;
+            if (hrs < 24) return hrs + "h ago";
+            return Math.floor(hrs / 24) + "d ago";
         }
 
-        // ── Task Stats ──────────────────────────────────────────
         async function loadTaskStats() {
             try {
-                const resp = await fetch(`${API}/tasks/stats`);
+                const resp = await fetch(API + "/tasks/stats");
                 const data = await resp.json();
-
-                // Totals
                 const totals = {};
-                for (const row of data.totals || []) {
-                    totals[row.status] = row.count;
-                }
+                for (const row of data.totals || []) totals[row.status] = row.count;
                 document.getElementById("stat-available").textContent = formatNumber(totals.available || 0);
                 document.getElementById("stat-claimed").textContent = formatNumber(totals.claimed || 0);
                 document.getElementById("stat-completed").textContent = formatNumber(totals.completed || 0);
                 document.getElementById("stat-failed").textContent = formatNumber(totals.failed || 0);
-                const total = Object.values(totals).reduce((a, b) => a + b, 0);
-                document.getElementById("stat-total").textContent = formatNumber(total);
-
-                // Source breakdown
+                document.getElementById("stat-total").textContent = formatNumber(Object.values(totals).reduce((a, b) => a + b, 0));
                 const sources = {};
-                for (const row of data.by_source || []) {
-                    sources[row.source] = row.count;
-                }
+                for (const row of data.by_source || []) sources[row.source] = row.count;
                 document.getElementById("stat-derived").textContent = formatNumber(sources.result || 0);
                 document.getElementById("stat-discovery").textContent = formatNumber(sources.discovery || 0);
-
-                // Remove loading class
                 document.querySelectorAll(".stat-card .value").forEach(el => el.classList.remove("loading"));
 
-                // By skill
                 const skills = {};
-                for (const row of data.by_skill || []) {
-                    if (!skills[row.skill]) skills[row.skill] = {};
-                    skills[row.skill][row.status] = row.count;
-                }
-
+                for (const row of data.by_skill || []) { if (!skills[row.skill]) skills[row.skill] = {}; skills[row.skill][row.status] = row.count; }
                 const tbody = document.getElementById("skill-tbody");
                 tbody.innerHTML = "";
-                const maxAvailable = Math.max(...Object.values(skills).map(s => s.available || 0), 1);
-
-                for (const [skill, counts] of Object.entries(skills).sort((a, b) =>
-                    (b[1].available || 0) - (a[1].available || 0)
-                )) {
-                    const row = document.createElement("tr");
+                const maxAvail = Math.max(...Object.values(skills).map(s => s.available || 0), 1);
+                for (const [skill, counts] of Object.entries(skills).sort((a, b) => (b[1].available || 0) - (a[1].available || 0))) {
                     const avail = counts.available || 0;
-                    const barWidth = (avail / maxAvailable * 100).toFixed(1);
-                    row.innerHTML = `
-                        <td><code>${skillLabel(skill)}</code></td>
-                        <td class="bar-cell">
-                            <div class="bar-bg" style="width:${barWidth}%"></div>
-                            ${formatNumber(avail)}
-                        </td>
-                        <td>${formatNumber(counts.claimed || 0)}</td>
-                        <td>${formatNumber(counts.completed || 0)}</td>
-                        <td>${formatNumber(counts.failed || 0)}</td>
-                    `;
+                    const row = document.createElement("tr");
+                    row.innerHTML = '<td><code>' + skillLabel(skill) + '</code></td><td class="bar-cell"><div class="bar-bg" style="width:' + (avail / maxAvail * 100).toFixed(1) + '%"></div>' + formatNumber(avail) + '</td><td>' + formatNumber(counts.claimed || 0) + '</td><td>' + formatNumber(counts.completed || 0) + '</td><td>' + formatNumber(counts.failed || 0) + '</td>';
                     tbody.appendChild(row);
                 }
-            } catch (e) {
-                console.error("Failed to load task stats:", e);
-                document.getElementById("skill-tbody").innerHTML =
-                    '<tr><td colspan="5" style="color:var(--danger)">Failed to load stats</td></tr>';
-            }
+            } catch (e) { console.error("Stats:", e); document.getElementById("skill-tbody").innerHTML = '<tr><td colspan="5" style="color:var(--danger)">Failed to load stats</td></tr>'; }
         }
 
-        // ── Leaderboard ─────────────────────────────────────────
         async function loadLeaderboard() {
             try {
-                const resp = await fetch(`${API}/leaderboard`);
+                const resp = await fetch(API + "/leaderboard");
                 const data = await resp.json();
-
                 const tbody = document.getElementById("leaderboard-tbody");
                 tbody.innerHTML = "";
-
-                if (!data.leaderboard?.length) {
-                    tbody.innerHTML = '<tr><td colspan="6" class="loading">No contributors yet — be the first!</td></tr>';
-                    return;
-                }
-
+                if (!data.leaderboard?.length) { tbody.innerHTML = '<tr><td colspan="6" class="loading">No contributors yet — be the first!</td></tr>'; return; }
                 data.leaderboard.forEach((c, i) => {
-                    const row = document.createElement("tr");
                     const id = String(c.contributor_id || "anonymous");
                     const display = id.length > 16 ? id.slice(0, 6) + "…" + id.slice(-6) : id;
-                    row.innerHTML = `
-                        <td><span class="${rankClass(i)}">${i + 1}</span></td>
-                        <td title="${id}">${display}</td>
-                        <td>${c.results_published}</td>
-                        <td>${c.tasks_completed}</td>
-                        <td>${c.skills_used}</td>
-                        <td>${relativeTime(c.latest_result)}</td>
-                    `;
+                    const row = document.createElement("tr");
+                    row.innerHTML = '<td><span class="' + rankClass(i) + '">' + (i + 1) + '</span></td><td title="' + id + '">' + display + '</td><td>' + c.results_published + '</td><td>' + c.tasks_completed + '</td><td>' + c.skills_used + '</td><td>' + relativeTime(c.latest_result) + '</td>';
                     tbody.appendChild(row);
                 });
-            } catch (e) {
-                console.error("Failed to load leaderboard:", e);
-                document.getElementById("leaderboard-tbody").innerHTML =
-                    '<tr><td colspan="6" style="color:var(--danger)">Failed to load leaderboard</td></tr>';
-            }
+            } catch (e) { console.error("Leaderboard:", e); document.getElementById("leaderboard-tbody").innerHTML = '<tr><td colspan="6" style="color:var(--danger)">Failed to load leaderboard</td></tr>'; }
         }
 
-        // ── Pipeline Chains ─────────────────────────────────────
         async function loadChains() {
             try {
-                // Get recent chains from stats - we need chain IDs
-                // First, query tasks with chain_id set to get active chains
-                const resp = await fetch(`${API}/tasks/stats`);
-                const stats = await resp.json();
-
-                // Fetch chains by querying the chain endpoint for known chain IDs
-                // We discover chains from the tasks/chains listing endpoint
-                const chainsResp = await fetch(`${API}/tasks/chains`);
+                const chainsResp = await fetch(API + "/tasks/chains");
                 const chainsData = await chainsResp.json();
-
                 const container = document.getElementById("chain-list");
-
-                if (!chainsData.chains?.length) {
-                    container.innerHTML = '<div class="no-chains">No pipeline chains yet — chains are created when results exceed confidence thresholds.</div>';
-                    return;
-                }
-
+                if (!chainsData.chains?.length) { container.innerHTML = '<div class="no-chains">No pipeline chains yet — chains are created when results exceed confidence thresholds.</div>'; return; }
                 container.innerHTML = "";
-
                 for (const chain of chainsData.chains.slice(0, 10)) {
                     const card = document.createElement("div");
                     card.className = "chain-card";
-
                     const completed = chain.tasks.filter(t => t.status === "completed").length;
-                    const total = chain.tasks.length;
-
-                    let html = `<div class="chain-header">`;
-                    html += `<span class="chain-id">${chain.chain_id.slice(0, 8)}…</span>`;
-                    html += `<span class="chain-progress">${completed}/${total} steps complete</span>`;
-                    html += `</div>`;
-                    html += `<div class="pipeline-steps">`;
-
+                    let html = '<div class="chain-header"><span class="chain-id">' + chain.chain_id.slice(0, 8) + '…</span><span class="chain-progress">' + completed + '/' + chain.tasks.length + ' steps complete</span></div><div class="pipeline-steps">';
                     chain.tasks.forEach((task, idx) => {
-                        if (idx > 0) {
-                            html += `<span class="pipeline-arrow">→</span>`;
-                        }
+                        if (idx > 0) html += '<span class="pipeline-arrow">→</span>';
                         const skillShort = (task.skill || "").replace("_prediction", "").replace("_", " ");
-                        html += `<div class="pipeline-step">`;
-                        html += `<div class="step-dot ${task.status}">${task.chain_step ?? idx}</div>`;
-                        html += `<div class="step-skill" title="${task.skill}">${skillShort}</div>`;
-                        html += `<div class="step-status">${task.status}</div>`;
-                        html += `</div>`;
+                        html += '<div class="pipeline-step"><div class="step-dot ' + task.status + '">' + (task.chain_step ?? idx) + '</div><div class="step-skill" title="' + task.skill + '">' + skillShort + '</div><div class="step-status">' + task.status + '</div></div>';
                     });
-
-                    html += `</div>`;
+                    html += '</div>';
                     card.innerHTML = html;
                     container.appendChild(card);
                 }
-            } catch (e) {
-                console.error("Failed to load chains:", e);
-                document.getElementById("chain-list").innerHTML =
-                    '<div class="no-chains">No pipeline chains yet — chains are created when results exceed confidence thresholds.</div>';
-            }
+            } catch (e) { console.error("Chains:", e); document.getElementById("chain-list").innerHTML = '<div class="no-chains">No pipeline chains yet — chains are created when results exceed confidence thresholds.</div>'; }
         }
 
-        // ── Init ────────────────────────────────────────────────
-        loadTaskStats();
-        loadLeaderboard();
-        loadChains();
-
-        // Auto-refresh every 30s
+        loadTaskStats(); loadLeaderboard(); loadChains();
         setInterval(loadTaskStats, 30000);
         setInterval(loadLeaderboard, 60000);
         setInterval(loadChains, 60000);
     </script>
 </body>
-
 </html>

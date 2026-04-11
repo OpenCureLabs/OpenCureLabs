@@ -264,7 +264,7 @@ This triple-role design means Grok is not just a passive critic but an **active 
 |---|---|
 | **R2 / pub.opencurelabs.ai** | All published results as JSON — public download, no auth required |
 | **opencurelabs.ai** | Live discovery feed — browse findings from all contributors |
-| **GitHub** | Pipelines, code, analysis artifacts, and reproducibility artifacts |
+| **GitHub** | Source code, pipelines, and documentation |
 | **PDF Reports** (local) | Formal findings documents with methodology, results, and reviewer notes — saved to `reports/`, not published externally |
 
 ---

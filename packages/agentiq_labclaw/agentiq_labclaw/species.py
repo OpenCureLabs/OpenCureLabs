@@ -16,6 +16,23 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+# ---------------------------------------------------------------------------
+# Register corrected pyensembl species for dog (canis_lupus_familiaris).
+# pyensembl ships with "canis_familiaris" / CanFam3.1 but Ensembl FTP
+# renamed the species to canis_lupus_familiaris with assembly ROS_Cfam_1.0
+# starting around release 104.  Without this, genome downloads 404.
+# ---------------------------------------------------------------------------
+try:
+    from pyensembl.species import Species as _PyensemblSpecies
+
+    _PyensemblSpecies.register(
+        latin_name="canis_lupus_familiaris",
+        synonyms=["domestic_dog"],
+        reference_assemblies={"ROS_Cfam_1.0": (104, 200)},
+    )
+except Exception:  # pyensembl not installed or API changed
+    pass
+
 
 @dataclass(frozen=True)
 class SpeciesConfig:
@@ -83,9 +100,9 @@ HUMAN = SpeciesConfig(
 DOG = SpeciesConfig(
     name="dog",
     latin="Canis lupus familiaris",
-    ensembl_species="canis_familiaris",
+    ensembl_species="canis_lupus_familiaris",
     ensembl_release=111,
-    reference_genome="CanFam3.1",
+    reference_genome="ROS_Cfam_1.0",
     mhc_prefix="DLA",
     mhc_class1_genes=("DLA-88", "DLA-12", "DLA-64"),
     chromosome_prefix="chr",

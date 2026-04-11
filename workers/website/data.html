@@ -8,177 +8,60 @@
     <link rel="icon" href="https://pub.opencurelabs.ai/assets/favicon.ico" type="image/x-icon" />
     <style>
         :root {
-            --bg: #0a0e1a;
-            --surface: #111827;
-            --border: #1f2937;
-            --accent: #22d3ee;
-            --accent2: #818cf8;
-            --text: #e2e8f0;
-            --muted: #64748b;
-            --novel: #34d399;
-            --tag-bg: #1e293b;
+            --bg: #0a0e1a; --surface: #111827; --border: #1f2937;
+            --accent: #22d3ee; --accent2: #818cf8; --text: #e2e8f0;
+            --muted: #64748b; --novel: #34d399; --tag-bg: #1e293b;
         }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; min-height: 100vh; }
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
+        header { border-bottom: 1px solid var(--border); padding: 1rem 2rem; display: flex; align-items: center; gap: 1rem; position: sticky; top: 0; z-index: 100; background: var(--bg); }
+        header img { height: 32px; }
+        header h1 { font-size: 1.15rem; font-weight: 600; }
+        .nav-links { display: flex; gap: 1.25rem; margin-left: 2rem; align-items: center; }
+        .nav-links a { color: var(--muted); text-decoration: none; font-size: 0.88rem; font-weight: 500; transition: color 0.15s; white-space: nowrap; }
+        .nav-links a:hover, .nav-links a.active { color: var(--accent); }
+        .gh-badge { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.3rem 0.7rem; border-radius: 6px; border: 1px solid var(--border); background: var(--tag-bg); color: var(--text); font-size: 0.78rem; font-weight: 500; text-decoration: none; transition: all 0.15s; margin-left: auto; flex-shrink: 0; }
+        .gh-badge:hover { border-color: var(--accent); color: var(--accent); }
+        .gh-badge svg { width: 16px; height: 16px; fill: currentColor; }
+        .hamburger { display: none; background: none; border: none; color: var(--text); font-size: 1.5rem; cursor: pointer; padding: 0.25rem; margin-left: auto; }
+        @media (max-width: 768px) {
+            .nav-links { display: none; position: absolute; top: 100%; left: 0; right: 0; flex-direction: column; background: var(--surface); border-bottom: 1px solid var(--border); padding: 1rem 2rem; gap: 1rem; margin-left: 0; }
+            .nav-links.open { display: flex; }
+            .hamburger { display: block; }
+            .gh-badge { display: none; }
+            .nav-links .gh-badge-mobile { display: inline-flex; }
         }
+        .gh-badge-mobile { display: none; align-items: center; gap: 0.4rem; padding: 0.3rem 0.7rem; border-radius: 6px; border: 1px solid var(--border); background: var(--tag-bg); color: var(--text); font-size: 0.78rem; font-weight: 500; text-decoration: none; width: fit-content; }
 
-        body {
-            background: var(--bg);
-            color: var(--text);
-            font-family: 'Inter', system-ui, sans-serif;
-            min-height: 100vh;
-        }
+        .hero { text-align: center; padding: 3rem 1rem 2rem; border-bottom: 1px solid var(--border); }
+        .hero h2 { font-size: 2rem; font-weight: 700; background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+        .hero p { color: var(--muted); margin-top: 0.5rem; font-size: 0.95rem; max-width: 620px; margin-left: auto; margin-right: auto; line-height: 1.6; }
 
-        header {
-            border-bottom: 1px solid var(--border);
-            padding: 1.5rem 2rem;
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
+        .content { max-width: 800px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+        h3 { font-size: 1.2rem; font-weight: 600; margin: 2.5rem 0 1rem; color: var(--accent); }
+        p { color: var(--text); line-height: 1.7; margin-bottom: 1rem; font-size: 0.95rem; }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        code { font-family: 'JetBrains Mono', 'Fira Code', monospace; background: var(--tag-bg); padding: 0.15rem 0.45rem; border-radius: 4px; font-size: 0.82rem; color: var(--accent); }
 
-        header img {
-            height: 36px;
-        }
+        .card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem; margin-bottom: 1rem; }
+        .card h4 { font-size: 0.95rem; font-weight: 600; margin-bottom: 0.5rem; }
+        .card p { color: var(--muted); font-size: 0.88rem; margin-bottom: 0.75rem; }
+        pre { background: var(--tag-bg); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; overflow-x: auto; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 0.82rem; line-height: 1.6; color: var(--accent); margin-bottom: 1rem; }
+        pre code { background: none; padding: 0; }
 
-        header h1 {
-            font-size: 1.25rem;
-            font-weight: 600;
-            color: var(--text);
-        }
+        table { width: 100%; border-collapse: collapse; margin-bottom: 1rem; font-size: 0.88rem; }
+        th, td { padding: 0.6rem 0.8rem; text-align: left; border-bottom: 1px solid var(--border); }
+        th { color: var(--muted); font-weight: 600; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.04em; }
+        td code { color: var(--accent2); }
 
-        .content {
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 2rem 1.5rem 4rem;
-        }
-
-        .hero {
-            text-align: center;
-            padding: 3rem 1rem 2rem;
-            border-bottom: 1px solid var(--border);
-        }
-
-        .hero h2 {
-            font-size: 2rem;
-            font-weight: 700;
-            background: linear-gradient(135deg, var(--accent), var(--accent2));
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
-
-        .hero p {
-            color: var(--muted);
-            margin-top: 0.5rem;
-            font-size: 0.95rem;
-        }
-
-        h3 {
-            font-size: 1.2rem;
-            font-weight: 600;
-            margin: 2.5rem 0 1rem;
-            color: var(--accent);
-        }
-
-        p {
-            color: var(--text);
-            line-height: 1.7;
-            margin-bottom: 1rem;
-            font-size: 0.95rem;
-        }
-
-        .card {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 4px;
-            padding: 1.25rem;
-            margin-bottom: 1rem;
-        }
-
-        .card h4 {
-            font-size: 0.95rem;
-            font-weight: 600;
-            margin-bottom: 0.5rem;
-        }
-
-        .card p {
-            color: var(--muted);
-            font-size: 0.88rem;
-            margin-bottom: 0.75rem;
-        }
-
-        pre {
-            background: var(--tag-bg);
-            border: 1px solid var(--border);
-            border-radius: 4px;
-            padding: 1rem;
-            overflow-x: auto;
-            font-family: 'JetBrains Mono', 'Fira Code', monospace;
-            font-size: 0.82rem;
-            line-height: 1.6;
-            color: var(--accent);
-            margin-bottom: 1rem;
-        }
-
-        code {
-            font-family: 'JetBrains Mono', 'Fira Code', monospace;
-            font-size: 0.85rem;
-        }
-
-        .inline-code {
-            background: var(--tag-bg);
-            padding: 0.15rem 0.45rem;
-            border-radius: 4px;
-            font-size: 0.82rem;
-            color: var(--accent);
-        }
-
-        table {
-            width: 100%;
-            border-collapse: collapse;
-            margin-bottom: 1rem;
-            font-size: 0.88rem;
-        }
-
-        th,
-        td {
-            padding: 0.6rem 0.8rem;
-            text-align: left;
-            border-bottom: 1px solid var(--border);
-        }
-
-        th {
-            color: var(--muted);
-            font-weight: 600;
-            font-size: 0.78rem;
-            text-transform: uppercase;
-            letter-spacing: 0.04em;
-        }
-
-        td code {
-            color: var(--accent2);
-        }
-
-        a {
-            color: var(--accent);
-            text-decoration: none;
-        }
-
-        a:hover {
-            text-decoration: underline;
-        }
-
-        footer {
-            text-align: center;
-            padding: 2rem;
-            color: var(--muted);
-            font-size: 0.8rem;
-            border-top: 1px solid var(--border);
-        }
+        footer { text-align: center; padding: 2rem; color: var(--muted); font-size: 0.8rem; border-top: 1px solid var(--border); }
+        footer .footer-inner { max-width: 900px; margin: 0 auto; display: flex; flex-direction: column; gap: 0.75rem; align-items: center; }
+        footer .footer-links { display: flex; gap: 1.25rem; flex-wrap: wrap; justify-content: center; }
+        footer .footer-links a { color: var(--muted); text-decoration: none; font-size: 0.82rem; transition: color 0.15s; }
+        footer .footer-links a:hover { color: var(--accent); }
+        footer .footer-disclaimer { font-size: 0.75rem; max-width: 600px; line-height: 1.5; color: var(--muted); }
     </style>
 </head>
 
@@ -189,19 +72,26 @@
             <img src="https://pub.opencurelabs.ai/assets/logo-symbol.svg" alt="OpenCure Labs" />
             <h1>OpenCure Labs</h1>
         </a>
-        <nav style="display:flex;gap:1.25rem;margin-left:2rem">
-            <a href="/" style="color:var(--muted);text-decoration:none;font-size:0.9rem;font-weight:500">Feed</a>
-            <a href="/data" style="color:var(--accent);text-decoration:none;font-size:0.9rem;font-weight:500">Data</a>
-            <a href="/contribute"
-                style="color:var(--muted);text-decoration:none;font-size:0.9rem;font-weight:500">Contribute</a>
-            <a href="/about" style="color:var(--muted);text-decoration:none;font-size:0.9rem;font-weight:500">About</a>
+        <nav class="nav-links" id="nav-links">
+            <a href="/">Feed</a>
+            <a href="/data" class="active">Data</a>
+            <a href="/contribute">Contribute</a>
+            <a href="/about">About</a>
+            <a class="gh-badge-mobile" href="https://github.com/OpenCureLabs/OpenCureLabs" target="_blank" rel="noopener">
+                <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+                GitHub
+            </a>
         </nav>
+        <a class="gh-badge" href="https://github.com/OpenCureLabs/OpenCureLabs" target="_blank" rel="noopener" title="Star us on GitHub">
+            <svg viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+            GitHub
+        </a>
+        <button class="hamburger" onclick="document.getElementById('nav-links').classList.toggle('open')" aria-label="Toggle menu">☰</button>
     </header>
 
     <div class="hero">
         <h2>Download Research Artifacts</h2>
-        <p>Open-access research artifacts with provenance metadata, integrity signatures, and validation warnings. Query
-            the API or download feeds directly — no authentication required.</p>
+        <p>Open-access research artifacts with provenance metadata, integrity signatures, and validation warnings. Query the API or download feeds directly — no authentication required.</p>
     </div>
 
     <div class="content">
@@ -222,59 +112,33 @@
 
         <h3>REST API</h3>
 
-        <p>The ingest API at <span class="inline-code">ingest.opencurelabs.ai</span> supports paginated queries with
-            filters. No API key required for read access.</p>
+        <p>The ingest API at <code>ingest.opencurelabs.ai</code> supports paginated queries with filters. No API key required for read access.</p>
 
         <div class="card">
             <h4>GET /results</h4>
             <p>Query published results with optional filters and cursor-based pagination.</p>
             <table>
-                <tr>
-                    <th>Parameter</th>
-                    <th>Type</th>
-                    <th>Description</th>
-                </tr>
-                <tr>
-                    <td><code>limit</code></td>
-                    <td>int</td>
-                    <td>Results per page (default 50, max 200)</td>
-                </tr>
-                <tr>
-                    <td><code>skill</code></td>
-                    <td>string</td>
-                    <td>Filter by skill type</td>
-                </tr>
-                <tr>
-                    <td><code>species</code></td>
-                    <td>string</td>
-                    <td>Filter by species (<code>human</code>, <code>dog</code>, <code>cat</code>)</td>
-                </tr>
-                <tr>
-                    <td><code>novel</code></td>
-                    <td>bool</td>
-                    <td>Filter novel findings only (<code>true</code>/<code>false</code>)</td>
-                </tr>
-                <tr>
-                    <td><code>date</code></td>
-                    <td>string</td>
-                    <td>Filter by date (<code>YYYY-MM-DD</code>)</td>
-                </tr>
-                <tr>
-                    <td><code>after</code></td>
-                    <td>ISO timestamp</td>
-                    <td>Cursor for pagination — pass <code>next_cursor</code> from previous response</td>
-                </tr>
+                <tr><th>Parameter</th><th>Type</th><th>Description</th></tr>
+                <tr><td><code>limit</code></td><td>int</td><td>Results per page (default 50, max 200)</td></tr>
+                <tr><td><code>skill</code></td><td>string</td><td>Filter by skill type</td></tr>
+                <tr><td><code>species</code></td><td>string</td><td>Filter by species (<code>human</code>, <code>dog</code>, <code>cat</code>)</td></tr>
+                <tr><td><code>novel</code></td><td>bool</td><td>Filter novel findings only (<code>true</code>/<code>false</code>)</td></tr>
+                <tr><td><code>date</code></td><td>string</td><td>Filter by date (<code>YYYY-MM-DD</code>)</td></tr>
+                <tr><td><code>gene</code></td><td>string</td><td>Search gene names (LIKE match)</td></tr>
+                <tr><td><code>after</code></td><td>ISO timestamp</td><td>Cursor for pagination — pass <code>next_cursor</code> from previous response</td></tr>
             </table>
             <pre># First page
 curl "https://ingest.opencurelabs.ai/results?limit=100"
 
 # Next page (use next_cursor from response)
-curl "https://ingest.opencurelabs.ai/results?limit=100&after=2026-03-24T12:00:00.000Z"
+curl "https://ingest.opencurelabs.ai/results?limit=100&amp;after=2026-03-24T12:00:00.000Z"
 
 # Novel neoantigen results only
-curl "https://ingest.opencurelabs.ai/results?skill=neoantigen_prediction&novel=true&limit=50"</pre>
-            <p>Response includes <span class="inline-code">has_more</span> (boolean) and <span
-                    class="inline-code">next_cursor</span> (ISO timestamp) for pagination.</p>
+curl "https://ingest.opencurelabs.ai/results?skill=neoantigen_prediction&amp;novel=true&amp;limit=50"
+
+# Search by gene
+curl "https://ingest.opencurelabs.ai/results?gene=BRCA1"</pre>
+            <p>Response includes <code>has_more</code> (boolean) and <code>next_cursor</code> (ISO timestamp) for pagination.</p>
         </div>
 
         <div class="card">
@@ -298,45 +162,19 @@ curl "https://ingest.opencurelabs.ai/critiques?result_id=RESULT_UUID"</pre>
         <h3>Available Skills</h3>
 
         <table>
-            <tr>
-                <th>Skill</th>
-                <th>Description</th>
-            </tr>
-            <tr>
-                <td><code>neoantigen_prediction</code></td>
-                <td>Tumor neoantigen binding prediction (MHC I/II)</td>
-            </tr>
-            <tr>
-                <td><code>variant_pathogenicity</code></td>
-                <td>Genetic variant pathogenicity scoring</td>
-            </tr>
-            <tr>
-                <td><code>molecular_docking</code></td>
-                <td>Protein-ligand docking simulations</td>
-            </tr>
-            <tr>
-                <td><code>qsar</code></td>
-                <td>Quantitative structure-activity relationship models</td>
-            </tr>
-            <tr>
-                <td><code>structure_prediction</code></td>
-                <td>Protein 3D structure prediction</td>
-            </tr>
-            <tr>
-                <td><code>sequencing_qc</code></td>
-                <td>Sequencing data quality control</td>
-            </tr>
-            <tr>
-                <td><code>grok_research</code></td>
-                <td>AI literature review and hypothesis generation</td>
-            </tr>
+            <tr><th>Skill</th><th>Description</th></tr>
+            <tr><td><code>neoantigen_prediction</code></td><td>Tumor neoantigen binding prediction (MHC I/II)</td></tr>
+            <tr><td><code>variant_pathogenicity</code></td><td>Genetic variant pathogenicity scoring</td></tr>
+            <tr><td><code>molecular_docking</code></td><td>Protein-ligand docking simulations</td></tr>
+            <tr><td><code>qsar</code></td><td>Quantitative structure-activity relationship models</td></tr>
+            <tr><td><code>structure_prediction</code></td><td>Protein 3D structure prediction</td></tr>
+            <tr><td><code>sequencing_qc</code></td><td>Sequencing data quality control</td></tr>
+            <tr><td><code>grok_research</code></td><td>AI literature review and hypothesis generation</td></tr>
         </table>
 
         <h3>Full Result Objects (R2)</h3>
 
-        <p>Each result's <span class="inline-code">r2_url</span> field points to the complete JSON object stored in
-            Cloudflare R2, including full <span class="inline-code">result_data</span> and <span
-                class="inline-code">batch_critique</span> from Grok's review.</p>
+        <p>Each result's <code>r2_url</code> field points to the complete JSON object stored in Cloudflare R2, including full <code>result_data</code> and <code>batch_critique</code> from Grok's review.</p>
 
         <pre># Get a result URL from the API, then fetch full data
 curl "https://pub.opencurelabs.ai/results/neoantigen_prediction/2026-03-24/UUID.json"</pre>
@@ -364,21 +202,23 @@ print(f"Downloaded {len(all_results)} results")</pre>
 
         <h3>License</h3>
 
-        <p>All research artifacts are released under the <a
-                href="https://github.com/OpenCureLabs/OpenCureLabs/blob/main/LICENSE">MIT License</a>. Each artifact
-            includes provenance metadata, an Ed25519 integrity signature, and explicit validation warnings. Outputs are
-            AI-generated computational predictions and should be independently validated before any scientific or
-            clinical application.</p>
+        <p>All research artifacts are released under the <a href="https://github.com/OpenCureLabs/OpenCureLabs/blob/main/LICENSE">MIT License</a>. Each artifact includes provenance metadata, an Ed25519 integrity signature, and explicit validation warnings. Outputs are AI-generated computational predictions and should be independently validated before any scientific or clinical application.</p>
 
     </div>
 
     <footer>
-        <a href="/">Feed</a> &middot;
-        <a href="/contribute">Contribute</a> &middot;
-        <a href="https://github.com/OpenCureLabs/OpenCureLabs">GitHub</a> &middot;
-        <a href="/about">About</a>
+        <div class="footer-inner">
+            <div class="footer-links">
+                <a href="https://github.com/OpenCureLabs/OpenCureLabs" target="_blank" rel="noopener">GitHub</a>
+                <a href="https://x.com/shoneanstey" target="_blank" rel="noopener">𝕏 @shoneanstey</a>
+                <a href="/contribute">Contribute</a>
+                <a href="/about">About</a>
+                <a href="/">Feed</a>
+            </div>
+            <div class="footer-disclaimer">All artifacts are AI-generated and should be independently validated.</div>
+            <div style="font-size:0.72rem;color:var(--muted)">© 2026 OpenCure Labs · Open source under MIT License</div>
+        </div>
     </footer>
 
 </body>
-
 </html>

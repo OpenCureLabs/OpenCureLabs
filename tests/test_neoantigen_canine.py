@@ -47,9 +47,9 @@ def test_species_registry_dog():
     """Canine species config should be importable and have correct fields."""
     cfg = get_species("dog")
     assert cfg.name == "dog"
-    assert cfg.ensembl_species == "canis_familiaris"
+    assert cfg.ensembl_species == "canis_lupus_familiaris"
     assert cfg.ensembl_release == 111
-    assert cfg.reference_genome == "CanFam3.1"
+    assert cfg.reference_genome == "ROS_Cfam_1.0"
     assert cfg.mhc_prefix == "DLA"
     assert cfg.ncbi_taxon_id == 9615
     assert cfg.supported_mhc_predictor in ("netmhcpan", "fallback_human")
@@ -153,7 +153,7 @@ def test_sequencing_qc_canine_ref_derivation():
         species="dog",
     )
     cfg = get_species(inp.species)
-    assert cfg.reference_genome == "CanFam3.1"
+    assert cfg.reference_genome == "ROS_Cfam_1.0"
     print(f"PASS: canine QC auto-derives ref={cfg.reference_genome}")
 
 

@@ -8,210 +8,76 @@
     <link rel="icon" href="https://pub.opencurelabs.ai/assets/favicon.ico" type="image/x-icon" />
     <style>
         :root {
-            --bg: #0a0e1a;
-            --surface: #111827;
-            --border: #1f2937;
-            --accent: #22d3ee;
-            --accent2: #818cf8;
-            --text: #e2e8f0;
-            --muted: #64748b;
-            --novel: #34d399;
-            --tag-bg: #1e293b;
+            --bg: #0a0e1a; --surface: #111827; --border: #1f2937;
+            --accent: #22d3ee; --accent2: #818cf8; --text: #e2e8f0;
+            --muted: #64748b; --novel: #34d399; --tag-bg: #1e293b;
         }
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; min-height: 100vh; }
 
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
+        header { border-bottom: 1px solid var(--border); padding: 1rem 2rem; display: flex; align-items: center; gap: 1rem; position: sticky; top: 0; z-index: 100; background: var(--bg); }
+        header img { height: 32px; }
+        header h1 { font-size: 1.15rem; font-weight: 600; }
+        .nav-links { display: flex; gap: 1.25rem; margin-left: 2rem; align-items: center; }
+        .nav-links a { color: var(--muted); text-decoration: none; font-size: 0.88rem; font-weight: 500; transition: color 0.15s; white-space: nowrap; }
+        .nav-links a:hover, .nav-links a.active { color: var(--accent); }
+        .gh-badge { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.3rem 0.7rem; border-radius: 6px; border: 1px solid var(--border); background: var(--tag-bg); color: var(--text); font-size: 0.78rem; font-weight: 500; text-decoration: none; transition: all 0.15s; margin-left: auto; flex-shrink: 0; }
+        .gh-badge:hover { border-color: var(--accent); color: var(--accent); }
+        .gh-badge svg { width: 16px; height: 16px; fill: currentColor; }
+        .hamburger { display: none; background: none; border: none; color: var(--text); font-size: 1.5rem; cursor: pointer; padding: 0.25rem; margin-left: auto; }
+        @media (max-width: 768px) {
+            .nav-links { display: none; position: absolute; top: 100%; left: 0; right: 0; flex-direction: column; background: var(--surface); border-bottom: 1px solid var(--border); padding: 1rem 2rem; gap: 1rem; margin-left: 0; }
+            .nav-links.open { display: flex; }
+            .hamburger { display: block; }
+            .gh-badge { display: none; }
+            .nav-links .gh-badge-mobile { display: inline-flex; }
         }
+        .gh-badge-mobile { display: none; align-items: center; gap: 0.4rem; padding: 0.3rem 0.7rem; border-radius: 6px; border: 1px solid var(--border); background: var(--tag-bg); color: var(--text); font-size: 0.78rem; font-weight: 500; text-decoration: none; width: fit-content; }
 
-        body {
-            background: var(--bg);
-            color: var(--text);
-            font-family: 'Inter', system-ui, sans-serif;
-            min-height: 100vh;
-        }
+        .hero { text-align: center; padding: 3rem 1rem 2rem; border-bottom: 1px solid var(--border); }
+        .hero h2 { font-size: 2rem; font-weight: 700; background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
+        .hero p { color: var(--muted); margin-top: 0.5rem; font-size: 0.95rem; max-width: 600px; margin-left: auto; margin-right: auto; line-height: 1.6; }
+        .content { max-width: 800px; margin: 0 auto; padding: 2rem 1.5rem 4rem; }
+        h3 { font-size: 1.2rem; font-weight: 600; margin: 2.5rem 0 1rem; color: var(--accent); }
+        p { color: var(--text); line-height: 1.7; margin-bottom: 1rem; font-size: 0.95rem; }
 
-        header {
-            border-bottom: 1px solid var(--border);
-            padding: 1.5rem 2rem;
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-        }
+        .pipeline { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin: 1.5rem 0; }
+        .pipeline-step { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem; text-align: center; }
+        .pipeline-step .step-icon { font-size: 2rem; margin-bottom: 0.5rem; }
+        .pipeline-step h4 { font-size: 0.9rem; font-weight: 600; margin-bottom: 0.4rem; }
+        .pipeline-step p { color: var(--muted); font-size: 0.82rem; margin-bottom: 0; }
 
-        header img {
-            height: 36px;
-        }
+        .card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem; margin-bottom: 1rem; }
+        .card h4 { font-size: 0.95rem; font-weight: 600; margin-bottom: 0.5rem; }
+        .card p { color: var(--muted); font-size: 0.88rem; margin-bottom: 0; }
 
-        header h1 {
-            font-size: 1.25rem;
-            font-weight: 600;
-            color: var(--text);
-        }
+        .skills-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.75rem; margin: 1rem 0; }
+        .skill-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; }
+        .skill-card .skill-icon { font-size: 1.5rem; margin-bottom: 0.4rem; }
+        .skill-card h4 { font-size: 0.88rem; font-weight: 600; margin-bottom: 0.3rem; }
+        .skill-card p { color: var(--muted); font-size: 0.8rem; margin-bottom: 0; line-height: 1.5; }
 
-        .content {
-            max-width: 800px;
-            margin: 0 auto;
-            padding: 2rem 1.5rem 4rem;
-        }
+        .species-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 0.75rem; margin: 1rem 0; }
+        .species-card { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 1.25rem; text-align: center; }
+        .species-card .sp-icon { font-size: 2.5rem; margin-bottom: 0.5rem; }
+        .species-card h4 { font-size: 0.95rem; font-weight: 600; margin-bottom: 0.3rem; }
+        .species-card p { color: var(--muted); font-size: 0.82rem; margin-bottom: 0; }
 
-        .hero {
-            text-align: center;
-            padding: 3rem 1rem 2rem;
-            border-bottom: 1px solid var(--border);
-        }
+        a { color: var(--accent); text-decoration: none; }
+        a:hover { text-decoration: underline; }
+        code { font-family: 'JetBrains Mono', 'Fira Code', monospace; background: var(--tag-bg); padding: 0.15rem 0.45rem; border-radius: 4px; font-size: 0.82rem; color: var(--accent); }
 
-        .hero h2 {
-            font-size: 2rem;
-            font-weight: 700;
-            background: linear-gradient(135deg, var(--accent), var(--accent2));
-            -webkit-background-clip: text;
-            background-clip: text;
-            -webkit-text-fill-color: transparent;
-        }
+        .creator { text-align: center; margin: 3rem 0 1rem; padding: 2rem; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; }
+        .creator h3 { margin-top: 0; }
+        .creator p { color: var(--muted); font-size: 0.9rem; }
+        .creator a { color: var(--accent); }
 
-        .hero p {
-            color: var(--muted);
-            margin-top: 0.5rem;
-            font-size: 0.95rem;
-            max-width: 600px;
-            margin-left: auto;
-            margin-right: auto;
-            line-height: 1.6;
-        }
-
-        h3 {
-            font-size: 1.2rem;
-            font-weight: 600;
-            margin: 2.5rem 0 1rem;
-            color: var(--accent);
-        }
-
-        p {
-            color: var(--text);
-            line-height: 1.7;
-            margin-bottom: 1rem;
-            font-size: 0.95rem;
-        }
-
-        .pipeline {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1rem;
-            margin: 1.5rem 0;
-        }
-
-        .pipeline-step {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 4px;
-            padding: 1.25rem;
-            text-align: center;
-        }
-
-        .pipeline-step .step-icon {
-            font-size: 2rem;
-            margin-bottom: 0.5rem;
-        }
-
-        .pipeline-step h4 {
-            font-size: 0.9rem;
-            font-weight: 600;
-            margin-bottom: 0.4rem;
-        }
-
-        .pipeline-step p {
-            color: var(--muted);
-            font-size: 0.82rem;
-            margin-bottom: 0;
-        }
-
-        .step-arrow {
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            color: var(--accent);
-            font-size: 1.5rem;
-        }
-
-        .card {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 4px;
-            padding: 1.25rem;
-            margin-bottom: 1rem;
-        }
-
-        .card h4 {
-            font-size: 0.95rem;
-            font-weight: 600;
-            margin-bottom: 0.5rem;
-        }
-
-        .card p {
-            color: var(--muted);
-            font-size: 0.88rem;
-            margin-bottom: 0;
-        }
-
-        .skills-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-            gap: 0.75rem;
-            margin: 1rem 0;
-        }
-
-        .skill-card {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 4px;
-            padding: 1rem;
-        }
-
-        .skill-card .skill-icon {
-            font-size: 1.5rem;
-            margin-bottom: 0.4rem;
-        }
-
-        .skill-card h4 {
-            font-size: 0.88rem;
-            font-weight: 600;
-            margin-bottom: 0.3rem;
-        }
-
-        .skill-card p {
-            color: var(--muted);
-            font-size: 0.8rem;
-            margin-bottom: 0;
-            line-height: 1.5;
-        }
-
-        a {
-            color: var(--accent);
-            text-decoration: none;
-        }
-
-        a:hover {
-            text-decoration: underline;
-        }
-
-        code {
-            font-family: 'JetBrains Mono', 'Fira Code', monospace;
-            background: var(--tag-bg);
-            padding: 0.15rem 0.45rem;
-            border-radius: 4px;
-            font-size: 0.82rem;
-            color: var(--accent);
-        }
-
-        footer {
-            text-align: center;
-            padding: 2rem;
-            color: var(--muted);
-            font-size: 0.8rem;
-            border-top: 1px solid var(--border);
-        }
+        footer { text-align: center; padding: 2rem; color: var(--muted); font-size: 0.8rem; border-top: 1px solid var(--border); }
+        footer .footer-inner { max-width: 900px; margin: 0 auto; display: flex; flex-direction: column; gap: 0.75rem; align-items: center; }
+        footer .footer-links { display: flex; gap: 1.25rem; flex-wrap: wrap; justify-content: center; }
+        footer .footer-links a { color: var(--muted); text-decoration: none; font-size: 0.82rem; transition: color 0.15s; }
+        footer .footer-links a:hover { color: var(--accent); }
+        footer .footer-disclaimer { font-size: 0.75rem; max-width: 600px; line-height: 1.5; color: var(--muted); }
     </style>
 </head>
 
@@ -222,112 +88,71 @@
             <img src="https://pub.opencurelabs.ai/assets/logo-symbol.svg" alt="OpenCure Labs" />
             <h1>OpenCure Labs</h1>
         </a>
-        <nav style="display:flex;gap:1.25rem;margin-left:2rem">
-            <a href="/" style="color:var(--muted);text-decoration:none;font-size:0.9rem;font-weight:500">Feed</a>
-            <a href="/data" style="color:var(--muted);text-decoration:none;font-size:0.9rem;font-weight:500">Data</a>
-            <a href="/contribute"
-                style="color:var(--muted);text-decoration:none;font-size:0.9rem;font-weight:500">Contribute</a>
-            <a href="/about" style="color:var(--accent);text-decoration:none;font-size:0.9rem;font-weight:500">About</a>
+        <nav class="nav-links" id="nav-links">
+            <a href="/">Feed</a>
+            <a href="/data">Data</a>
+            <a href="/contribute">Contribute</a>
+            <a href="/about" class="active">About</a>
+            <a class="gh-badge-mobile" href="https://github.com/OpenCureLabs/OpenCureLabs" target="_blank" rel="noopener">
+                <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+                GitHub
+            </a>
         </nav>
+        <a class="gh-badge" href="https://github.com/OpenCureLabs/OpenCureLabs" target="_blank" rel="noopener" title="Star us on GitHub">
+            <svg viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
+            GitHub
+        </a>
+        <button class="hamburger" onclick="document.getElementById('nav-links').classList.toggle('open')" aria-label="Toggle menu">☰</button>
     </header>
 
     <div class="hero">
         <h2>About OpenCure Labs</h2>
-        <p>Open infrastructure for computational biology — with a long-term goal of enabling more open and accessible
-            personalized medicine workflows.</p>
+        <p>Open infrastructure for computational biology — with a long-term goal of enabling more open and accessible personalized medicine workflows.</p>
     </div>
 
     <div class="content">
 
-        <h3>What We Do</h3>
+        <h3>Mission</h3>
 
-        <p>OpenCure Labs is open infrastructure for computational biology. The platform runs AI-driven workflows
-            across genomics, drug discovery, and protein science — generating research tasks from public biomedical
-            datasets (TCGA, ClinVar, ChEMBL, GEO), executing them on GPU compute, and publishing the outputs as
-            downloadable artifacts with provenance metadata.</p>
+        <p>OpenCure Labs exists to make computational biology research more open, reproducible, and accessible. We run autonomous AI-driven research pipelines across genomics, drug discovery, and protein science — then publish every result as a signed, inspectable artifact that anyone can download and verify.</p>
 
-        <p>Each result is independently reviewed by Grok, which critiques methodology, checks for literature overlap,
-            and assigns a confidence-oriented review score before publication. Published artifacts are stored in
-            Cloudflare R2, with a D1 task queue coordinating shared work across contributors. Results are signed by
-            the contributing system for auditability.</p>
+        <p>The platform generates research tasks from public biomedical datasets (TCGA, ClinVar, ChEMBL, GEO), executes them on GPU compute via specialist agents, and publishes the outputs with full provenance metadata. Every artifact carries an Ed25519 integrity signature for auditability.</p>
 
-        <p>The platform supports both shared and private usage. In the default mode, results are published to the
-            public feed. In solo mode, users run the same pipelines locally on their own data with no external calls.
-            The long-term goal is enabling more open and accessible personalized medicine workflows.</p>
-
-        <p>Download AI-generated research artifacts with metadata, integrity signatures, and explicit validation
-            warnings. Outputs are open for inspection and reuse, but should be independently validated before scientific
-            or clinical use.</p>
-
-        <h3>How the Pipeline Works</h3>
+        <h3>How the System Works</h3>
 
         <div class="pipeline">
             <div class="pipeline-step">
                 <div class="step-icon">🧬</div>
                 <h4>1. Task Generation</h4>
-                <p>Research tasks are derived from public biomedical datasets (TCGA, ClinVar, ChEMBL, GEO) exploring
-                    open problems in oncology, rare disease, and pharmacology.</p>
+                <p>Research tasks derived from public biomedical datasets exploring open problems in oncology, rare disease, and pharmacology.</p>
             </div>
             <div class="pipeline-step">
                 <div class="step-icon">🤖</div>
                 <h4>2. Agent Execution</h4>
-                <p>Specialist agents execute computational pipelines on GPU clusters — neoantigen binding prediction,
-                    variant scoring, molecular docking, and QSAR modeling.</p>
+                <p>Specialist agents run computational pipelines on GPU clusters — neoantigen binding, variant scoring, molecular docking, QSAR.</p>
             </div>
             <div class="pipeline-step">
                 <div class="step-icon">🔬</div>
-                <h4>3. Independent Review</h4>
-                <p>Grok critiques each result: checking methodology, scoring confidence, and flagging literature
-                    overlap. Below-threshold results are blocked with a written explanation.</p>
+                <h4>3. Two-Tier Grok Review</h4>
+                <p>Grok independently critiques each result: methodology, confidence scoring, and literature overlap. Below-threshold results are blocked.</p>
             </div>
             <div class="pipeline-step">
                 <div class="step-icon">🌐</div>
-                <h4>4. Artifact Publication</h4>
-                <p>Approved artifacts are stored in Cloudflare R2/D1 with provenance metadata and integrity signatures,
-                    then made available as published results.</p>
+                <h4>4. Signed Artifact Publication</h4>
+                <p>Approved artifacts stored in Cloudflare R2/D1 with Ed25519 signatures, provenance metadata, and validation warnings.</p>
             </div>
         </div>
 
         <h3>Research Skills</h3>
 
         <div class="skills-grid">
-            <div class="skill-card">
-                <div class="skill-icon">🎯</div>
-                <h4>Neoantigen Prediction</h4>
-                <p>Predicts tumor-specific peptide-MHC binding for personalized cancer immunotherapy targets.</p>
-            </div>
-            <div class="skill-card">
-                <div class="skill-icon">🧬</div>
-                <h4>Variant Pathogenicity</h4>
-                <p>Scores genetic variants for disease-causing potential using ensemble ML models and ClinVar data.</p>
-            </div>
-            <div class="skill-card">
-                <div class="skill-icon">⚗️</div>
-                <h4>Molecular Docking</h4>
-                <p>Simulates protein-ligand interactions to identify potential drug binding candidates.</p>
-            </div>
-            <div class="skill-card">
-                <div class="skill-icon">📊</div>
-                <h4>QSAR Modeling</h4>
-                <p>Builds quantitative structure-activity models to predict compound bioactivity from molecular
-                    features.</p>
-            </div>
-            <div class="skill-card">
-                <div class="skill-icon">🔬</div>
-                <h4>Structure Prediction</h4>
-                <p>Predicts protein 3D structures to enable downstream docking and functional analysis.</p>
-            </div>
-            <div class="skill-card">
-                <div class="skill-icon">📋</div>
-                <h4>Sequencing QC</h4>
-                <p>Quality control analysis for sequencing runs — coverage, error rates, and contamination checks.</p>
-            </div>
-            <div class="skill-card">
-                <div class="skill-icon">📚</div>
-                <h4>Literature Review</h4>
-                <p>AI-powered analysis of scientific literature to identify gaps, validate hypotheses, and find related
-                    work.</p>
-            </div>
+            <div class="skill-card"><div class="skill-icon">🎯</div><h4>Neoantigen Prediction</h4><p>Tumor-specific peptide-MHC binding for personalized cancer immunotherapy targets.</p></div>
+            <div class="skill-card"><div class="skill-icon">🧬</div><h4>Variant Pathogenicity</h4><p>Genetic variant scoring for disease-causing potential using ensemble ML models.</p></div>
+            <div class="skill-card"><div class="skill-icon">⚗️</div><h4>Molecular Docking</h4><p>Protein-ligand interaction simulation to identify drug binding candidates.</p></div>
+            <div class="skill-card"><div class="skill-icon">📊</div><h4>QSAR Modeling</h4><p>Structure-activity models predicting compound bioactivity from molecular features.</p></div>
+            <div class="skill-card"><div class="skill-icon">🔬</div><h4>Structure Prediction</h4><p>Protein 3D structure prediction for downstream docking and analysis.</p></div>
+            <div class="skill-card"><div class="skill-icon">📋</div><h4>Sequencing QC</h4><p>Quality control — coverage, error rates, and contamination checks.</p></div>
+            <div class="skill-card"><div class="skill-icon">📚</div><h4>Literature Review</h4><p>AI-powered analysis of scientific literature to identify gaps and validate hypotheses.</p></div>
         </div>
 
         <h3>The Review Process</h3>
@@ -336,69 +161,57 @@
 
         <div class="card">
             <h4>Tier 1: Automated Validation</h4>
-            <p>A local critique step checks methodology, input data quality, and statistical validity. Results that fail
-                local validation are flagged and withheld from submission.</p>
+            <p>A local critique step checks methodology, input data quality, and statistical validity. Results that fail local validation are withheld.</p>
         </div>
 
         <div class="card">
             <h4>Tier 2: Independent Critique (Grok)</h4>
-            <p>Grok (xAI) independently evaluates each result — critiquing methodology, checking for overlap with
-                published literature, and assigning a confidence-oriented review score. Results scoring below threshold
-                are blocked with a written explanation.</p>
+            <p>Grok (xAI) independently evaluates each result — critiquing methodology, checking literature overlap, and assigning a confidence-oriented review score. Below-threshold results are blocked with a written explanation.</p>
         </div>
 
-        <h3>Veterinary Genomics</h3>
+        <h3>Multi-Species Support</h3>
 
-        <p>OpenCure Labs extends the same pipelines to veterinary species. Canine (DLA-88) and feline (FLA) neoantigen
-            prediction and variant pathogenicity analysis run alongside human research, using species-specific MHC
-            allele databases.</p>
+        <div class="species-grid">
+            <div class="species-card"><div class="sp-icon">🧬</div><h4>Human</h4><p>HLA-based neoantigen prediction, variant pathogenicity, and drug response across TCGA cancer types.</p></div>
+            <div class="species-card"><div class="sp-icon">🐕</div><h4>Dog (Canine)</h4><p>DLA-88 MHC allele support for canine neoantigen prediction and variant analysis.</p></div>
+            <div class="species-card"><div class="sp-icon">🐈</div><h4>Cat (Feline)</h4><p>FLA MHC allele support for feline neoantigen prediction and variant analysis.</p></div>
+        </div>
+
+        <h3>Why the Public Artifact Browser?</h3>
+
+        <p>We built the public browser at <a href="/">opencurelabs.ai</a> because open science means more than open-source code — it means open data. Every computational result we generate is published with integrity signatures, provenance metadata, and explicit validation warnings so anyone can inspect, reproduce, and build on the work.</p>
+
+        <p>With 25,000+ published artifacts and growing, the browser gives researchers instant access to AI-generated hypotheses across oncology, rare disease, and drug discovery — no account required.</p>
+
+        <h3>Responsible AI Disclaimer</h3>
+
+        <p>All outputs are AI-generated computational predictions. They carry explicit validation warnings and have not been experimentally validated. Each artifact includes provenance metadata and an Ed25519 integrity signature for auditability. Outputs are open for inspection and reuse, but should be independently validated before scientific or clinical use.</p>
 
         <h3>Open Source</h3>
 
-        <p>The full platform — agents, pipelines, coordinator, reviewer — is open source on <a
-                href="https://github.com/OpenCureLabs/OpenCureLabs">GitHub</a>. Contributions are welcome via pull
-            requests.</p>
+        <p>The full platform — agents, pipelines, coordinator, reviewer — is open source on <a href="https://github.com/OpenCureLabs/OpenCureLabs">GitHub</a>. Contributions are welcome via pull requests.</p>
 
-        <h3>Contributing</h3>
-
-        <p>Want to run your own research tasks on the platform?</p>
-
-        <div class="card">
-            <h4>1. Register a contributor key</h4>
-            <p>Generate an Ed25519 keypair and POST your public key to <code>/contributors</code>.</p>
+        <div class="creator">
+            <h3>Built by Shone Anstey</h3>
+            <p>Made with 🔬 in Vancouver 🇨🇦</p>
+            <p style="margin-top: 0.5rem"><a href="https://x.com/shoneanstey">@shoneanstey</a> · <a href="https://github.com/OpenCureLabs/OpenCureLabs">GitHub</a></p>
         </div>
-
-        <div class="card">
-            <h4>2. Submit results</h4>
-            <p>Sign your result payload with your private key and POST to <code>/results</code>. Results enter the
-                review queue automatically.</p>
-        </div>
-
-        <div class="card">
-            <h4>3. Results are reviewed and published</h4>
-            <p>Grok reviews your submission. Approved artifacts are stored in R2/D1 with provenance metadata and
-                made available as published results.</p>
-        </div>
-
-        <p>See the <a href="/data">Data page</a> for API documentation and code examples.</p>
-
-        <h3>Disclaimer</h3>
-
-        <p>All outputs are AI-generated computational predictions. They carry explicit validation warnings and have not
-            been experimentally validated. Each artifact includes provenance metadata and an Ed25519 integrity signature
-            for auditability. Outputs are open for inspection and reuse, but should be independently validated before
-            scientific or clinical use.</p>
 
     </div>
 
     <footer>
-        <a href="/">Feed</a> &middot;
-        <a href="/data">Data</a> &middot;
-        <a href="/contribute">Contribute</a> &middot;
-        <a href="https://github.com/OpenCureLabs/OpenCureLabs">GitHub</a> &middot;
-        MIT License
+        <div class="footer-inner">
+            <div class="footer-links">
+                <a href="https://github.com/OpenCureLabs/OpenCureLabs" target="_blank" rel="noopener">GitHub</a>
+                <a href="https://x.com/shoneanstey" target="_blank" rel="noopener">𝕏 @shoneanstey</a>
+                <a href="/data">Data API</a>
+                <a href="/contribute">Contribute</a>
+                <a href="/">Feed</a>
+            </div>
+            <div class="footer-disclaimer">All artifacts are AI-generated and should be independently validated.</div>
+            <div style="font-size:0.72rem;color:var(--muted)">© 2026 OpenCure Labs · Open source under MIT License</div>
+        </div>
     </footer>
 
 </body>
-
 </html>

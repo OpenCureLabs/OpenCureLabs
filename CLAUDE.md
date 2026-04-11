@@ -60,7 +60,8 @@ Architecture spec: see LABCLAW.md.
    ever accidentally staged, run `git rm --cached .env` immediately and consider
    all keys compromised.
 
-5. **Never overwrite README.md** — it is the source of truth for the project.
+5. **Never overwrite README.md wholesale** — it is the source of truth for the
+   project. Targeted edits to keep it in sync with the codebase are expected.
 
 6. **All agent activity logs** to `logs/` directory.
 

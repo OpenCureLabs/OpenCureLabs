@@ -491,6 +491,11 @@ async function handleGet(request: Request, env: Env): Promise<Response> {
         query += " AND species = ?";
         bindings.push(speciesParam);
     }
+    const geneParam = url.searchParams.get("gene");
+    if (geneParam) {
+        query += " AND gene LIKE ?";
+        bindings.push(`%${geneParam}%`);
+    }
     if (afterParam) {
         query += " AND created_at < ?";
         bindings.push(afterParam);
