@@ -761,23 +761,27 @@ if $HAS_GUM; then
                     "100 tasks" \
                     "250 tasks" \
                     "500 tasks" \
+                    "1000 tasks" \
+                    "5000 tasks" \
                     "Custom" \
                 ) || { _EXEC_PICK=1; continue; }
                 if [[ "$_TASK_PICK" == *"Back"* ]]; then _EXEC_PICK=1; continue; fi
                 if [[ "$_TASK_PICK" == "Custom" ]]; then
                     BATCH_COUNT=$(gum input \
-                        --header "Enter task count (1-500):" \
+                        --header "Enter task count (1-100000):" \
                         --placeholder "100" \
                         --value "100" \
                         --header.foreground 214 \
                         --prompt.foreground 46 \
                     ) || { _EXEC_PICK=1; continue; }
-                    # Validate: integer between 1-500
+                    # Validate: integer between 1-100000
                     if ! [[ "$BATCH_COUNT" =~ ^[0-9]+$ ]] || [[ "$BATCH_COUNT" -lt 1 ]]; then
                         BATCH_COUNT=100
-                    elif [[ "$BATCH_COUNT" -gt 500 ]]; then
-                        BATCH_COUNT=500
-                        gum style --foreground 196 "  ⚠️  Capped to 500 tasks (budget protection)"
+                    elif [[ "$BATCH_COUNT" -gt 100000 ]]; then
+                        BATCH_COUNT=100000
+                        gum style --foreground 196 "  ⚠️  Capped to 100,000 tasks"
+                    elif [[ "$BATCH_COUNT" -gt 1000 ]]; then
+                        gum style --foreground 214 "  ⚡ $BATCH_COUNT tasks — budget lock will prevent overspend"
                     fi
                 else
                     BATCH_COUNT="${_TASK_PICK%% *}"
