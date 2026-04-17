@@ -48,6 +48,9 @@ CREATE TABLE IF NOT EXISTS experiment_results (
   result_data JSONB,
   novel BOOLEAN DEFAULT FALSE,
   species TEXT NOT NULL DEFAULT 'human',
+  -- Tracks results produced from synthetic/demo data (added by migration 003).
+  -- Kept inline so fresh installs without migrations match the production schema.
+  synthetic BOOLEAN NOT NULL DEFAULT FALSE,
   status TEXT DEFAULT 'published',
   timestamp TIMESTAMP DEFAULT NOW()
 );
@@ -61,6 +64,8 @@ CREATE TABLE IF NOT EXISTS llm_spend (
   estimated_cost REAL DEFAULT 0,
   skill_name TEXT,
   agent_name TEXT,
+  -- Tag of the Genesis run that produced this spend (added by migration 004).
+  genesis_run_id TEXT,
   created_at TIMESTAMP DEFAULT NOW()
 );
 
@@ -73,6 +78,7 @@ CREATE INDEX IF NOT EXISTS idx_pipeline_runs_status ON pipeline_runs(status);
 CREATE INDEX IF NOT EXISTS idx_pipeline_runs_started_at ON pipeline_runs(started_at);
 CREATE INDEX IF NOT EXISTS idx_experiment_results_novel ON experiment_results(novel);
 CREATE INDEX IF NOT EXISTS idx_experiment_results_species ON experiment_results(species);
+CREATE INDEX IF NOT EXISTS idx_experiment_results_synthetic ON experiment_results(synthetic);
 CREATE INDEX IF NOT EXISTS idx_experiment_results_pipeline_run_id ON experiment_results(pipeline_run_id);
 CREATE INDEX IF NOT EXISTS idx_experiment_results_timestamp ON experiment_results(timestamp);
 CREATE INDEX IF NOT EXISTS idx_critique_log_run_id ON critique_log(run_id);
@@ -94,6 +100,8 @@ CREATE TABLE IF NOT EXISTS batch_jobs (
   result_data  JSONB,
   error        TEXT,
   retry_count  INTEGER DEFAULT 0,
+  -- Tag of the Genesis run that produced this job (added by migration 004).
+  genesis_run_id TEXT,
   created_at   TIMESTAMP DEFAULT NOW(),
   claimed_at   TIMESTAMP,
   started_at   TIMESTAMP,
@@ -102,6 +110,7 @@ CREATE TABLE IF NOT EXISTS batch_jobs (
 
 CREATE INDEX IF NOT EXISTS idx_batch_jobs_batch_status ON batch_jobs(batch_id, status);
 CREATE INDEX IF NOT EXISTS idx_batch_jobs_status_priority ON batch_jobs(status, priority);
+CREATE INDEX IF NOT EXISTS idx_batch_jobs_genesis_run_id ON batch_jobs(genesis_run_id);
 
 CREATE TABLE IF NOT EXISTS vast_pool (
   id           SERIAL PRIMARY KEY,
@@ -139,7 +148,9 @@ CREATE TABLE IF NOT EXISTS vast_spend (
 
 CREATE INDEX IF NOT EXISTS idx_vast_spend_created_at ON vast_spend(started_at);
 CREATE INDEX IF NOT EXISTS idx_vast_spend_instance_id ON vast_spend(instance_id);
+CREATE INDEX IF NOT EXISTS idx_vast_spend_genesis_run_id ON vast_spend(genesis_run_id);
 
 -- Composite index for per-provider cost reports over time windows
 CREATE INDEX IF NOT EXISTS idx_llm_spend_provider_created_at
   ON llm_spend(provider, created_at);
+CREATE INDEX IF NOT EXISTS idx_llm_spend_genesis_run_id ON llm_spend(genesis_run_id);
