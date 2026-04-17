@@ -29,7 +29,7 @@ researcher:
     - OpenTargets
     - Zenodo / Figshare
 
-  max_tool_rounds: 200
+  max_tool_rounds: 100  # cap per researcher session to bound xAI API cost (was 200)
 
 reviewer:
   name: grok_literature_reviewer

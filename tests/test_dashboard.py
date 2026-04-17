@@ -7,37 +7,55 @@ from unittest.mock import MagicMock, patch
 # Add dashboard to path
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "dashboard"))
 
-# Mock psycopg2 before importing dashboard to avoid needing a real DB
-mock_psycopg2 = MagicMock()
-mock_psycopg2_pool = MagicMock()
-sys.modules["psycopg2"] = mock_psycopg2
-sys.modules["psycopg2.pool"] = mock_psycopg2_pool
-
-
-# ── Import after mocking ─────────────────────────────────────────────────────
+# NOTE: We used to unconditionally replace sys.modules["psycopg2"] with a
+# MagicMock at import time, which silently corrupted every other test module
+# collected after this one (they all imported the mock instead of the real
+# driver). The mocking now happens ONLY inside _make_client() and is reverted
+# immediately afterwards so collection order is irrelevant.
 
 from fastapi.testclient import TestClient
 
 
 def _make_client():
-    """Create a test client with mocked DB connections."""
-    # Re-import to get fresh module with mocked psycopg2
-    if "dashboard" in sys.modules:
-        del sys.modules["dashboard"]
+    """Create a test client with mocked DB connections.
 
-    import dashboard as dash
+    We scope the psycopg2 replacement to this function: swap it in, import
+    dashboard, then restore the original module reference so subsequent tests
+    that rely on the real psycopg2 continue to work.
+    """
+    original_pg = sys.modules.get("psycopg2")
+    original_pool = sys.modules.get("psycopg2.pool")
+    mock_psycopg2 = MagicMock()
+    mock_psycopg2_pool = MagicMock()
+    sys.modules["psycopg2"] = mock_psycopg2
+    sys.modules["psycopg2.pool"] = mock_psycopg2_pool
 
-    # Mock get_conn to return a mock connection
-    mock_conn = MagicMock()
-    mock_cursor = MagicMock()
-    mock_conn.cursor.return_value = mock_cursor
-    # table_exists returns True for all tables
-    mock_cursor.fetchone.return_value = (True,)
-    # Default: return 0 for counts
-    mock_cursor.fetchall.return_value = []
+    try:
+        # Re-import to get a fresh dashboard module bound against the mock
+        if "dashboard" in sys.modules:
+            del sys.modules["dashboard"]
 
-    dash.get_conn = lambda: mock_conn
-    return TestClient(dash.app), dash, mock_cursor
+        import dashboard as dash
+
+        # Mock get_conn to return a mock connection
+        mock_conn = MagicMock()
+        mock_cursor = MagicMock()
+        mock_conn.cursor.return_value = mock_cursor
+        mock_cursor.fetchone.return_value = (True,)
+        mock_cursor.fetchall.return_value = []
+
+        dash.get_conn = lambda: mock_conn
+        return TestClient(dash.app), dash, mock_cursor
+    finally:
+        # Restore real psycopg2 so other tests aren't polluted
+        if original_pg is not None:
+            sys.modules["psycopg2"] = original_pg
+        else:
+            sys.modules.pop("psycopg2", None)
+        if original_pool is not None:
+            sys.modules["psycopg2.pool"] = original_pool
+        else:
+            sys.modules.pop("psycopg2.pool", None)
 
 
 # ═══════════════════════════════════════════════════════════════════════════

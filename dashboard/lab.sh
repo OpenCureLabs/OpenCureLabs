@@ -12,7 +12,7 @@ PROJECT="$(cd "$(dirname "$0")/.." && pwd)"
 SESSION="opencurelabs"
 LOGFILE="$PROJECT/logs/agent.log"
 ZELLIJ_CFG="$PROJECT/dashboard/zellij"
-PG_PORT=5433
+PG_PORT="${POSTGRES_PORT:-5433}"
 MIN_ROWS=40
 MIN_COLS=140
 
@@ -22,12 +22,28 @@ if ! command -v zellij &>/dev/null; then
     ZELLIJ_VERSION="v0.41.2"
     ARCH="$(uname -m)"
     case "$ARCH" in
-        x86_64)  TARGET="x86_64-unknown-linux-musl" ;;
-        aarch64) TARGET="aarch64-unknown-linux-musl" ;;
+        x86_64)
+            TARGET="x86_64-unknown-linux-musl"
+            EXPECTED_SHA256="b1c321a817d8a5baf55c2798f6ac7495bba925d686d9877e9604a50784bf6c78"
+            ;;
+        aarch64)
+            TARGET="aarch64-unknown-linux-musl"
+            EXPECTED_SHA256="1d6ace4ed4831b5cdf7be87e2d40e1a85fe4a022372814c1b8f08e5b71c58583"
+            ;;
         *)       echo "[OpenCure Labs] Unsupported architecture: $ARCH"; exit 1 ;;
     esac
     curl -fsSL "https://github.com/zellij-org/zellij/releases/download/${ZELLIJ_VERSION}/zellij-${TARGET}.tar.gz" \
         -o /tmp/zellij.tar.gz
+    # Verify SHA256 to guard against supply-chain tampering
+    ACTUAL_SHA256="$(sha256sum /tmp/zellij.tar.gz | awk '{print $1}')"
+    if [[ "$ACTUAL_SHA256" != "$EXPECTED_SHA256" ]]; then
+        echo "[OpenCure Labs] ✗ Zellij SHA256 mismatch!"
+        echo "               Expected: $EXPECTED_SHA256"
+        echo "               Actual:   $ACTUAL_SHA256"
+        rm -f /tmp/zellij.tar.gz
+        exit 1
+    fi
+    echo "[OpenCure Labs] ✓ Zellij SHA256 verified."
     tar -xzf /tmp/zellij.tar.gz -C /usr/local/bin
     chmod +x /usr/local/bin/zellij
     rm /tmp/zellij.tar.gz

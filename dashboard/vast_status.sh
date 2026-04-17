@@ -27,7 +27,8 @@ API_BALANCE=$(curl -sf -H "Authorization: Bearer $VAST_KEY" \
 echo "  💳 Account balance: \$$API_BALANCE"
 
 # Query spend from DB
-VAST_SPENT=$(psql -p 5433 -d opencurelabs -t -A -c \
+PG_PORT="${POSTGRES_PORT:-5433}"
+VAST_SPENT=$(psql -p "$PG_PORT" -d opencurelabs -t -A -c \
     "SELECT COALESCE(SUM(total_cost), 0) FROM vast_spend" 2>/dev/null || echo "0")
 
 if [[ "$VAST_SPENT" != "0" ]]; then

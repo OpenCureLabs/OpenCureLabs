@@ -17,15 +17,17 @@ def get_connection():
     """Get or create a PostgreSQL connection to the opencurelabs database.
 
     Returns None if POSTGRES_URL is unset or connection fails (e.g. remote workers).
+    Honours POSTGRES_CONNECT_TIMEOUT (seconds, default 10) to avoid hanging.
     """
     global _connection, _conn_failed
     if _conn_failed:
         return None
     if _connection is None or _connection.closed:
         db_url = os.environ.get("POSTGRES_URL", "postgresql://localhost:5433/opencurelabs")
+        connect_timeout = int(os.environ.get("POSTGRES_CONNECT_TIMEOUT", "10"))
         try:
             logger.info("Connecting to PostgreSQL: %s", db_url.split("@")[-1] if "@" in db_url else db_url)
-            _connection = psycopg2.connect(db_url)
+            _connection = psycopg2.connect(db_url, connect_timeout=connect_timeout)
             _connection.autocommit = True
         except Exception:
             _conn_failed = True

@@ -118,3 +118,28 @@ CREATE TABLE IF NOT EXISTS vast_pool (
 );
 
 CREATE INDEX IF NOT EXISTS idx_vast_pool_status ON vast_pool(status);
+CREATE INDEX IF NOT EXISTS idx_vast_pool_created_at ON vast_pool(created_at);
+CREATE INDEX IF NOT EXISTS idx_batch_jobs_created_at ON batch_jobs(created_at);
+
+-- ── Vast.ai spend tracking ──────────────────────────────────────────────────
+-- Mirrors the dynamic CREATE TABLE in compute/vast_dispatcher.py so that a
+-- fresh `psql -f db/schema.sql` install includes this table before migration
+-- 004 runs ALTER TABLE against it.
+CREATE TABLE IF NOT EXISTS vast_spend (
+  id              SERIAL PRIMARY KEY,
+  instance_id     INTEGER,
+  skill_name      TEXT,
+  gpu_name        TEXT,
+  cost_per_hour   REAL,
+  started_at      TIMESTAMP DEFAULT NOW(),
+  ended_at        TIMESTAMP,
+  total_cost      REAL DEFAULT 0,
+  genesis_run_id  TEXT
+);
+
+CREATE INDEX IF NOT EXISTS idx_vast_spend_created_at ON vast_spend(started_at);
+CREATE INDEX IF NOT EXISTS idx_vast_spend_instance_id ON vast_spend(instance_id);
+
+-- Composite index for per-provider cost reports over time windows
+CREATE INDEX IF NOT EXISTS idx_llm_spend_provider_created_at
+  ON llm_spend(provider, created_at);

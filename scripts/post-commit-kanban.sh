@@ -83,7 +83,8 @@ echo -e "${CYAN}📋 Updating kanban board...${NC}"
 # ── Helper: find project item ID for an issue ────────────────────────────────
 get_item_id() {
     local issue_num=$1
-    gh api graphql -f query="
+    local response
+    response=$(gh api graphql -f query="
     {
       organization(login: \"$ORG\") {
         repository(name: \"$REPO\") {
@@ -97,7 +98,20 @@ get_item_id() {
           }
         }
       }
-    }" --jq ".data.organization.repository.issue.projectItems.nodes[] | select(.project.id == \"$PROJECT_ID\") | .id" 2>/dev/null
+    }" 2>&1) || {
+        echo -e "  ${YELLOW}⚠️${NC} #${issue_num}: GraphQL query failed" >&2
+        return 1
+    }
+
+    # Surface GraphQL errors instead of silently returning empty
+    if echo "$response" | jq -e '.errors' >/dev/null 2>&1; then
+        local err_msg
+        err_msg=$(echo "$response" | jq -r '.errors[0].message' 2>/dev/null || echo "unknown")
+        echo -e "  ${YELLOW}⚠️${NC} #${issue_num}: GraphQL error — $err_msg" >&2
+        return 1
+    fi
+
+    echo "$response" | jq -r ".data.organization.repository.issue.projectItems.nodes[] | select(.project.id == \"$PROJECT_ID\") | .id" 2>/dev/null
 }
 
 # ── Helper: move item to status ─────────────────────────────────────────────

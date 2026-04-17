@@ -13,7 +13,3 @@ accepted_risks:
     package: biopython
     reason: "Bio.Entrez XXE — Biopython 1.86 is latest; no patched version. We do not use Bio.Entrez with untrusted XML."
     accepted_date: "2026-03-20"
-  - cve: CVE-2026-4539
-    package: pygments
-    reason: "Pygments 2.19.2 is latest; no patched version available. Used only for syntax highlighting in dev tooling, not user-facing."
-    accepted_date: "2026-03-24"

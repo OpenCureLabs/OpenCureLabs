@@ -14,6 +14,9 @@
 # ──────────────────────────────────────────────────────────────────────────────
 set -euo pipefail
 
+# PostgreSQL port (override via $POSTGRES_PORT env var)
+PG_PORT="${POSTGRES_PORT:-5433}"
+
 # ── Prevent OSC 11 terminal color query artifacts in Zellij ───────────────────
 # gum and other TUI tools query the terminal background color via OSC 11.
 # Zellij doesn't always intercept the response, leaking ^[]11;rgb:... into output.
@@ -69,7 +72,7 @@ _nat_run() {
     local rc=$?
     if [[ $rc -eq 124 ]]; then
         echo "⏱ Task timed out after ${NAT_TASK_TIMEOUT}s — cleaning up stale DB rows..." >&2
-        PAGER=cat psql -p 5433 -d opencurelabs -c \
+        PAGER=cat psql -p "$PG_PORT" -d opencurelabs -c \
             "UPDATE agent_runs SET status='failed', completed_at=NOW() WHERE status='running' AND started_at < NOW() - INTERVAL '${NAT_TASK_TIMEOUT} seconds';" \
             2>/dev/null || true
     fi
@@ -880,7 +883,7 @@ if $HAS_GUM; then
             # ── Budget picker (Vast.ai batch mode) ─────────────────────
             if [[ "${BATCH_MODE:-0}" -eq 1 ]]; then
                 API_BALANCE=$(get_vast_balance)
-                VAST_SPENT=$(psql -p 5433 -d opencurelabs -t -A -c \
+                VAST_SPENT=$(psql -p "$PG_PORT" -d opencurelabs -t -A -c \
                     "SELECT COALESCE(SUM(total_cost), 0) FROM vast_spend" 2>/dev/null || echo "0")
                 VAST_SPENT=$(python3 -c "print(f'{float(\"$VAST_SPENT\"):.2f}')" 2>/dev/null || echo "$VAST_SPENT")
                 AVAILABLE="$API_BALANCE"
@@ -1242,7 +1245,7 @@ teardown_all_instances()
             GENESIS_SEC=$(( GENESIS_ELAPSED % 60 ))
 
             # Get spend from DB
-            GENESIS_SPENT=$(psql -p 5433 -d opencurelabs -t -A -c \
+            GENESIS_SPENT=$(psql -p "$PG_PORT" -d opencurelabs -t -A -c \
                 "SELECT COALESCE(SUM(total_cost), 0) FROM vast_spend WHERE started_at >= to_timestamp($GENESIS_START)" \
                 2>/dev/null || echo "?")
 
@@ -2046,7 +2049,7 @@ select domain in "${DOMAINS[@]}"; do
             # ── Budget picker (Vast.ai batch mode — fallback) ─────────
             if [[ "${BATCH_MODE:-0}" -eq 1 ]]; then
                 API_BALANCE=$(get_vast_balance)
-                VAST_SPENT=$(psql -p 5433 -d opencurelabs -t -A -c \
+                VAST_SPENT=$(psql -p "$PG_PORT" -d opencurelabs -t -A -c \
                     "SELECT COALESCE(SUM(total_cost), 0) FROM vast_spend" 2>/dev/null || echo "0")
                 VAST_SPENT=$(python3 -c "print(f'{float(\"$VAST_SPENT\"):.2f}')" 2>/dev/null || echo "$VAST_SPENT")
                 AVAILABLE="$API_BALANCE"
@@ -2281,7 +2284,7 @@ teardown_all_instances()
                     GENESIS_MIN=$(( GENESIS_ELAPSED / 60 ))
                     GENESIS_SEC=$(( GENESIS_ELAPSED % 60 ))
 
-                    GENESIS_SPENT=$(psql -p 5433 -d opencurelabs -t -A -c \
+                    GENESIS_SPENT=$(psql -p "$PG_PORT" -d opencurelabs -t -A -c \
                         "SELECT COALESCE(SUM(total_cost), 0) FROM vast_spend WHERE started_at >= to_timestamp($GENESIS_START)" \
                         2>/dev/null || echo "?")
 

@@ -210,6 +210,33 @@ as unvalidated and queued for coordinator review.
 
 ---
 
+### vast_spend
+
+Per-job Vast.ai GPU spend tracking. Written by
+`agentiq_labclaw.compute.vast_dispatcher`; one row per dispatched job.
+
+| Column | Type | Constraints | Description |
+|---|---|---|---|
+| `id` | `SERIAL` | PRIMARY KEY | Auto-incrementing spend row |
+| `instance_id` | `INTEGER` | nullable | Vast.ai instance ID |
+| `skill_name` | `TEXT` | nullable | Skill that produced the job (e.g. `protein_structure`) |
+| `gpu_name` | `TEXT` | nullable | GPU type (e.g. `RTX_5090`) |
+| `cost_per_hour` | `REAL` | nullable | Hourly rate quoted at dispatch time |
+| `started_at` | `TIMESTAMP` | DEFAULT NOW() | Dispatch timestamp |
+| `ended_at` | `TIMESTAMP` | nullable | Teardown timestamp (NULL while running) |
+| `total_cost` | `REAL` | DEFAULT 0 | Realised spend for this job in USD |
+| `genesis_run_id` | `TEXT` | nullable | Tag of the Genesis run (`genesis-YYYYMMDD-HHMMSS`) |
+
+**Indexes:** `idx_vast_spend_started_at`, `idx_vast_spend_genesis_run_id`.
+
+**DB helpers (in `agentiq_labclaw.compute.vast_dispatcher`):**
+- `_ensure_spend_table(conn)` — idempotent table creation.
+- `_record_spend_start(skill, instance_id, gpu, cost_per_hr)` → returns `spend_id`.
+- `_record_spend_end(spend_id, total_cost)` — sets `ended_at` + `total_cost`.
+- `get_total_spend()` — sum of `total_cost`; window-filtered by `GENESIS_START` if set.
+
+---
+
 ## Connection Management
 
 The `agentiq_labclaw.db.connection` module provides a singleton connection manager:

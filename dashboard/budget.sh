@@ -22,6 +22,9 @@ fi
 
 source .venv/bin/activate 2>/dev/null || true
 
+# PostgreSQL port (override via $POSTGRES_PORT env var)
+PG_PORT="${POSTGRES_PORT:-5433}"
+
 # ── Colors ───────────────────────────────────────────────────────────────────
 CYAN='\033[1;96m'   GREEN='\033[1;92m'  YELLOW='\033[1;93m'
 RED='\033[1;91m'    DIM='\033[2m'       BOLD='\033[1m'
@@ -61,13 +64,13 @@ while true; do
             || echo "0")
 
         # Session spend from DB (all-time)
-        VAST_SPENT=$(psql -p 5433 -d opencurelabs -t -A -c \
+        VAST_SPENT=$(psql -p "$PG_PORT" -d opencurelabs -t -A -c \
             "SELECT COALESCE(SUM(total_cost), 0) FROM vast_spend" 2>/dev/null || echo "0")
 
         # Per-run spend (filtered by GENESIS_START if set)
         VAST_RUN_SPENT="0"
         if [[ -n "${GENESIS_START:-}" ]]; then
-            VAST_RUN_SPENT=$(psql -p 5433 -d opencurelabs -t -A -c \
+            VAST_RUN_SPENT=$(psql -p "$PG_PORT" -d opencurelabs -t -A -c \
                 "SELECT COALESCE(SUM(total_cost), 0) FROM vast_spend WHERE started_at >= to_timestamp($GENESIS_START)" \
                 2>/dev/null || echo "0")
         fi
@@ -127,7 +130,7 @@ for i in active:
     echo ""
 
     # Query llm_spend table (all-time)
-    LLM_DATA=$(psql -p 5433 -d opencurelabs -t -A -c "
+    LLM_DATA=$(psql -p "$PG_PORT" -d opencurelabs -t -A -c "
         SELECT provider,
                SUM(input_tokens) as in_tok,
                SUM(output_tokens) as out_tok,
@@ -160,7 +163,7 @@ for i in active:
     # Per-run LLM spend
     LLM_RUN_TOTAL=0
     if [[ -n "${GENESIS_START:-}" ]]; then
-        LLM_RUN_TOTAL=$(psql -p 5433 -d opencurelabs -t -A -c \
+        LLM_RUN_TOTAL=$(psql -p "$PG_PORT" -d opencurelabs -t -A -c \
             "SELECT COALESCE(SUM(estimated_cost), 0) FROM llm_spend WHERE created_at >= to_timestamp($GENESIS_START)" \
             2>/dev/null || echo "0")
     fi
@@ -193,7 +196,7 @@ for i in active:
         SKILL_LABEL="All-Time"
     fi
 
-    SKILL_DATA=$(psql -p 5433 -d opencurelabs -t -A -c "
+    SKILL_DATA=$(psql -p "$PG_PORT" -d opencurelabs -t -A -c "
         SELECT bj.skill_name,
                COUNT(*) as jobs,
                SUM(CASE WHEN bj.status = 'done' THEN 1 ELSE 0 END) as done,
@@ -224,7 +227,7 @@ for i in active:
     fi
 
     # ── 5. Run History ──────────────────────────────────────────────────
-    RUN_HISTORY=$(psql -p 5433 -d opencurelabs -t -A -c "
+    RUN_HISTORY=$(psql -p "$PG_PORT" -d opencurelabs -t -A -c "
         SELECT genesis_run_id,
                COUNT(*) as jobs,
                SUM(CASE WHEN status = 'done' THEN 1 ELSE 0 END) as done,

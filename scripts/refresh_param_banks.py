@@ -451,14 +451,19 @@ def main():
         datefmt="%H:%M:%S",
     )
 
-    # Load .env if present
-    env_path = Path(__file__).resolve().parent.parent / ".env"
-    if env_path.exists():
-        for line in env_path.read_text().splitlines():
-            line = line.strip()
-            if line and not line.startswith("#") and "=" in line:
-                key, _, val = line.partition("=")
-                os.environ.setdefault(key.strip(), val.strip().strip('"').strip("'"))
+    # Load .env (standard pattern used across the codebase)
+    try:
+        from dotenv import load_dotenv
+        load_dotenv(Path(__file__).resolve().parent.parent / ".env")
+    except ImportError:
+        # Fallback: manual parse if python-dotenv isn't available
+        env_path = Path(__file__).resolve().parent.parent / ".env"
+        if env_path.exists():
+            for line in env_path.read_text().splitlines():
+                line = line.strip()
+                if line and not line.startswith("#") and "=" in line:
+                    key, _, val = line.partition("=")
+                    os.environ.setdefault(key.strip(), val.strip().strip('"').strip("'"))
 
     # Re-read env after loading .env
     global ADMIN_KEY, NCBI_API_KEY, WORKER_URL, NCBI_DELAY

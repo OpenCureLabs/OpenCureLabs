@@ -202,8 +202,18 @@ def _vast_headers() -> dict:
     return {"Authorization": f"Bearer {api_key}"}
 
 
-def _find_offers(gpu_required: bool, max_cost_hr: float, count: int = 20) -> list[dict]:
-    """Search Vast.ai for cheap GPU offers with good reliability."""
+def _find_offers(
+    gpu_required: bool,
+    max_cost_hr: float,
+    count: int = 20,
+    gpu_types: list[str] | None = None,
+) -> list[dict]:
+    """Search Vast.ai for cheap GPU offers with good reliability.
+
+    Args:
+        gpu_types: Optional whitelist of GPU model names (e.g. ["RTX 5060 Ti", "RTX 5070 Ti"]).
+                   When set, only offers matching these GPU names are returned.
+    """
     query: dict = {
         "verified": {"eq": True},
         "rentable": {"eq": True},
@@ -216,6 +226,9 @@ def _find_offers(gpu_required: bool, max_cost_hr: float, count: int = 20) -> lis
         query["gpu_ram"] = {"gte": 8}
         query["num_gpus"] = {"gte": 1}
         query["cuda_max_good"] = {"gte": 12.0}
+    if gpu_types:
+        query["gpu_name"] = {"in": gpu_types}
+        logger.info("GPU type filter: %s", ", ".join(gpu_types))
 
     resp = requests.get(
         f"{VAST_API}/bundles/",
@@ -239,6 +252,13 @@ def _find_offers(gpu_required: bool, max_cost_hr: float, count: int = 20) -> lis
         offers = resp.json().get("offers", [])
         if offers:
             logger.info("Relaxed reliability to 0.90 — found %d offers", len(offers))
+
+    if not offers and gpu_types:
+        logger.warning(
+            "No offers found for GPU types %s — check model names match Vast.ai "
+            "(e.g. 'RTX 5060 Ti', 'RTX 5070 Ti', 'RTX 4090')",
+            gpu_types,
+        )
 
     return offers
 
@@ -383,12 +403,15 @@ class PoolManager:
         gpu_required: bool = True,
         max_cost_hr: float = 0.50,
         image: str | None = None,
+        gpu_types: list[str] | None = None,
     ):
         self.target_size = target_size
         self.gpu_required = gpu_required
         self.max_cost_hr = max_cost_hr
         self.image = image or DEFAULT_IMAGE
+        self.gpu_types = gpu_types
         self.instances: dict[int, PoolInstance] = {}
+        logger.info("GPU type filter: %s", ", ".join(gpu_types) if gpu_types else "any")
 
         # Reload any existing pool from DB
         for row in _db_get_pool():
@@ -462,7 +485,7 @@ class PoolManager:
         logger.info("Scaling up: provisioning %d instances (target=%d)", needed, self.target_size)
 
         # Find enough offers
-        offers = _find_offers(self.gpu_required, self.max_cost_hr, count=needed + 5)
+        offers = _find_offers(self.gpu_required, self.max_cost_hr, count=needed + 5, gpu_types=self.gpu_types)
         if not offers:
             raise RuntimeError(
                 f"No Vast.ai offers found (gpu={self.gpu_required}, max=${self.max_cost_hr}/hr)"

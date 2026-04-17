@@ -45,17 +45,14 @@ def main() -> None:
     parser.add_argument("--total", type=int, default=TOTAL_TASKS)
     args = parser.parse_args()
 
-    admin_key = os.environ.get("OPENCURELABS_ADMIN_KEY", "")
-    if not admin_key:
-        # Try loading from .env
-        env_path = os.path.join(os.path.dirname(__file__), "..", ".env")
-        if os.path.exists(env_path):
-            with open(env_path) as f:
-                for line in f:
-                    if line.startswith("OPENCURELABS_ADMIN_KEY="):
-                        admin_key = line.strip().split("=", 1)[1]
-                        break
+    # Load .env (standard pattern used across the codebase)
+    try:
+        from dotenv import load_dotenv
+        load_dotenv(os.path.join(os.path.dirname(__file__), "..", ".env"))
+    except ImportError:
+        pass  # python-dotenv not installed; fall back to plain environment
 
+    admin_key = os.environ.get("OPENCURELABS_ADMIN_KEY", "")
     if not admin_key:
         print("Error: OPENCURELABS_ADMIN_KEY not found in environment or .env")
         sys.exit(1)

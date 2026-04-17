@@ -162,6 +162,7 @@ def run_batch(
     local_workers: int = 0,
     generate_only: bool = False,
     drain_queue: bool = False,
+    gpu_types: list[str] | None = None,
 ) -> dict:
     """Run a full batch dispatch cycle.
 
@@ -249,6 +250,7 @@ def run_batch(
             gpu_required=True,
             max_cost_hr=max_cost_hr,
             image=image,
+            gpu_types=gpu_types,
         )
 
     if pool:
@@ -537,6 +539,7 @@ def run_continuous(
     progress_callback=None,
     local_workers: int = 0,
     burst_threshold: int = 0,
+    gpu_types: list[str] | None = None,
 ) -> list[dict]:
     """Run Genesis Mode continuously — batch after batch on a persistent pool.
 
@@ -630,6 +633,7 @@ def run_continuous(
             gpu_required=True,
             max_cost_hr=max_cost_hr,
             image=image,
+            gpu_types=gpu_types,
         )
         try:
             pool.scale_up()
@@ -751,6 +755,7 @@ def run_continuous(
                         gpu_required=True,
                         max_cost_hr=max_cost_hr,
                         image=image,
+                        gpu_types=gpu_types,
                     )
                     try:
                         pool.scale_up()
@@ -882,6 +887,7 @@ def run_contribute(
     cooldown: int = 5,
     api_url: str = "https://ingest.opencurelabs.ai",
     count: int = 20,
+    gpu_types: list[str] | None = None,
 ) -> None:
     """Contribute mode — pull tasks from the central queue and run them.
 
@@ -925,6 +931,7 @@ def run_contribute(
         gpu_required=True,
         max_cost_hr=max_cost_hr,
         image=image,
+        gpu_types=gpu_types,
     )
 
     try:
@@ -1123,6 +1130,12 @@ def main():
     )
     parser.add_argument("--api-url", default="https://ingest.opencurelabs.ai",
                         help="Central queue API URL for contribute mode")
+    parser.add_argument(
+        "--gpu-types",
+        help="Comma-separated GPU model whitelist "
+        "(e.g. 'RTX 5060 Ti,RTX 5070 Ti,RTX 5070'). "
+        "Falls back to LABCLAW_GPU_TYPES env var.",
+    )
     args = parser.parse_args()
 
     # Set up logging
@@ -1137,6 +1150,10 @@ def main():
         abandoned = queue.abandon_old_jobs(cutoff_hours=24)
         print(f"Cleaned up {abandoned} orphan pending jobs")
         return
+
+    # Parse GPU type whitelist: CLI flag > env var > None
+    gpu_types_raw = args.gpu_types or os.environ.get("LABCLAW_GPU_TYPES")
+    gpu_types = [g.strip() for g in gpu_types_raw.split(",") if g.strip()] if gpu_types_raw else None
 
     if args.dry_run:
         from agentiq_labclaw.task_generator import generate_batch
@@ -1172,6 +1189,7 @@ def main():
             cooldown=args.cooldown,
             api_url=args.api_url,
             count=args.count,
+            gpu_types=gpu_types,
         )
     elif args.continuous:
         summaries = run_continuous(
@@ -1187,6 +1205,7 @@ def main():
             cooldown=args.cooldown,
             local_workers=args.local_workers,
             burst_threshold=args.burst_threshold,
+            gpu_types=gpu_types,
         )
 
         # Print final continuous summary
@@ -1214,6 +1233,7 @@ def main():
             local_workers=args.local_workers,
             generate_only=args.generate_only,
             drain_queue=args.drain_queue,
+            gpu_types=gpu_types,
         )
 
         # Print final summary

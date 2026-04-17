@@ -12,7 +12,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 LOGFILE="$PROJECT_DIR/logs/watchdog.log"
-DB_PORT=5433
+DB_PORT="${POSTGRES_PORT:-5433}"
 DB_NAME="opencurelabs"
 
 log() {

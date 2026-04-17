@@ -486,11 +486,15 @@ class VastInstance:
         )
 
 
-def _find_cheapest_offer(api_key: str, gpu_required: bool) -> dict:
+def _find_cheapest_offer(api_key: str, gpu_required: bool, gpu_types: list[str] | None = None) -> dict:
     """Search Vast.ai offers for the cheapest suitable GPU instance.
 
     Filters by reliability2 >= 0.9 (host uptime score) to avoid flaky machines.
     Also requires minimum CPU RAM and symmetric internet to ensure stable SSH.
+
+    Args:
+        gpu_types: Optional whitelist of GPU model names (e.g. ["RTX 5060 Ti", "RTX 5070 Ti"]).
+                   When set, only offers matching these GPU names are returned.
     """
     headers = {"Authorization": f"Bearer {api_key}"}
 
@@ -506,6 +510,9 @@ def _find_cheapest_offer(api_key: str, gpu_required: bool) -> dict:
     if gpu_required:
         query["gpu_ram"] = {"gte": 8}
         query["num_gpus"] = {"gte": 1}
+    if gpu_types:
+        query["gpu_name"] = {"in": gpu_types}
+        logger.info("GPU type filter: %s", ", ".join(gpu_types))
 
     resp = requests.get(
         f"{VAST_API}/bundles/",
@@ -516,6 +523,11 @@ def _find_cheapest_offer(api_key: str, gpu_required: bool) -> dict:
     resp.raise_for_status()
     offers = resp.json().get("offers", [])
     if not offers:
+        if gpu_types:
+            raise RuntimeError(
+                f"No suitable Vast.ai instances available for GPU types {gpu_types} — "
+                "check model names match Vast.ai (e.g. 'RTX 5060 Ti', 'RTX 5070 Ti', 'RTX 4090')"
+            )
         raise RuntimeError("No suitable Vast.ai instances available")
     return offers[0]
 
@@ -624,7 +636,7 @@ def _run_remote(skill_name, input_data, ssh_host, ssh_port, output_schema):
     return output_schema.model_validate(output_data)
 
 
-def dispatch(skill, input_data):
+def dispatch(skill, input_data, gpu_types: list[str] | None = None):
     """
     Dispatch a skill execution to Vast.ai for heavy compute.
 
@@ -742,7 +754,7 @@ def dispatch(skill, input_data):
     gpu_name = "CPU"
     for _attempt in range(5):
         try:
-            offer = _find_cheapest_offer(vast_key, skill.gpu_required)
+            offer = _find_cheapest_offer(vast_key, skill.gpu_required, gpu_types=gpu_types)
             offer_id = offer["id"]
             cost_hr = offer.get("dph_total", 0)
             gpu_name = offer.get("gpu_name", "CPU")

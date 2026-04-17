@@ -6,9 +6,14 @@
 #   docker build -f docker/Dockerfile.gpu -t ghcr.io/opencurelabs/labclaw-gpu:latest .
 #
 # Size estimate: ~11 GB (pytorch base ≈6 GB + biotools ≈4 GB + vet genomes ≈1 GB)
+#
+# Runtime user: root (required for Vast.ai SSH onstart scripts which install
+# additional packages and configure the environment per-job). If deploying
+# outside Vast.ai, override with `docker run --user 1000:1000 ...`.
 # ─────────────────────────────────────────────────────────────────────────────
 
-FROM pytorch/pytorch:latest
+# Pinned base image — do not use :latest (non-reproducible + supply chain risk)
+FROM pytorch/pytorch:2.5.1-cuda12.1-cudnn9-runtime
 
 LABEL org.opencontainers.image.source="https://github.com/OpenCureLabs/OpenCureLabs"
 LABEL org.opencontainers.image.description="LabClaw GPU compute image for OpenCure Labs batch pipelines"

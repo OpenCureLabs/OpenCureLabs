@@ -60,7 +60,7 @@ fi
 
 # ── Mark stale DB entries as failed ──────────────────────────────────────────
 if command -v psql > /dev/null 2>&1; then
-    psql -p 5433 -d opencurelabs -c \
+    psql -p "${POSTGRES_PORT:-5433}" -d opencurelabs -c \
         "UPDATE agent_runs SET status = 'failed', completed_at = NOW() WHERE status = 'running' AND started_at < NOW() - INTERVAL '5 minutes';" \
         > /dev/null 2>&1
 fi

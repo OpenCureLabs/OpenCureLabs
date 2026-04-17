@@ -6,7 +6,11 @@ Dog/Cat:   OMIA associations + Ensembl VEP (SIFT/PolyPhen2) — ClinVar and CADD
 All inputs default to species="human" — zero breaking changes to existing pipelines.
 """
 
+import json
 import logging
+import os
+import tempfile
+from pathlib import Path
 
 import requests
 from pydantic import BaseModel
@@ -20,6 +24,18 @@ from agentiq_labclaw.species import get_species
 logger = logging.getLogger("labclaw.skills.variant_pathogenicity")
 
 CADD_API = "https://cadd.gs.washington.edu/api/v1.0"
+
+# CADD responses are stable per-coordinate; cache them on disk to avoid
+# hammering the API on re-runs. Set CADD_CACHE_DIR to override the location or
+# CADD_CACHE_DISABLE=1 to bypass the cache entirely. A negative result (404 /
+# missing score) is cached as {"score": null} so we don't retry known-missing
+# variants on every call.
+CADD_CACHE_DIR = Path(
+    os.environ.get(
+        "CADD_CACHE_DIR",
+        str(Path(tempfile.gettempdir()) / "labclaw_data" / "cadd"),
+    )
+)
 
 # ACMG-style classification thresholds
 CADD_PATHOGENIC_THRESHOLD = 25.0
@@ -47,20 +63,51 @@ class VariantOutput(BaseModel):
     species: str = "human"  # propagated to R2/D1 for filtering
 
 
+def _cadd_cache_path(chrom: str, pos: int, ref: str, alt: str) -> Path:
+    return CADD_CACHE_DIR / f"{chrom}_{pos}_{ref}_{alt}.json"
+
+
+def _write_cadd_cache(path: Path, score: float | None) -> None:
+    """Persist a CADD lookup result (or its absence) to disk. Failures are non-fatal."""
+    try:
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps({"score": score}))
+    except OSError as e:
+        logger.debug("CADD cache write failed for %s: %s", path, e)
+
+
 def _query_cadd(chrom: str, pos: int, ref: str, alt: str) -> float | None:
-    """Query CADD API for a variant's PHRED-scaled score."""
+    """Query CADD API for a variant's PHRED-scaled score, caching responses on disk."""
+    cache_disabled = os.environ.get("CADD_CACHE_DISABLE") == "1"
+    cache_path = _cadd_cache_path(chrom, pos, ref, alt)
+
+    if not cache_disabled and cache_path.exists():
+        try:
+            cached = json.loads(cache_path.read_text())
+            score = cached.get("score")
+            return float(score) if score is not None else None
+        except (ValueError, OSError) as e:
+            logger.debug(
+                "CADD cache read failed for %s:%d — refetching: %s", chrom, pos, e
+            )
+
     try:
         # CADD API format: /score/GRCh38/chr:pos:ref:alt
         url = f"{CADD_API}/score/GRCh38/{chrom}:{pos}:{ref}:{alt}"
         resp = requests.get(url, timeout=30)
         if resp.status_code == 404:
+            if not cache_disabled:
+                _write_cadd_cache(cache_path, None)
             return None
         resp.raise_for_status()
         data = resp.json()
+        score: float | None = None
         # Return PHRED-scaled CADD score
         if isinstance(data, list) and data:
-            return float(data[-1].get("PHRED", 0))
-        return None
+            score = float(data[-1].get("PHRED", 0))
+        if not cache_disabled:
+            _write_cadd_cache(cache_path, score)
+        return score
     except Exception as e:
         logger.warning("CADD query failed for %s:%d %s>%s: %s", chrom, pos, ref, alt, e)
         return None
