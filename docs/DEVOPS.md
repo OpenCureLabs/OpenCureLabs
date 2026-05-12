@@ -411,17 +411,17 @@ python dashboard/findings.py --watch      # live 10s refresh
 
 A daily backup script runs at **5:30 AM PST** (13:30 UTC) via cron.
 
-**Script location:** `/root/backups/opencurelabs/backup.sh` (outside repo, not in git)
+**Script location:** `/root/opencurelabs/local/backup.sh`
 
 ### What Gets Backed Up
 
 | Item | Local Destination | Windows Mirror |
 |---|---|---|
-| PostgreSQL dump | `/root/backups/opencurelabs/db/` | `C:\Backups\OpenCureLabs\db\` |
-| `.env` secrets | `/root/backups/opencurelabs/secrets/` | `C:\Backups\OpenCureLabs\secrets\` |
-| WSL archive | `/root/backups/opencurelabs/archive/` | `C:\Backups\OpenCureLabs\archive\` |
-| Repository | — | `C:\Backups\OpenCureLabs\repo\` |
-| pyensembl models | — | `C:\Backups\OpenCureLabs\models\` |
+| PostgreSQL dump | `/root/backups/opencurelabs/db/` | `F:\Backups\OpenCureLabs\db\` |
+| `.env` secrets | `/root/backups/opencurelabs/secrets/` | `F:\Backups\OpenCureLabs\secrets\` |
+| WSL archive | `/root/backups/opencurelabs/archive/` | `F:\Backups\OpenCureLabs\archive\` |
+| Repository | — | `F:\Backups\OpenCureLabs\repo\` |
+| pyensembl models | — | `F:\Backups\OpenCureLabs\models\` |
 
 ### Retention Policy
 

@@ -48,6 +48,9 @@ reportlab==4.4.10
 PyNaCl==1.6.2
 
 # ── Transitive pins for CVE-fixed dependencies ──────────────────────────────
+# cryptography 46.0.7 fixes CVE-2026-34073 and CVE-2026-39892 (DNS constraints,
+# buffer handling in Hash.update()). Pulled in transitively by authlib, pyopenssl, etc.
+cryptography>=46.0.7
 # pillow 12.2.0 fixes FITS decompression-bomb DoS (CVE-2026-40192).
 pillow>=12.2.0
 # python-multipart 0.0.27 fixes multipart preamble/epilogue DoS (CVE-2026-40347)

@@ -260,9 +260,9 @@ for i in active:
 
     # ── Rate cards reference ────────────────────────────────────────────
     echo -e "${DIM}  Rate cards (per 1M tokens):${RESET}"
-    echo -e "${DIM}    Gemini 2.5 Flash Lite:  \$0.075 in / \$0.30 out${RESET}"
-    echo -e "${DIM}    Claude Opus 4.6:        \$15.00 in / \$75.00 out${RESET}"
-    echo -e "${DIM}    Grok (xAI):             \$5.00 in / \$15.00 out${RESET}"
+    echo -e "${DIM}    Gemini 2.5 Flash Lite:    \$0.075 in / \$0.30 out   (coordinator)${RESET}"
+    echo -e "${DIM}    grok-4-1-fast (non-rsn):  \$0.20 in  / \$0.50 out   (critic / sweep)${RESET}"
+    echo -e "${DIM}    grok-4.20 (non-rsn):      \$2.00 in  / \$6.00 out   (literature / researcher)${RESET}"
     echo ""
 
     sleep 30

@@ -181,13 +181,57 @@ def check_budget(estimated_cost_hr=1.0):
     return True, remaining, budget
 
 
+def _known_pool_instance_ids() -> set:
+    """Return instance_ids currently tracked in vast_pool (non-destroyed).
+
+    Used as a fallback ownership signal: if we provisioned an instance in a
+    previous session its row survives in the DB even after a reboot, so we
+    can recognize it as ours even when Vast.ai silently dropped the label.
+    """
+    conn = _get_db_connection()
+    if not conn:
+        return set()
+    try:
+        cur = conn.cursor()
+        cur.execute(
+            "SELECT instance_id FROM vast_pool WHERE status <> 'destroyed'"
+        )
+        ids = {row[0] for row in cur.fetchall()}
+        cur.close()
+        conn.close()
+        return ids
+    except Exception as e:
+        logger.debug("Could not read vast_pool ids: %s", e)
+        try:
+            conn.close()
+        except Exception:
+            pass
+        return set()
+
+
+def _is_ours(inst: dict, known_ids: set) -> bool:
+    """Return True if a Vast.ai instance belongs to this project.
+
+    Matches on any of:
+      - label or client_id containing 'opencurelabs'
+      - instance_id already tracked in our vast_pool DB
+    """
+    client = (inst.get("label") or inst.get("client_id") or "").lower()
+    if "opencurelabs" in client:
+        return True
+    iid = inst.get("id")
+    if iid is not None and iid in known_ids:
+        return True
+    return False
+
+
 def _find_reusable_instance(api_key: str):
     """Check for an existing running Vast.ai instance we can reuse.
 
     Returns (instance_id, ssh_host, ssh_port, gpu_name, cost_hr) or None.
-    Looks for instances tagged with client_id 'opencurelabs' that are
-    already running, so parallel genesis tasks can share a single GPU
-    instead of each trying to provision its own.
+    An instance counts as ours if it's labeled 'opencurelabs' OR if its id
+    is already recorded in our vast_pool table (DB survives reboots, so this
+    recovers ownership when Vast.ai dropped the label).
     """
     headers = {"Authorization": f"Bearer {api_key}"}
     try:
@@ -200,32 +244,41 @@ def _find_reusable_instance(api_key: str):
         logger.debug("Could not list Vast.ai instances: %s", e)
         return None
 
+    known_ids = _known_pool_instance_ids()
     for inst in instances:
         status = inst.get("actual_status") or ""
-        client = inst.get("label") or inst.get("client_id") or ""
-        if status == "running" and "opencurelabs" in client.lower():
-            ssh_host = inst.get("ssh_host")
-            ssh_port = inst.get("ssh_port", 22)
-            if ssh_host:
-                gpu_name = inst.get("gpu_name", "GPU")
-                cost_hr = inst.get("dph_total", 0)
-                iid = inst.get("id")
-                logger.info(
-                    "Found reusable Vast.ai instance %d (%s) at %s:%d",
-                    iid, gpu_name, ssh_host, ssh_port,
-                )
-                return iid, ssh_host, ssh_port, gpu_name, cost_hr
+        if status != "running" or not _is_ours(inst, known_ids):
+            continue
+        ssh_host = inst.get("ssh_host")
+        ssh_port = inst.get("ssh_port", 22)
+        if not ssh_host:
+            continue
+        gpu_name = inst.get("gpu_name", "GPU")
+        cost_hr = inst.get("dph_total", 0)
+        iid = inst.get("id")
+        logger.info(
+            "Found reusable Vast.ai instance %d (%s) at %s:%d",
+            iid, gpu_name, ssh_host, ssh_port,
+        )
+        return iid, ssh_host, ssh_port, gpu_name, cost_hr
     return None
 
 
-def _seed_pool_from_running(api_key: str):
+def _seed_pool_from_running(api_key: str | None = None):
     """Pick up any running 'opencurelabs' Vast.ai instances not yet in the pool.
 
-    Called before provisioning a new instance. Inserts them as 'ready' so
-    _claim_pool_instance() can grab them. This handles the case where instances
-    were provisioned before pool tracking was active (e.g. after a code deploy
-    mid-run, or instances left over from a previous session).
+    Called before provisioning a new instance AND on `lab.sh` startup so that a
+    reboot (which kills all local processes but leaves Vast.ai instances
+    running) can transparently reattach. Inserts instances as 'ready' so
+    _claim_pool_instance() can grab them. Ownership is determined by either a
+    matching label/client_id or a prior vast_pool row (DB survives reboots).
+
+    Returns the number of new rows seeded.
     """
+    api_key = api_key or os.environ.get("VAST_AI_KEY", "")
+    if not api_key:
+        logger.debug("No VAST_AI_KEY set — skipping pool seeding")
+        return 0
     headers = {"Authorization": f"Bearer {api_key}"}
     try:
         resp = requests.get(f"{VAST_API}/instances/", headers=headers, timeout=30)
@@ -234,19 +287,19 @@ def _seed_pool_from_running(api_key: str):
         instances = data.get("instances", data) if isinstance(data, dict) else data
     except Exception as e:
         logger.debug("Could not list instances for pool seeding: %s", e)
-        return
+        return 0
 
     conn = _get_db_connection()
     if not conn:
-        return
+        return 0
 
+    known_ids = _known_pool_instance_ids()
     seeded = 0
     try:
         cur = conn.cursor()
         for inst in instances:
             status = inst.get("actual_status") or ""
-            client = inst.get("label") or inst.get("client_id") or ""
-            if status != "running" or "opencurelabs" not in client.lower():
+            if status != "running" or not _is_ours(inst, known_ids):
                 continue
             ssh_host = inst.get("ssh_host")
             ssh_port = inst.get("ssh_port", 22)
@@ -255,20 +308,28 @@ def _seed_pool_from_running(api_key: str):
             iid = inst.get("id")
             gpu_name = inst.get("gpu_name", "GPU")
             cost_hr = inst.get("dph_total", 0)
-            # INSERT only if not already tracked
+            # INSERT as ready; on conflict, refresh ssh details and mark ready
+            # (unless currently busy — don't steal a live job).
             cur.execute(
                 """
                 INSERT INTO vast_pool
                     (instance_id, ssh_host, ssh_port, gpu_name, cost_per_hr, status, ready_at)
                 VALUES (%s, %s, %s, %s, %s, 'ready', NOW())
-                ON CONFLICT (instance_id) DO NOTHING
+                ON CONFLICT (instance_id) DO UPDATE
+                    SET ssh_host = EXCLUDED.ssh_host,
+                        ssh_port = EXCLUDED.ssh_port,
+                        status = CASE
+                            WHEN vast_pool.status = 'busy' THEN vast_pool.status
+                            ELSE 'ready'
+                        END,
+                        ready_at = COALESCE(vast_pool.ready_at, NOW())
                 """,
                 (iid, ssh_host, ssh_port, gpu_name, cost_hr),
             )
             if cur.rowcount:
                 seeded += 1
                 logger.info(
-                    "Seeded pool from orphaned running instance %d (%s) at %s:%d",
+                    "Seeded pool from running instance %d (%s) at %s:%d",
                     iid, gpu_name, ssh_host, ssh_port,
                 )
         conn.commit()
@@ -280,9 +341,11 @@ def _seed_pool_from_running(api_key: str):
             conn.close()
         except Exception:
             pass
+        return 0
 
     if seeded:
-        logger.info("Pool seeded with %d orphaned instance(s)", seeded)
+        logger.info("Pool seeded with %d running instance(s)", seeded)
+    return seeded
 
 
 # ── Pool-aware instance management ──────────────────────────────────────────
@@ -566,7 +629,34 @@ def _create_instance(api_key: str, offer_id: int, image: str = "pytorch/pytorch:
     from agentiq_labclaw.compute import attach_ssh_key
     attach_ssh_key(instance_id)
 
+    # Apply label via dedicated endpoint — the `label` field in the create
+    # payload above is silently ignored by Vast.ai, leaving instances with
+    # label=None. Without a label, _find_reusable_instance can't recognize
+    # them as ours on reboot, so reattach is broken. Set it explicitly.
+    _set_instance_label(api_key, instance_id, "opencurelabs")
+
     return instance_id
+
+
+def _set_instance_label(api_key: str, instance_id: int, label: str) -> bool:
+    """Set the label on an existing Vast.ai instance. Best-effort; logs on failure."""
+    try:
+        resp = requests.put(
+            f"{VAST_API}/instances/{instance_id}/",
+            headers={"Authorization": f"Bearer {api_key}"},
+            json={"label": label},
+            timeout=15,
+        )
+        if resp.status_code in (200, 204):
+            logger.debug("Labeled instance %d as %r", instance_id, label)
+            return True
+        logger.warning(
+            "Could not label instance %d (%d): %s",
+            instance_id, resp.status_code, resp.text[:200],
+        )
+    except Exception as exc:
+        logger.warning("Label request for instance %d failed: %s", instance_id, exc)
+    return False
 
 
 def _wait_for_setup(ssh_host: str, ssh_port: int, timeout: int = 180):
@@ -824,3 +914,78 @@ def dispatch(skill, input_data, gpu_types: list[str] | None = None):
             "Vast.ai job complete: %s, %.1f min, $%.4f",
             skill.name, elapsed_hrs * 60, total_cost,
         )
+
+
+# ── CLI entrypoint ───────────────────────────────────────────────────────────
+# Invoked by dashboard/lab.sh at startup so a reboot can reattach to any
+# running Vast.ai instances (label them + seed them into vast_pool).
+#
+# Usage:
+#     python3 -m agentiq_labclaw.compute.vast_dispatcher seed
+#     python3 -m agentiq_labclaw.compute.vast_dispatcher adopt
+#
+#   seed   — insert running instances labeled 'opencurelabs' (or already known
+#            in the DB) into vast_pool as 'ready'.
+#   adopt  — for every running instance with no label, set label=opencurelabs
+#            then seed. Use once after upgrading from a version that didn't
+#            label instances correctly.
+
+def _cli_adopt():
+    api_key = os.environ.get("VAST_AI_KEY", "")
+    if not api_key:
+        print("ERROR: VAST_AI_KEY not set")
+        return 1
+    try:
+        resp = requests.get(
+            f"{VAST_API}/instances/",
+            headers={"Authorization": f"Bearer {api_key}"},
+            timeout=30,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        instances = data.get("instances", data) if isinstance(data, dict) else data
+    except Exception as e:
+        print(f"ERROR: list instances failed: {e}")
+        return 1
+    labeled = 0
+    for inst in instances:
+        iid = inst.get("id")
+        client = (inst.get("label") or inst.get("client_id") or "")
+        if not iid:
+            continue
+        if "opencurelabs" in client.lower():
+            continue
+        if _set_instance_label(api_key, iid, "opencurelabs"):
+            print(f"  ✓ labeled instance {iid}")
+            labeled += 1
+        else:
+            print(f"  ✗ failed to label instance {iid}")
+    print(f"Labeled {labeled} instance(s). Seeding pool...")
+    seeded = _seed_pool_from_running(api_key)
+    print(f"Seeded {seeded} row(s) into vast_pool.")
+    return 0
+
+
+def _cli_seed():
+    seeded = _seed_pool_from_running()
+    print(f"Seeded {seeded} row(s) into vast_pool.")
+    return 0
+
+
+def main(argv=None):
+    import logging as _logging
+    import sys
+    _logging.basicConfig(level=_logging.INFO, format="%(message)s")
+    args = list(argv if argv is not None else sys.argv[1:])
+    cmd = args[0] if args else "seed"
+    if cmd == "seed":
+        return _cli_seed()
+    if cmd == "adopt":
+        return _cli_adopt()
+    print(f"Unknown command: {cmd!r}. Use 'seed' or 'adopt'.")
+    return 2
+
+
+if __name__ == "__main__":
+    import sys
+    sys.exit(main())

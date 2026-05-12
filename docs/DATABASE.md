@@ -323,8 +323,8 @@ su - postgres -c "pg_restore --schema-only -p 5433 -d opencurelabs backup.dump"
 su - postgres -c "pg_restore --data-only -p 5433 -d opencurelabs backup.dump"
 ```
 
-The automated backup script at `/root/backups/opencurelabs/backup.sh` dumps the
-database daily at 5:30 AM PST and mirrors to `C:\Backups\OpenCureLabs\db\`.
+The automated backup script at `/root/opencurelabs/local/backup.sh` dumps the
+database daily at 5:30 AM PST and mirrors to `F:\Backups\OpenCureLabs\db\`.
 
 ---
 

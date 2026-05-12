@@ -9,7 +9,12 @@ researcher:
   provider: xai
   api_key_env: XAI_API_KEY
   base_url: https://api.x.ai/v1
-  model: grok-4.20-non-reasoning
+  # Switched 2026-05-14 from grok-4.20-non-reasoning ($2/$6 per Mtok) to
+  # grok-4-1-fast-reasoning ($0.20/$0.50 + thinking tokens). Reasoning compensates
+  # for the smaller base model on "is this paper relevant?" judgement calls; the
+  # high tool-round volume here is where the 10x token rate matters most. The
+  # literature reviewer below stays on the cheap fast non-reasoning model.
+  model: grok-4-1-fast-reasoning
 
   workspace: workspace/  # relative to project root
 

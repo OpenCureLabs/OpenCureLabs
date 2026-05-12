@@ -130,6 +130,35 @@ if pg_isready -p "$PG_PORT" -q 2>/dev/null; then
     fi
 fi
 
+# ── Reattach to surviving Vast.ai instances ─────────────────────────────────
+# A reboot kills local processes but Vast.ai instances keep running and
+# keep billing. Re-seed vast_pool from any live instances labeled
+# 'opencurelabs' (or already known in the DB from a previous session) so
+# the coordinator can reuse them instead of provisioning duplicates.
+if [[ -f "$PROJECT/.env" ]] && pg_isready -p "$PG_PORT" -q 2>/dev/null; then
+    # shellcheck source=/dev/null
+    set -a; source "$PROJECT/.env"; set +a
+
+    # Any vast_pool row left in 'busy' is stale — the process holding it
+    # died with the reboot. Flip to 'ready' so it can be reclaimed. Only
+    # touches rows where an SSH host is known (skip provisioning ones).
+    STALE=$(psql -p "$PG_PORT" -d opencurelabs -t -A -c \
+        "UPDATE vast_pool SET status = 'ready' WHERE status = 'busy' AND ssh_host IS NOT NULL RETURNING 1" \
+        2>/dev/null | wc -l)
+    if [[ "$STALE" -gt 0 ]]; then
+        echo "[OpenCure Labs] Reset $STALE stale 'busy' Vast.ai instance(s) to 'ready'."
+    fi
+
+    if [[ -n "${VAST_AI_KEY:-}" ]] && [[ -d "$PROJECT/.venv" ]]; then
+        # shellcheck source=/dev/null
+        source "$PROJECT/.venv/bin/activate" 2>/dev/null
+        SEED_OUT=$(python3 -m agentiq_labclaw.compute.vast_dispatcher seed 2>&1 || true)
+        if [[ -n "$SEED_OUT" ]]; then
+            echo "[OpenCure Labs] $SEED_OUT"
+        fi
+    fi
+fi
+
 # ── Start web dashboard server (background) ──────────────────────────────────
 if ! curl -s http://127.0.0.1:8787 &>/dev/null; then
     echo "[OpenCure Labs] Starting web dashboard → http://localhost:8787"
