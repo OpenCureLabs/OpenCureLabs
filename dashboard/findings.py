@@ -335,7 +335,10 @@ def main():
         cur = conn.cursor()
 
         if args.watch:
-            os.system("clear")
+            # ANSI clear-screen + cursor-home; avoids shelling out and works on
+            # any POSIX terminal. (Replaces os.system("clear").)
+            sys.stdout.write("\033[2J\033[H")
+            sys.stdout.flush()
 
         if show_all and not (args.novel or args.agents or args.critiques or args.sources):
             print_summary(cur, species=species)

@@ -157,11 +157,19 @@ class TestDashboardHTML:
 class TestCORS:
     """Test CORS middleware."""
 
-    def test_cors_headers_present(self):
+    def test_cors_headers_present_for_allowed_origin(self):
         client, _, mock_cursor = _make_client()
         mock_cursor.fetchone.return_value = (0,)
-        resp = client.get("/api/stats", headers={"Origin": "https://example.com"})
-        assert "access-control-allow-origin" in resp.headers
+        # Default allow-list pins opencurelabs.ai — requests from there get the header.
+        resp = client.get("/api/stats", headers={"Origin": "https://opencurelabs.ai"})
+        assert resp.headers.get("access-control-allow-origin") == "https://opencurelabs.ai"
+
+    def test_cors_blocks_disallowed_origin(self):
+        client, _, mock_cursor = _make_client()
+        mock_cursor.fetchone.return_value = (0,)
+        # Arbitrary origins must NOT receive the allow header now that we no longer use "*".
+        resp = client.get("/api/stats", headers={"Origin": "https://evil.example.com"})
+        assert "access-control-allow-origin" not in resp.headers
 
 
 # ═══════════════════════════════════════════════════════════════════════════

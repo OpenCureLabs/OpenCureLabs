@@ -64,3 +64,7 @@ jobs:
       - name: Security scan (bandit)
         run: bandit -r packages/agentiq_labclaw/agentiq_labclaw -q -ll
         if: always()
+
+      - name: Parameter-bank drift check (Python ⊆ TypeScript)
+        run: python scripts/check_param_bank_drift.py
+        if: always()

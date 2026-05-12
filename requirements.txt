@@ -28,9 +28,9 @@ mhcflurry==2.1.5
 rdkit==2025.9.6
 
 # ── LangGraph / LangChain (coordinator agent) ───────────────────────────────
-# langchain-core >= 1.2.31 required for SSRF-safe transport used by
-# langchain-openai 1.1.14 (GHSA-r7w7-9xr2-qq2r).
-langchain-core==1.2.31
+# langchain-core >= 1.3.3 closes CVE-2026-44843 (unsafe deserialization of run
+# inputs/outputs in older runtime paths).
+langchain-core>=1.3.3
 langchain-openai==1.1.14
 # langsmith 0.7.31 closes streaming-output redaction bypass (GHSA-rr7j-v2q5-chgv).
 langsmith==0.7.32
@@ -50,10 +50,23 @@ PyNaCl==1.6.2
 # ── Transitive pins for CVE-fixed dependencies ──────────────────────────────
 # pillow 12.2.0 fixes FITS decompression-bomb DoS (CVE-2026-40192).
 pillow>=12.2.0
-# python-multipart 0.0.26 fixes multipart preamble/epilogue DoS (CVE-2026-40347).
-python-multipart>=0.0.26
+# python-multipart 0.0.27 fixes multipart preamble/epilogue DoS (CVE-2026-40347)
+# and additional header-parsing DoS (CVE-2026-42561).
+python-multipart>=0.0.27
 # pygments 2.20.0 fixes ReDoS in AdlLexer (CVE-2026-4539).
 pygments>=2.20.0
+# gitpython 3.1.49 fixes CVE-2026-42215 (option injection via --upload-pack),
+# CVE-2026-42284 (multi_options shlex.split bypass), and CVE-2026-44244
+# (newline injection in GitConfigParser.set_value). Pulled in transitively by
+# vastai 0.5.0; pin here to force the patched version.
+gitpython>=3.1.49
+# lxml 6.1.0 closes CVE-2026-41066 (XXE via default resolve_entities=True).
+lxml>=6.1.0
+# mako 1.3.12 fixes CVE-2026-44307 (Windows backslash path traversal in URIs).
+mako>=1.3.12
+# urllib3 2.7.0 fixes CVE-2026-44431 and CVE-2026-44432 (request smuggling /
+# header handling); pulled in transitively by requests, boto3, vastai, etc.
+urllib3>=2.7.0
 
 # ── Development & Testing ───────────────────────────────────────────────────
 # pytest 9.0.3 fixes /tmp/pytest-of-{user} privilege issue (CVE-2025-71176).

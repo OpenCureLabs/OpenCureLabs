@@ -16,6 +16,8 @@ data/dog/
 data/cat/
 logs/*.log
 logs/genesis-*/
+logs/archive/
+logs/.rotate.lock
 db/data/
 .DS_Store
 *.swp

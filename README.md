@@ -68,7 +68,7 @@ OpenCure Labs supports both **shared and private usage**. In the default mode, r
  │        Agent Coordinator — NemoClaw / LabClaw                      │
  │        Powered by NVIDIA NeMo Agent Toolkit (AgentIQ)              │
  │   Routes tasks · calls skills · enforces guardrails · publishes    │
- │   YAML-configured · nat CLI · NIM inference · telemetry            │
+ │   YAML-configured · nat CLI · Gemini API · telemetry               │
  └──────────────────────────┬────────────────────────────────────────┘
                  ┌───────────┼─────────────┐
                  ▼           ▼             ▼
@@ -149,7 +149,7 @@ All discovered sources are registered with the coordinator for validation and ro
 
 ### Coordinator — NemoClaw / LabClaw
 
-Built on the **[NVIDIA NeMo Agent Toolkit](https://github.com/NVIDIA/NeMo-Agent-Toolkit)** (AgentIQ), the coordinator is defined in YAML and orchestrated via the `nat` CLI, backed by NVIDIA NIM microservices for inference. NeMo manages the agent lifecycle — workflow definition, evaluation, telemetry, and hyperparameter tuning. NIMs handle model inference. When NeMo fine-tunes or improves a model, it redeploys back into a NIM, creating a continuous improvement loop native to the platform.
+Built on the **[NVIDIA NeMo Agent Toolkit](https://github.com/NVIDIA/NeMo-Agent-Toolkit)** (AgentIQ), the coordinator is defined in YAML and orchestrated via the `nat` CLI. NeMo manages the agent lifecycle — workflow definition, evaluation, telemetry, and hyperparameter tuning. Coordinator reasoning currently runs on the **Google Gemini API** (`gemini-2.5-flash-lite`) via NeMo's OpenAI-compatible LLM adapter, which keeps the local RTX 5070 free for scientific compute (structure prediction, docking, ML). NVIDIA NIM endpoints are supported by the toolkit and can be swapped in for self-hosted deployments — see [LABCLAW.md](LABCLAW.md) for the LLM options table.
 
 The coordinator is responsible for:
 
@@ -254,7 +254,11 @@ Grok lives on the VM as a persistent agent, running via **[grok-cli](https://git
 
 This triple-role design means Grok is not just a passive critic but an **active lab member** — expanding the data surface area of the platform continuously while also keeping results anchored in the current state of the literature.
 
-> **Note:** A Claude Opus module (`reviewer/claude_reviewer.py`) exists in the codebase but is not active in the current pipeline. Grok is the sole reviewer.
+> **Reviewer status — Grok only.** Grok is the sole active reviewer for the
+> current pipeline. An archived Claude Opus module (`reviewer/claude_reviewer.py`,
+> `reviewer/claude_opus_config.yaml`) is retained for historical critiques in the
+> database (`reviewer = 'claude_opus'`) but is **not invoked** by the orchestrator
+> or sweep. Do not configure it for new runs.
 
 ---
 

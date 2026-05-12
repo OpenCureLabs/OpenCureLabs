@@ -81,8 +81,11 @@ async def _rate_limit_handler(request: Request, exc: RateLimitExceeded):
     return JSONResponse(status_code=429, content={"error": "Rate limit exceeded. Try again later."})
 
 
-# CORS — allow any origin for public dashboard
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["GET"], allow_headers=["*"])
+# CORS — read-only API. By default allow only the public site; override via
+# DASHBOARD_CORS_ORIGINS (comma-separated). Set to "*" to allow any origin.
+_cors_env = os.environ.get("DASHBOARD_CORS_ORIGINS", "https://opencurelabs.ai,https://www.opencurelabs.ai")
+_cors_origins = [o.strip() for o in _cors_env.split(",") if o.strip()]
+app.add_middleware(CORSMiddleware, allow_origins=_cors_origins, allow_methods=["GET"], allow_headers=["*"])
 
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
