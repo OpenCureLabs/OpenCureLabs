@@ -219,6 +219,19 @@ Heavy GPU/CPU workloads that exceed local capacity are offloaded to Vast.ai on d
 
 Best suited for: **large-scale QSAR training, multi-GPU docking sweeps, distributed ML**
 
+### Low-Power Edge Workers
+
+Jetson Orin Nano/NX/AGX nodes can act as always-on edge workers for local
+inference and light research jobs, while a Raspberry Pi compute blade or small
+server runs the control plane. Use this tier for steady 24x7 work such as
+variant lookup, source triage, embeddings, reviewer drafts, and small QSAR jobs;
+keep RTX/Vast.ai for heavy docking, structure prediction, and training.
+This also creates a staged path toward local LLMs, with cheap OpenAI-compatible
+API models as interim coordinator/reviewer providers where quality and cost fit.
+
+See [docs/EDGE-WORKERS.md](docs/EDGE-WORKERS.md) for the Jetson/Raspberry Pi
+deployment plan.
+
 ---
 
 ## Reviewer Agent — Grok (Two-Tier)
@@ -325,6 +338,8 @@ This eliminates duplicate work across the network and ensures every GPU cycle
 goes toward unclaimed research. See
 [docs/DISTRIBUTED-COMPUTING.md](docs/DISTRIBUTED-COMPUTING.md) for the full
 protocol, and [CONTRIBUTING.md](CONTRIBUTING.md) for getting started.
+For low-power Jetson/Raspberry Pi worker pools, see
+[docs/EDGE-WORKERS.md](docs/EDGE-WORKERS.md).
 
 | Endpoint | Purpose |
 |---|---|
@@ -461,6 +476,7 @@ OpenCure Labs is currently capable of or actively building toward:
 - Closed-loop experiment design and iteration
 - Active learning for compound optimization
 - Multi-omics data fusion
+- Low-power Jetson/Raspberry Pi edge worker pool for 24x7 local inference
 - RAM upgrade to 256 GB, dual RTX 5090 + Threadripper Pro
 
 ---

@@ -6,139 +6,380 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>OpenCure Labs — Contribute</title>
     <link rel="icon" href="https://pub.opencurelabs.ai/assets/favicon.ico" type="image/x-icon" />
+    <link rel="stylesheet" href="/assets/site.css" />
+    <script src="/assets/site-shell.js" defer></script>
     <style>
-        :root {
-            --bg: #0a0e1a; --surface: #111827; --border: #1f2937;
-            --accent: #22d3ee; --accent2: #818cf8; --text: #e2e8f0;
-            --muted: #64748b; --novel: #34d399; --tag-bg: #1e293b;
-            --warn: #f59e0b; --danger: #ef4444;
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+            padding: 2rem;
         }
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { background: var(--bg); color: var(--text); font-family: 'Inter', system-ui, sans-serif; min-height: 100vh; }
 
-        header { border-bottom: 1px solid var(--border); padding: 1rem 2rem; display: flex; align-items: center; gap: 1rem; position: sticky; top: 0; z-index: 100; background: var(--bg); }
-        header img { height: 32px; }
-        header h1 { font-size: 1.15rem; font-weight: 600; }
-        .nav-links { display: flex; gap: 1.25rem; margin-left: 2rem; align-items: center; }
-        .nav-links a { color: var(--muted); text-decoration: none; font-size: 0.88rem; font-weight: 500; transition: color 0.15s; white-space: nowrap; }
-        .nav-links a:hover, .nav-links a.active { color: var(--accent); }
-        .gh-badge { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.3rem 0.7rem; border-radius: 6px; border: 1px solid var(--border); background: var(--tag-bg); color: var(--text); font-size: 0.78rem; font-weight: 500; text-decoration: none; transition: all 0.15s; margin-left: auto; flex-shrink: 0; }
-        .gh-badge:hover { border-color: var(--accent); color: var(--accent); }
-        .gh-badge svg { width: 16px; height: 16px; fill: currentColor; }
-        .hamburger { display: none; background: none; border: none; color: var(--text); font-size: 1.5rem; cursor: pointer; padding: 0.25rem; margin-left: auto; }
-        @media (max-width: 768px) {
-            .nav-links { display: none; position: absolute; top: 100%; left: 0; right: 0; flex-direction: column; background: var(--surface); border-bottom: 1px solid var(--border); padding: 1rem 2rem; gap: 1rem; margin-left: 0; }
-            .nav-links.open { display: flex; }
-            .hamburger { display: block; }
-            .gh-badge { display: none; }
-            .nav-links .gh-badge-mobile { display: inline-flex; }
+        h3 {
+            font-size: 1.15rem;
+            margin: 2.5rem 0 1rem;
+            color: var(--accent);
         }
-        .gh-badge-mobile { display: none; align-items: center; gap: 0.4rem; padding: 0.3rem 0.7rem; border-radius: 6px; border: 1px solid var(--border); background: var(--tag-bg); color: var(--text); font-size: 0.78rem; font-weight: 500; text-decoration: none; width: fit-content; }
 
-        .hero { text-align: center; padding: 3rem 1rem 2rem; border-bottom: 1px solid var(--border); }
-        .hero h2 { font-size: 2rem; font-weight: 700; background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; }
-        .hero p { color: var(--muted); margin-top: 0.5rem; font-size: 0.95rem; max-width: 620px; margin-left: auto; margin-right: auto; line-height: 1.6; }
+        p.subtitle {
+            color: var(--muted);
+            margin-bottom: 2rem;
+            font-size: 0.95rem;
+        }
 
-        .container { max-width: 1100px; margin: 0 auto; padding: 2rem; }
-        h3 { font-size: 1.15rem; margin: 2.5rem 0 1rem; color: var(--accent); }
-        p.subtitle { color: var(--muted); margin-bottom: 2rem; font-size: 0.95rem; }
+        .why-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 1rem;
+            margin: 1rem 0 2rem;
+        }
 
-        .why-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 1rem; margin: 1rem 0 2rem; }
-        .why-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 1.25rem; }
-        .why-card .why-icon { font-size: 1.75rem; margin-bottom: 0.5rem; }
-        .why-card h4 { font-size: 0.95rem; font-weight: 600; margin-bottom: 0.4rem; }
-        .why-card p { color: var(--muted); font-size: 0.85rem; line-height: 1.5; margin: 0; }
+        .why-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 1.25rem;
+        }
 
-        .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 1rem; margin-bottom: 2rem; }
-        .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; text-align: center; }
-        .stat-card .value { font-size: 2rem; font-weight: 700; color: var(--accent); line-height: 1.2; }
-        .stat-card .value.warn { color: var(--warn); }
-        .stat-card .value.danger { color: var(--danger); }
-        .stat-card .value.success { color: var(--novel); }
-        .stat-card .value.accent2 { color: var(--accent2); }
-        .stat-card .label { font-size: 0.8rem; color: var(--muted); margin-top: 0.25rem; text-transform: uppercase; letter-spacing: 0.05em; }
+        .why-card .why-icon {
+            font-size: 1.75rem;
+            margin-bottom: 0.5rem;
+        }
 
-        .skill-table { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
-        .skill-table th, .skill-table td { padding: 0.75rem 1rem; text-align: left; border-bottom: 1px solid var(--border); font-size: 0.9rem; }
-        .skill-table th { background: var(--tag-bg); color: var(--muted); font-weight: 600; text-transform: uppercase; font-size: 0.75rem; letter-spacing: 0.05em; }
-        .skill-table td:not(:first-child) { text-align: right; font-variant-numeric: tabular-nums; }
-        .skill-table th:not(:first-child) { text-align: right; }
-        .skill-table tr:last-child td { border-bottom: none; }
-        .bar-cell { position: relative; }
-        .bar-bg { position: absolute; left: 0; top: 0; bottom: 0; background: rgba(34, 211, 238, 0.08); border-radius: 4px; }
+        .why-card h4 {
+            font-size: 0.95rem;
+            font-weight: 600;
+            margin-bottom: 0.4rem;
+        }
 
-        .rank { color: var(--accent); font-weight: 600; }
-        .rank-gold { color: #fbbf24; }
-        .rank-silver { color: #94a3b8; }
-        .rank-bronze { color: #d97706; }
+        .why-card p {
+            color: var(--muted);
+            font-size: 0.85rem;
+            line-height: 1.5;
+            margin: 0;
+        }
 
-        .chain-list { display: flex; flex-direction: column; gap: 1rem; }
-        .chain-card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.25rem; }
-        .chain-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; }
-        .chain-id { font-family: monospace; font-size: 0.8rem; color: var(--muted); }
-        .chain-progress { font-size: 0.85rem; color: var(--accent); font-weight: 600; }
-        .pipeline-steps { display: flex; align-items: center; gap: 0; overflow-x: auto; padding: 0.5rem 0; }
-        .pipeline-step { display: flex; flex-direction: column; align-items: center; min-width: 120px; padding: 0.5rem; }
-        .step-dot { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 0.75rem; font-weight: 700; margin-bottom: 0.4rem; }
-        .step-dot.completed { background: rgba(16,185,129,0.2); color: #10b981; border: 2px solid #10b981; }
-        .step-dot.claimed { background: rgba(251,191,36,0.2); color: #fbbf24; border: 2px solid #fbbf24; }
-        .step-dot.available { background: rgba(34,211,238,0.15); color: var(--accent); border: 2px solid var(--accent); }
-        .step-dot.failed { background: rgba(239,68,68,0.2); color: #ef4444; border: 2px solid #ef4444; }
-        .step-skill { font-size: 0.75rem; color: var(--text); text-align: center; max-width: 120px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-        .step-status { font-size: 0.65rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; }
-        .pipeline-arrow { color: var(--muted); font-size: 1.2rem; margin: 0 0.25rem; flex-shrink: 0; }
-        .no-chains { color: var(--muted); font-style: italic; text-align: center; padding: 2rem; }
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 1rem;
+            margin-bottom: 2rem;
+        }
 
-        .mode-tabs { display: flex; gap: 0; margin: 1rem 0 0; border-bottom: 2px solid var(--border); }
-        .mode-tab { padding: 0.75rem 1.5rem; cursor: pointer; color: var(--muted); font-size: 0.9rem; font-weight: 500; border-bottom: 2px solid transparent; margin-bottom: -2px; transition: all 0.15s; background: none; border-top: none; border-left: none; border-right: none; }
-        .mode-tab:hover { color: var(--text); }
-        .mode-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
-        .mode-content { display: none; padding: 1.5rem 0; }
-        .mode-content.active { display: block; }
+        .stat-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.25rem;
+            text-align: center;
+        }
 
-        .card { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 1.5rem; margin-bottom: 1rem; }
-        .card h4 { color: var(--accent2); margin-bottom: 0.5rem; }
-        pre { background: var(--tag-bg); border: 1px solid var(--border); border-radius: 8px; padding: 1rem; overflow-x: auto; font-size: 0.85rem; line-height: 1.6; color: var(--text); }
-        code { color: var(--accent); font-family: 'JetBrains Mono', 'Fira Code', monospace; background: var(--tag-bg); padding: 0.15rem 0.4rem; border-radius: 4px; font-size: 0.82rem; }
-        pre code { background: none; padding: 0; }
-        .loading { color: var(--muted); font-style: italic; }
+        .stat-card .value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--accent);
+            line-height: 1.2;
+        }
 
-        footer { text-align: center; padding: 2rem; color: var(--muted); font-size: 0.8rem; border-top: 1px solid var(--border); margin-top: 3rem; }
-        footer .footer-inner { max-width: 900px; margin: 0 auto; display: flex; flex-direction: column; gap: 0.75rem; align-items: center; }
-        footer .footer-links { display: flex; gap: 1.25rem; flex-wrap: wrap; justify-content: center; }
-        footer .footer-links a { color: var(--muted); text-decoration: none; font-size: 0.82rem; transition: color 0.15s; }
-        footer .footer-links a:hover { color: var(--accent); }
-        footer .footer-disclaimer { font-size: 0.75rem; max-width: 600px; line-height: 1.5; color: var(--muted); }
+        .stat-card .value.warn {
+            color: var(--warn);
+        }
+
+        .stat-card .value.danger {
+            color: var(--danger);
+        }
+
+        .stat-card .value.success {
+            color: var(--novel);
+        }
+
+        .stat-card .value.accent2 {
+            color: var(--accent2);
+        }
+
+        .stat-card .label {
+            font-size: 0.8rem;
+            color: var(--muted);
+            margin-top: 0.25rem;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .skill-table {
+            width: 100%;
+            border-collapse: collapse;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+
+        .skill-table th,
+        .skill-table td {
+            padding: 0.75rem 1rem;
+            text-align: left;
+            border-bottom: 1px solid var(--border);
+            font-size: 0.9rem;
+        }
+
+        .skill-table th {
+            background: var(--tag-bg);
+            color: var(--muted);
+            font-weight: 600;
+            text-transform: uppercase;
+            font-size: 0.75rem;
+            letter-spacing: 0.05em;
+        }
+
+        .skill-table td:not(:first-child) {
+            text-align: right;
+            font-variant-numeric: tabular-nums;
+        }
+
+        .skill-table th:not(:first-child) {
+            text-align: right;
+        }
+
+        .skill-table tr:last-child td {
+            border-bottom: none;
+        }
+
+        .bar-cell {
+            position: relative;
+        }
+
+        .bar-bg {
+            position: absolute;
+            left: 0;
+            top: 0;
+            bottom: 0;
+            background: rgba(34, 211, 238, 0.08);
+            border-radius: 4px;
+        }
+
+        .rank {
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        .rank-gold {
+            color: #fbbf24;
+        }
+
+        .rank-silver {
+            color: #94a3b8;
+        }
+
+        .rank-bronze {
+            color: #d97706;
+        }
+
+        .chain-list {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+        }
+
+        .chain-card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.25rem;
+        }
+
+        .chain-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.75rem;
+        }
+
+        .chain-id {
+            font-family: monospace;
+            font-size: 0.8rem;
+            color: var(--muted);
+        }
+
+        .chain-progress {
+            font-size: 0.85rem;
+            color: var(--accent);
+            font-weight: 600;
+        }
+
+        .pipeline-steps {
+            display: flex;
+            align-items: center;
+            gap: 0;
+            overflow-x: auto;
+            padding: 0.5rem 0;
+        }
+
+        .pipeline-step {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            min-width: 120px;
+            padding: 0.5rem;
+        }
+
+        .step-dot {
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 0.75rem;
+            font-weight: 700;
+            margin-bottom: 0.4rem;
+        }
+
+        .step-dot.completed {
+            background: rgba(16, 185, 129, 0.2);
+            color: #10b981;
+            border: 2px solid #10b981;
+        }
+
+        .step-dot.claimed {
+            background: rgba(251, 191, 36, 0.2);
+            color: #fbbf24;
+            border: 2px solid #fbbf24;
+        }
+
+        .step-dot.available {
+            background: rgba(34, 211, 238, 0.15);
+            color: var(--accent);
+            border: 2px solid var(--accent);
+        }
+
+        .step-dot.failed {
+            background: rgba(239, 68, 68, 0.2);
+            color: #ef4444;
+            border: 2px solid #ef4444;
+        }
+
+        .step-skill {
+            font-size: 0.75rem;
+            color: var(--text);
+            text-align: center;
+            max-width: 120px;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            white-space: nowrap;
+        }
+
+        .step-status {
+            font-size: 0.65rem;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+        }
+
+        .pipeline-arrow {
+            color: var(--muted);
+            font-size: 1.2rem;
+            margin: 0 0.25rem;
+            flex-shrink: 0;
+        }
+
+        .no-chains {
+            color: var(--muted);
+            font-style: italic;
+            text-align: center;
+            padding: 2rem;
+        }
+
+        .mode-tabs {
+            display: flex;
+            gap: 0;
+            margin: 1rem 0 0;
+            border-bottom: 2px solid var(--border);
+        }
+
+        .mode-tab {
+            padding: 0.75rem 1.5rem;
+            cursor: pointer;
+            color: var(--muted);
+            font-size: 0.9rem;
+            font-weight: 500;
+            border-bottom: 2px solid transparent;
+            margin-bottom: -2px;
+            transition: all 0.15s;
+            background: none;
+            border-top: none;
+            border-left: none;
+            border-right: none;
+        }
+
+        .mode-tab:hover {
+            color: var(--text);
+        }
+
+        .mode-tab.active {
+            color: var(--accent);
+            border-bottom-color: var(--accent);
+        }
+
+        .mode-content {
+            display: none;
+            padding: 1.5rem 0;
+        }
+
+        .mode-content.active {
+            display: block;
+        }
+
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1rem;
+        }
+
+        .card h4 {
+            color: var(--accent2);
+            margin-bottom: 0.5rem;
+        }
+
+        pre {
+            background: var(--tag-bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 1rem;
+            overflow-x: auto;
+            font-size: 0.85rem;
+            line-height: 1.6;
+            color: var(--text);
+        }
+
+        code {
+            color: var(--accent);
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            background: var(--tag-bg);
+            padding: 0.15rem 0.4rem;
+            border-radius: 4px;
+            font-size: 0.82rem;
+        }
+
+        pre code {
+            background: none;
+            padding: 0;
+        }
+
+        .loading {
+            color: var(--muted);
+            font-style: italic;
+        }
     </style>
 </head>
 
-<body>
-
-    <header>
-        <a href="/" style="display:flex;align-items:center;gap:.75rem;text-decoration:none;color:inherit">
-            <img src="https://pub.opencurelabs.ai/assets/logo-symbol.svg" alt="OpenCure Labs" />
-            <h1>OpenCure Labs</h1>
-        </a>
-        <nav class="nav-links" id="nav-links">
-            <a href="/">Feed</a>
-            <a href="/data">Data</a>
-            <a href="/contribute" class="active">Contribute</a>
-            <a href="/about">About</a>
-            <a class="gh-badge-mobile" href="https://github.com/OpenCureLabs/OpenCureLabs" target="_blank" rel="noopener">
-                <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
-                GitHub
-            </a>
-        </nav>
-        <a class="gh-badge" href="https://github.com/OpenCureLabs/OpenCureLabs" target="_blank" rel="noopener" title="Star us on GitHub">
-            <svg viewBox="0 0 16 16"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/></svg>
-            GitHub
-        </a>
-        <button class="hamburger" onclick="document.getElementById('nav-links').classList.toggle('open')" aria-label="Toggle menu">☰</button>
-    </header>
+<body data-page="contribute">
 
     <div class="hero">
         <h2>Contribute to OpenCure Labs</h2>
-        <p>Donate spare GPU cycles to run computational biology research tasks. Every completed task advances open cancer, rare-disease, and drug-discovery research.</p>
+        <p>Donate spare GPU cycles to run computational biology research tasks. Every completed task advances open
+            cancer, rare-disease, and drug-discovery research.</p>
     </div>
 
     <div class="container">
@@ -149,17 +390,20 @@
             <div class="why-card">
                 <div class="why-icon">🧬</div>
                 <h4>25,000+ Published Artifacts</h4>
-                <p>Your GPU time generates signed, peer-reviewable computational biology results shared openly with the research community.</p>
+                <p>Your GPU time generates signed, peer-reviewable computational biology results shared openly with the
+                    research community.</p>
             </div>
             <div class="why-card">
                 <div class="why-icon">🔬</div>
                 <h4>Two-Tier Grok Review</h4>
-                <p>Every result passes independent scientific critique — automated validation plus Grok-powered methodology review — before publication.</p>
+                <p>Every result passes independent scientific critique — automated validation plus Grok-powered
+                    methodology review — before publication.</p>
             </div>
             <div class="why-card">
                 <div class="why-icon">🔐</div>
                 <h4>Ed25519 Signed Results</h4>
-                <p>All artifacts carry cryptographic integrity signatures with full provenance metadata for auditable, verifiable science.</p>
+                <p>All artifacts carry cryptographic integrity signatures with full provenance metadata for auditable,
+                    verifiable science.</p>
             </div>
         </div>
 
@@ -243,48 +487,83 @@ python -m agentiq_labclaw.compute.batch_dispatcher \
         <!-- ── Live Task Queue Stats ──────────────────────────────── -->
         <h3>Task Queue — Live Stats</h3>
         <div class="stats-grid" id="stats-grid">
-            <div class="stat-card"><div class="value loading" id="stat-available">—</div><div class="label">Available</div></div>
-            <div class="stat-card"><div class="value warn loading" id="stat-claimed">—</div><div class="label">In Progress</div></div>
-            <div class="stat-card"><div class="value success loading" id="stat-completed">—</div><div class="label">Completed</div></div>
-            <div class="stat-card"><div class="value danger loading" id="stat-failed">—</div><div class="label">Failed</div></div>
-            <div class="stat-card"><div class="value loading" id="stat-total">—</div><div class="label">Total Tasks</div></div>
-            <div class="stat-card"><div class="value accent2 loading" id="stat-derived">—</div><div class="label">Derived from Results</div></div>
-            <div class="stat-card"><div class="value accent2 loading" id="stat-discovery">—</div><div class="label">From Discoveries</div></div>
+            <div class="stat-card">
+                <div class="value loading" id="stat-available">—</div>
+                <div class="label">Available</div>
+            </div>
+            <div class="stat-card">
+                <div class="value warn loading" id="stat-claimed">—</div>
+                <div class="label">In Progress</div>
+            </div>
+            <div class="stat-card">
+                <div class="value success loading" id="stat-completed">—</div>
+                <div class="label">Completed</div>
+            </div>
+            <div class="stat-card">
+                <div class="value danger loading" id="stat-failed">—</div>
+                <div class="label">Failed</div>
+            </div>
+            <div class="stat-card">
+                <div class="value loading" id="stat-total">—</div>
+                <div class="label">Total Tasks</div>
+            </div>
+            <div class="stat-card">
+                <div class="value accent2 loading" id="stat-derived">—</div>
+                <div class="label">Derived from Results</div>
+            </div>
+            <div class="stat-card">
+                <div class="value accent2 loading" id="stat-discovery">—</div>
+                <div class="label">From Discoveries</div>
+            </div>
         </div>
 
         <h3>Tasks by Skill</h3>
         <table class="skill-table" id="skill-table">
-            <thead><tr><th>Skill</th><th>Available</th><th>In Progress</th><th>Completed</th><th>Failed</th></tr></thead>
-            <tbody id="skill-tbody"><tr><td colspan="5" class="loading">Loading task breakdown…</td></tr></tbody>
+            <thead>
+                <tr>
+                    <th>Skill</th>
+                    <th>Available</th>
+                    <th>In Progress</th>
+                    <th>Completed</th>
+                    <th>Failed</th>
+                </tr>
+            </thead>
+            <tbody id="skill-tbody">
+                <tr>
+                    <td colspan="5" class="loading">Loading task breakdown…</td>
+                </tr>
+            </tbody>
         </table>
 
         <!-- ── Pipeline Chains ─────────────────────────────────────── -->
         <h3>Active Pipeline Chains</h3>
-        <p style="color:var(--muted);font-size:0.9rem;margin-bottom:1rem;">When a result exceeds confidence thresholds, follow-up tasks are auto-spawned in a chain (e.g. neoantigen → structure → docking → QSAR).</p>
-        <div class="chain-list" id="chain-list"><div class="no-chains">Loading pipeline chains…</div></div>
+        <p style="color:var(--muted);font-size:0.9rem;margin-bottom:1rem;">When a result exceeds confidence thresholds,
+            follow-up tasks are auto-spawned in a chain (e.g. neoantigen → structure → docking → QSAR).</p>
+        <div class="chain-list" id="chain-list">
+            <div class="no-chains">Loading pipeline chains…</div>
+        </div>
 
         <!-- ── Leaderboard ────────────────────────────────────────── -->
         <h3>Contributor Leaderboard</h3>
         <table class="skill-table" id="leaderboard-table">
-            <thead><tr><th>#</th><th>Contributor</th><th>Results Published</th><th>Tasks Completed</th><th>Skills</th><th>Latest</th></tr></thead>
-            <tbody id="leaderboard-tbody"><tr><td colspan="6" class="loading">Loading leaderboard…</td></tr></tbody>
+            <thead>
+                <tr>
+                    <th>#</th>
+                    <th>Contributor</th>
+                    <th>Results Published</th>
+                    <th>Tasks Completed</th>
+                    <th>Skills</th>
+                    <th>Latest</th>
+                </tr>
+            </thead>
+            <tbody id="leaderboard-tbody">
+                <tr>
+                    <td colspan="6" class="loading">Loading leaderboard…</td>
+                </tr>
+            </tbody>
         </table>
 
     </div>
-
-    <footer>
-        <div class="footer-inner">
-            <div class="footer-links">
-                <a href="https://github.com/OpenCureLabs/OpenCureLabs" target="_blank" rel="noopener">GitHub</a>
-                <a href="https://x.com/shoneanstey" target="_blank" rel="noopener">𝕏 @shoneanstey</a>
-                <a href="/data">Data API</a>
-                <a href="/about">About</a>
-                <a href="/">Feed</a>
-            </div>
-            <div class="footer-disclaimer">All artifacts are AI-generated and should be independently validated.</div>
-            <div style="font-size:0.72rem;color:var(--muted)">© 2026 OpenCure Labs · Open source under MIT License</div>
-        </div>
-    </footer>
 
     <script>
         const API = "https://ingest.opencurelabs.ai";
@@ -392,4 +671,5 @@ python -m agentiq_labclaw.compute.batch_dispatcher \
         setInterval(loadChains, 60000);
     </script>
 </body>
+
 </html>

@@ -6,154 +6,10 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>OpenCure Labs — Open Research Artifacts</title>
     <link rel="icon" href="https://pub.opencurelabs.ai/assets/favicon.ico" type="image/x-icon" />
+    <link rel="stylesheet" href="/assets/site.css" />
+    <script src="/assets/site-shell.js" defer></script>
     <style>
-        :root {
-            --bg: #0a0e1a;
-            --surface: #111827;
-            --border: #1f2937;
-            --accent: #22d3ee;
-            --accent2: #818cf8;
-            --text: #e2e8f0;
-            --muted: #64748b;
-            --novel: #34d399;
-            --tag-bg: #1e293b;
-        }
-
-        * {
-            box-sizing: border-box;
-            margin: 0;
-            padding: 0;
-        }
-
-        body {
-            background: var(--bg);
-            color: var(--text);
-            font-family: 'Inter', system-ui, sans-serif;
-            min-height: 100vh;
-        }
-
-        /* ── Header / Nav ─────────────────────────────────────── */
-        header {
-            border-bottom: 1px solid var(--border);
-            padding: 1rem 2rem;
-            display: flex;
-            align-items: center;
-            gap: 1rem;
-            position: sticky;
-            top: 0;
-            z-index: 100;
-            background: var(--bg);
-        }
-
-        header img {
-            height: 32px;
-        }
-
-        header h1 {
-            font-size: 1.15rem;
-            font-weight: 600;
-            color: var(--text);
-        }
-
-        .nav-links {
-            display: flex;
-            gap: 1.25rem;
-            margin-left: 2rem;
-            align-items: center;
-        }
-
-        .nav-links a {
-            color: var(--muted);
-            text-decoration: none;
-            font-size: 0.88rem;
-            font-weight: 500;
-            transition: color 0.15s;
-            white-space: nowrap;
-        }
-
-        .nav-links a:hover,
-        .nav-links a.active {
-            color: var(--accent);
-        }
-
-        .gh-badge {
-            display: inline-flex;
-            align-items: center;
-            gap: 0.4rem;
-            padding: 0.3rem 0.7rem;
-            border-radius: 6px;
-            border: 1px solid var(--border);
-            background: var(--tag-bg);
-            color: var(--text);
-            font-size: 0.78rem;
-            font-weight: 500;
-            text-decoration: none;
-            transition: all 0.15s;
-            margin-left: auto;
-            flex-shrink: 0;
-        }
-
-        .gh-badge:hover {
-            border-color: var(--accent);
-            color: var(--accent);
-        }
-
-        .gh-badge svg {
-            width: 16px;
-            height: 16px;
-            fill: currentColor;
-        }
-
-        .header-updated {
-            color: var(--muted);
-            font-size: 0.75rem;
-            white-space: nowrap;
-            flex-shrink: 0;
-        }
-
-        .hamburger {
-            display: none;
-            background: none;
-            border: none;
-            color: var(--text);
-            font-size: 1.5rem;
-            cursor: pointer;
-            padding: 0.25rem;
-            margin-left: auto;
-        }
-
         @media (max-width: 768px) {
-            .nav-links {
-                display: none;
-                position: absolute;
-                top: 100%;
-                left: 0;
-                right: 0;
-                flex-direction: column;
-                background: var(--surface);
-                border-bottom: 1px solid var(--border);
-                padding: 1rem 2rem;
-                gap: 1rem;
-                margin-left: 0;
-            }
-
-            .nav-links.open {
-                display: flex;
-            }
-
-            .hamburger {
-                display: block;
-            }
-
-            .gh-badge,
-            .header-updated {
-                display: none;
-            }
-
-            .nav-links .gh-badge-mobile {
-                display: inline-flex;
-            }
-
             .hero h2 {
                 font-size: 1.5rem;
             }
@@ -171,21 +27,6 @@
             .filters {
                 padding: 0.75rem 1rem;
             }
-        }
-
-        .gh-badge-mobile {
-            display: none;
-            align-items: center;
-            gap: 0.4rem;
-            padding: 0.3rem 0.7rem;
-            border-radius: 6px;
-            border: 1px solid var(--border);
-            background: var(--tag-bg);
-            color: var(--text);
-            font-size: 0.78rem;
-            font-weight: 500;
-            text-decoration: none;
-            width: fit-content;
         }
 
         /* ── Hero ─────────────────────────────────────────────── */
@@ -831,85 +672,10 @@
             margin-top: 1.25rem;
             margin-bottom: 0.35rem;
         }
-
-        /* ── Footer ───────────────────────────────────────────── */
-        footer {
-            text-align: center;
-            padding: 2rem;
-            color: var(--muted);
-            font-size: 0.8rem;
-            border-top: 1px solid var(--border);
-        }
-
-        footer .footer-inner {
-            max-width: 900px;
-            margin: 0 auto;
-            display: flex;
-            flex-direction: column;
-            gap: 0.75rem;
-            align-items: center;
-        }
-
-        footer .footer-links {
-            display: flex;
-            gap: 1.25rem;
-            flex-wrap: wrap;
-            justify-content: center;
-        }
-
-        footer .footer-links a {
-            color: var(--muted);
-            text-decoration: none;
-            font-size: 0.82rem;
-            transition: color 0.15s;
-        }
-
-        footer .footer-links a:hover {
-            color: var(--accent);
-        }
-
-        footer .footer-disclaimer {
-            font-size: 0.75rem;
-            max-width: 600px;
-            line-height: 1.5;
-            color: var(--muted);
-        }
     </style>
 </head>
 
-<body>
-
-    <header>
-        <a href="/" style="display:flex;align-items:center;gap:.75rem;text-decoration:none;color:inherit">
-            <img src="https://pub.opencurelabs.ai/assets/logo-symbol.svg" alt="OpenCure Labs" />
-            <h1>OpenCure Labs</h1>
-        </a>
-        <nav class="nav-links" id="nav-links">
-            <a href="/" class="active">Feed</a>
-            <a href="/data">Data</a>
-            <a href="/contribute">Contribute</a>
-            <a href="/about">About</a>
-            <a class="gh-badge-mobile" href="https://github.com/OpenCureLabs/OpenCureLabs" target="_blank"
-                rel="noopener">
-                <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor">
-                    <path
-                        d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
-                </svg>
-                GitHub
-            </a>
-        </nav>
-        <a class="gh-badge" href="https://github.com/OpenCureLabs/OpenCureLabs" target="_blank" rel="noopener"
-            title="Star us on GitHub">
-            <svg viewBox="0 0 16 16">
-                <path
-                    d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z" />
-            </svg>
-            GitHub
-        </a>
-        <span class="header-updated" id="last-updated">Fetching latest results…</span>
-        <button class="hamburger" onclick="document.getElementById('nav-links').classList.toggle('open')"
-            aria-label="Toggle menu">☰</button>
-    </header>
+<body data-page="feed">
 
     <div class="hero">
         <h2>Public Research Artifacts</h2>
@@ -1006,25 +772,6 @@
             <div class="modal-actions" id="modal-actions"></div>
         </div>
     </div>
-
-    <footer>
-        <div class="footer-inner">
-            <div class="footer-links">
-                <a href="https://github.com/OpenCureLabs/OpenCureLabs" target="_blank" rel="noopener">GitHub</a>
-                <a href="https://x.com/shoneanstey" target="_blank" rel="noopener">𝕏 @shoneanstey</a>
-                <a href="/data">Data API</a>
-                <a href="/contribute">Contribute</a>
-                <a href="/about">About</a>
-            </div>
-            <div class="footer-disclaimer">
-                All artifacts are AI-generated and should be independently validated.
-                Each includes Ed25519 signatures and provenance metadata for inspection.
-            </div>
-            <div style="font-size:0.72rem;color:var(--muted)">
-                © 2026 OpenCure Labs · Open source under MIT License · Made with 🔬 in Vancouver 🇨🇦
-            </div>
-        </div>
-    </footer>
 
     <script>
         const INGEST_URL = 'https://ingest.opencurelabs.ai';
@@ -1299,7 +1046,8 @@
                 const hasActiveFilter = activeSkill !== 'all' || activeSpecies !== 'all' || activeStatFilter !== 'all' || (searchQuery && searchQuery.length >= 2);
                 if (hasActiveFilter) { await applyFilters(); }
                 else { currentResults = allResults; renderFeed(currentResults); updateLoadMoreButton(); }
-                document.getElementById('last-updated').textContent = 'Updated ' + new Date().toLocaleTimeString();
+                const lastUpdated = document.getElementById('last-updated');
+                if (lastUpdated) lastUpdated.textContent = 'Updated ' + new Date().toLocaleTimeString();
             } catch { document.getElementById('feed').innerHTML = '<div class="loading">Could not load results — please try again shortly.</div>'; }
         }
 

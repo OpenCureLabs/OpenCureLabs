@@ -135,6 +135,9 @@ python -m agentiq_labclaw.compute.batch_dispatcher --drain-queue --local-workers
 python -m agentiq_labclaw.compute.batch_dispatcher --drain-queue --pool-size 5
 ```
 
+For low-power Jetson/Raspberry Pi worker pools that use the local-worker drain
+path over a shared control-plane queue, see [EDGE-WORKERS.md](EDGE-WORKERS.md).
+
 #### Burst Mode (Continuous)
 
 With `--burst-threshold`, continuous mode starts with local workers only and

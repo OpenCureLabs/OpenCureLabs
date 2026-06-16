@@ -669,6 +669,13 @@ variable:
 - `LABCLAW_COMPUTE=vast_ai` — provisions a Vast.ai GPU instance, runs the job
   remotely via SSH, streams results back, and terminates the instance
 
+Low-power edge deployments use the same local execution path from the worker's
+point of view: a Jetson worker connects to the shared queue, sets
+`LABCLAW_COMPUTE=local`, and runs one local worker thread on the Jetson. The
+control plane remains on a Raspberry Pi blade, mini PC, or server. See
+[EDGE-WORKERS.md](EDGE-WORKERS.md) for the planned Jetson/Raspberry Pi worker
+pool architecture and capability model.
+
 The `opencure burst on/off/status` CLI command toggles compute mode and manages
 Vast.ai instances.
 

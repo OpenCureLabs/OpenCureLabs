@@ -49,6 +49,19 @@ The batch dispatcher will:
 4. Report completions back to the central queue
 5. Tear down the instance when done (or on Ctrl+C)
 
+### Low-Power Edge Workers
+
+The same queue-first model can be used for a local low-power worker pool. A
+Raspberry Pi compute blade or small server can run the control plane
+(PostgreSQL, scheduler, dashboard, logs), while Jetson Orin Nano/NX/AGX boards
+run one bounded worker each. This is best for steady 24x7 work: variant lookup,
+source triage, embeddings, reviewer drafts, small QSAR jobs, and other
+CPU/light-GPU tasks.
+
+Keep RTX/Vast.ai available for large docking sweeps, heavyweight structure
+prediction, model training, and large LLM inference. See
+[EDGE-WORKERS.md](EDGE-WORKERS.md) for the Jetson/Raspberry Pi deployment plan.
+
 ---
 
 ## Task Types
